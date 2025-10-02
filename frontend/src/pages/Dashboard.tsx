@@ -1,0 +1,313 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../stores/authStore'
+import api from '../lib/api'
+import ProfileDropdown from '../components/ProfileDropdown'
+import {
+  ListChecks,
+  TrendingUp,
+  CheckCircle2,
+  Clock,
+  FileText,
+  BarChart3,
+  Calendar,
+  MessageSquare,
+  FolderOpen,
+  Coins,
+  FileEdit,
+  Smartphone,
+  Palette,
+  Code,
+  ArrowDown,
+  ArrowUp,
+  Video,
+  Target
+} from 'lucide-react'
+
+interface AppData {
+  appId: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  order: number
+  beta: boolean
+  comingSoon: boolean
+}
+
+const iconMap: Record<string, any> = {
+  'file-text': FileText,
+  'bar-chart-3': BarChart3,
+  calendar: Calendar,
+  'message-square': MessageSquare,
+  'folder-open': FolderOpen,
+  video: Video,
+}
+
+export default function Dashboard() {
+  const { user, isAuthenticated, logout } = useAuthStore()
+  const navigate = useNavigate()
+  const [creditBalance, setCreditBalance] = useState(user?.creditBalance || 2450)
+  const [apps, setApps] = useState<AppData[]>([])
+  const [loadingApps, setLoadingApps] = useState(true)
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    // Fetch credit balance
+    api
+      .get('/api/credits/balance')
+      .then((res) => setCreditBalance(res.data.balance))
+      .catch((err) => console.error('Failed to fetch balance:', err))
+
+    // Fetch apps
+    api
+      .get('/api/apps')
+      .then((res) => {
+        setApps(res.data.apps || [])
+        setLoadingApps(false)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch apps:', err)
+        setLoadingApps(false)
+      })
+  }, [isAuthenticated, navigate])
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
+
+  const stats = [
+    { icon: ListChecks, value: '24', label: 'Active Projects', color: 'bg-slate-50 text-slate-700' },
+    { icon: TrendingUp, value: '156', label: 'Total Tasks', color: 'bg-blue-50 text-blue-700' },
+    { icon: CheckCircle2, value: '89%', label: 'Completion Rate', color: 'bg-green-50 text-green-700' },
+    { icon: Clock, value: '142h', label: 'Total Hours', color: 'bg-orange-50 text-orange-700' },
+  ]
+
+  const handleAppClick = (appId: string) => {
+    navigate(`/apps/${appId}`)
+  }
+
+  const recentWork = [
+    { icon: FileEdit, title: 'Website Redesign Project', time: 'Updated 2 hours ago', status: 'progress', days: '4 days left' },
+    { icon: Smartphone, title: 'Mobile App Development', time: 'Updated 5 hours ago', status: 'progress', days: '7 days left' },
+    { icon: Palette, title: 'Brand Identity Design', time: 'Updated yesterday', status: 'completed', days: 'Completed' },
+    { icon: Code, title: 'API Integration Task', time: 'Created 3 days ago', status: 'pending', days: 'Not started' },
+  ]
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 mb-1.5 tracking-tighter">
+                Central Hub Dashboard
+              </h1>
+              <p className="text-slate-600 text-sm md:text-[0.9375rem]">
+                Selamat datang kembali! Kelola semua tools dan aplikasi Anda di satu tempat
+              </p>
+            </div>
+            <div className="flex items-center gap-4 md:gap-6">
+              <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
+                <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
+                <span className="font-medium text-slate-900">{creditBalance.toLocaleString()} Credits</span>
+              </div>
+              <ProfileDropdown />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-[1400px] mx-auto px-6 md:px-10 py-8 md:py-12">
+        {/* Quick Stats */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10 md:mb-14">
+          {stats.map((stat, i) => {
+            const Icon = stat.icon
+            return (
+              <div key={i} className="bg-white p-5 md:p-7 rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-soft transition-all">
+                <div className="flex items-center justify-between mb-5">
+                  <div className={`w-11 h-11 rounded-xl ${stat.color} flex items-center justify-center`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="text-3xl md:text-[2rem] font-semibold text-slate-900 mb-1 tracking-tighter">{stat.value}</div>
+                <div className="text-sm text-slate-600">{stat.label}</div>
+              </div>
+            )
+          })}
+        </section>
+
+        {/* Apps & Tools */}
+        <section className="mb-10 md:mb-14">
+          <div className="flex items-center justify-between mb-7">
+            <h2 className="text-xl md:text-[1.375rem] font-semibold text-slate-900 tracking-tighter">Apps & Tools</h2>
+            <button className="px-5 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all">
+              View All
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+            {loadingApps ? (
+              <div className="col-span-full text-center py-12 text-slate-600">
+                Loading apps...
+              </div>
+            ) : apps.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-slate-600">
+                No apps available yet
+              </div>
+            ) : (
+              apps.map((app) => {
+                const Icon = iconMap[app.icon] || Target
+                const colorClasses = {
+                  blue: 'bg-blue-50 text-blue-700',
+                  green: 'bg-green-50 text-green-700',
+                  purple: 'bg-purple-50 text-purple-700',
+                  orange: 'bg-orange-50 text-orange-700',
+                  red: 'bg-red-50 text-red-700',
+                }[app.color] || 'bg-slate-50 text-slate-700'
+
+                return (
+                  <div
+                    key={app.appId}
+                    onClick={() => !app.comingSoon && handleAppClick(app.appId)}
+                    className={`bg-white p-6 md:p-8 rounded-xl border border-slate-200 hover:border-slate-700 hover:shadow-soft-md transition-all ${
+                      app.comingSoon ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                    } text-center relative`}
+                  >
+                    {app.beta && (
+                      <span className="absolute top-3 right-3 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">
+                        Beta
+                      </span>
+                    )}
+                    {app.comingSoon && (
+                      <span className="absolute top-3 right-3 px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                        Coming Soon
+                      </span>
+                    )}
+                    <div className={`w-16 h-16 mx-auto mb-5 rounded-xl ${colorClasses} flex items-center justify-center`}>
+                      <Icon className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-base md:text-lg font-semibold text-slate-900 mb-2">{app.name}</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed hidden md:block">{app.description}</p>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </section>
+
+        {/* Recent Work */}
+        <section className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 mb-10 md:mb-14">
+          <div className="flex items-center justify-between mb-7">
+            <h2 className="text-xl md:text-[1.375rem] font-semibold text-slate-900 tracking-tighter">Recent Work</h2>
+            <button className="px-5 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all">
+              View All
+            </button>
+          </div>
+          <div className="space-y-3">
+            {recentWork.map((work, i) => {
+              const Icon = work.icon
+              return (
+                <div key={i} className="flex items-center gap-4 md:gap-5 p-4 md:p-5 bg-slate-50 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-6 h-6 md:w-7 md:h-7 text-slate-700" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm md:text-[0.9375rem] font-medium text-slate-900 mb-1">{work.title}</h4>
+                    <p className="text-xs md:text-[0.8125rem] text-slate-600">{work.time}</p>
+                  </div>
+                  <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-5">
+                    <span className="text-xs md:text-[0.8125rem] text-slate-500 hidden md:inline">{work.days}</span>
+                    <span className={`px-3.5 py-1.5 rounded-md text-xs font-medium ${
+                      work.status === 'completed' ? 'bg-green-50 text-green-700' :
+                      work.status === 'progress' ? 'bg-blue-50 text-blue-700' :
+                      'bg-orange-50 text-orange-700'
+                    }`}>
+                      {work.status === 'completed' ? 'Completed' : work.status === 'progress' ? 'In Progress' : 'Pending'}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Billing */}
+        <section className="bg-white p-6 md:p-8 rounded-xl border border-slate-200">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl md:text-[1.375rem] font-semibold text-slate-900 tracking-tighter">Billing & Payments</h2>
+            <button className="px-5 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all">
+              Manage
+            </button>
+          </div>
+
+          {/* Card */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-6 md:p-8 rounded-xl mb-8 md:mb-10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -mr-48 -mt-48"></div>
+            <div className="relative">
+              <div className="w-12 h-9 bg-gradient-to-br from-slate-400 to-slate-500 rounded-md mb-6 md:mb-8"></div>
+              <div className="text-lg md:text-[1.125rem] tracking-[0.125em] mb-6 md:mb-7 font-medium">•••• •••• •••• 4532</div>
+              <div className="flex justify-between items-end">
+                <div>
+                  <div className="text-xs opacity-70 mb-1 uppercase tracking-wide">Card Holder</div>
+                  <div className="text-sm md:text-[0.9375rem] font-medium">{user?.name || 'John Doe'}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs opacity-70 mb-1 uppercase tracking-wide">Expires</div>
+                  <div className="text-sm md:text-[0.9375rem] font-medium">12/25</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Transactions */}
+          <h3 className="text-lg md:text-[1.25rem] font-semibold text-slate-900 mb-6 tracking-tighter">Recent Transactions</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 md:p-[1.125rem] bg-slate-50 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                  <ArrowDown className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-slate-900 mb-0.5">Credit Purchase</h4>
+                  <p className="text-xs md:text-[0.8125rem] text-slate-600">Jan 15, 2024</p>
+                </div>
+              </div>
+              <div className="text-sm md:text-[0.9375rem] font-semibold text-green-600">+500 Credits</div>
+            </div>
+            <div className="flex items-center justify-between p-4 md:p-[1.125rem] bg-slate-50 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                  <ArrowUp className="w-4 h-4 text-red-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-slate-900 mb-0.5">Project Usage</h4>
+                  <p className="text-xs md:text-[0.8125rem] text-slate-600">Jan 14, 2024</p>
+                </div>
+              </div>
+              <div className="text-sm md:text-[0.9375rem] font-semibold text-red-600">-150 Credits</div>
+            </div>
+            <div className="flex items-center justify-between p-4 md:p-[1.125rem] bg-slate-50 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                  <ArrowDown className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-slate-900 mb-0.5">Monthly Bonus</h4>
+                  <p className="text-xs md:text-[0.8125rem] text-slate-600">Jan 1, 2024</p>
+                </div>
+              </div>
+              <div className="text-sm md:text-[0.9375rem] font-semibold text-green-600">+100 Credits</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}

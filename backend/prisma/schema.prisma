@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("user") // user, admin
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  credits   Credit[]
+  sessions  Session[]
+  devices   Device[]
+  appUsages AppUsage[]
+
+  @@map("users")
+}
+
+// Session Management
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Device Management
+model Device {
+  id            String   @id @default(cuid())
+  userId        String
+  deviceId      String   // Unique device identifier (browser fingerprint)
+  deviceName    String   // e.g., "Chrome on Windows"
+  deviceType    String   // desktop, mobile, tablet
+  browser       String?
+  os            String?
+  ipAddress     String?
+  userAgent     String?
+  lastActive    DateTime @default(now())
+
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@map("devices")
+}
+
+// Credit System
+model Credit {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // Positive for addition, negative for deduction
+  balance     Int      // Running balance after this transaction
+  type        String   // purchase, bonus, usage, refund
+  description String?
+
+  // Reference to what used the credits
+  referenceId   String?
+  referenceType String?  // video_mix_project, carousel_generation, etc.
+
+  // Payment reference (for purchases)
+  paymentId String?
+
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("credits")
+}
+
+// Payment Transactions (Duitku)
+model Payment {
+  id              String   @id @default(cuid())
+  userId          String
+  merchantOrderId String   @unique
+  reference       String   @unique // Duitku reference
+
+  amount          Float
+  creditAmount    Int      // Credits purchased
+
+  status          String   // pending, success, failed, expired
+  paymentMethod   String?
+  paymentUrl      String?
+
+  // Duitku specific
+  duitkuData      String?  // JSON string of Duitku response
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("payments")
+}
+
+// Tool Registry (optional - could be code-based)
+model ToolConfig {
+  id          String   @id @default(cuid())
+  toolId      String   @unique
+  name        String
+  enabled     Boolean  @default(true)
+  config      String   // JSON config
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tool_configs")
+}
+
+// ========================================
+// Plugin Architecture
+// ========================================
+
+// App Registry (Optional - mainly for stats tracking)
+// Note: Plugins are registered in-memory via plugin system
+model App {
+  id                    String   @id @default(cuid())
+  appId                 String   @unique // 'project-manager', 'invoice-generator'
+  name                  String
+  description           String?
+  icon                  String   // Lucide icon name
+  enabled               Boolean  @default(true)
+  beta                  Boolean  @default(false)
+  comingSoon            Boolean  @default(false)
+  creditCostBase        Int      @default(1)
+  requiresSubscription  Boolean  @default(false)
+  minSubscriptionTier   String?  // 'basic', 'pro', 'enterprise'
+  version               String   @default("1.0.0")
+
+  // Stats
+  totalUsage            Int      @default(0)
+  activeUsers           Int      @default(0)
+
+  // Dashboard
+  dashboardOrder        Int      @default(0)
+  dashboardColor        String   @default("blue")
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([dashboardOrder])
+  @@map("apps")
+}
+
+// App Usage Tracking
+model AppUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  appId       String   // Plugin appId (not FK - plugins are in-memory)
+  action      String   // 'create_project', 'generate_invoice'
+  creditUsed  Int
+  metadata    String?  // JSON string
+
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([appId])
+  @@index([createdAt])
+  @@map("app_usages")
+}
+
+// ========================================
+// Video Mixer App Models
+// ========================================
+
+model VideoMixerProject {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  groups      VideoMixerGroup[]
+  videos      VideoMixerVideo[]
+  generations VideoMixerGeneration[]
+
+  @@index([userId])
+  @@map("video_mixer_projects")
+}
+
+model VideoMixerGroup {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  order       Int      @default(0) // Order of group in sequence
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  videos      VideoMixerVideo[]
+
+  @@index([projectId])
+  @@map("video_mixer_groups")
+}
+
+model VideoMixerVideo {
+  id          String   @id @default(cuid())
+  projectId   String
+  groupId     String?  // Optional: video can belong to a group
+  fileName    String
+  filePath    String   // Path to uploaded video file
+  fileSize    Int      // File size in bytes
+  duration    Float    // Duration in seconds
+  mimeType    String
+  order       Int      @default(0) // Order within group or project
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  group       VideoMixerGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([groupId])
+  @@map("video_mixer_videos")
+}
+
+model VideoMixerGeneration {
+  id                String   @id @default(cuid())
+  projectId         String
+  userId            String
+  totalVideos       Int      // Number of videos to generate
+  settings          String   // JSON: { shuffle, fixedStart, groupShuffle, speed }
+  creditUsed        Int      // Total credits used
+  status            String   @default("pending") // pending, processing, completed, failed
+  outputPaths       String?  // JSON array of generated video paths
+  estimatedDuration Float?   // Estimated duration of each video
+
+  // Mixing Options (Anti-Fingerprinting)
+  enableOrderMixing        Boolean @default(true)
+  enableDifferentStart     Boolean @default(false)
+  fixedStartVideoId        String?
+  enableGroupMixing        Boolean @default(false)
+  groupMixingMode          String  @default("sequential") // sequential, random
+  enableSpeedVariations    Boolean @default(false)
+  speedMin                 Float   @default(0.5)
+  speedMax                 Float   @default(2.0)
+
+  // Quality Settings
+  metadataSource    String  @default("capcut")       // capcut, tiktok, instagram, youtube
+  videoBitrate      String  @default("medium")       // low, medium, high
+  videoResolution   String  @default("720p")         // 480p, 720p, 1080p, 4k
+  frameRate         Int     @default(30)             // 24, 30, 60
+  aspectRatio       String  @default("16:9")         // 9:16, 16:9, 1:1, 4:5
+
+  // Duration Settings
+  durationType      String  @default("original")     // original, fixed
+  fixedDuration     Int?                             // seconds
+  smartDistribution Boolean @default(false)
+  distributionMode  String  @default("proportional") // proportional, equal, weighted
+
+  // Audio Options
+  audioOption       String  @default("keep")         // keep, mute
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  completedAt       DateTime?
+
+  project     VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+  @@map("video_mixer_generations")
+}
