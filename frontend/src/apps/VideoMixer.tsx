@@ -5,8 +5,99 @@ import { useAuthStore } from '../stores/authStore'
 import {
   Video, Plus, Trash2, FolderPlus, Upload, Shuffle, Zap, Play,
   ArrowLeft, Settings, Grid3x3, List, Film, Clock, HardDrive,
-  ChevronDown, X, Eye, Download, RotateCw, Info, Sliders, Volume2
+  ChevronDown, X, Eye, Download, RotateCw, Info, Sliders, Volume2,
+  Archive, ChevronLeft, ChevronRight
 } from 'lucide-react'
+
+// Download Section Component
+const DownloadSection = ({
+  generationId,
+  outputPaths,
+  onDownload,
+  onDownloadAll,
+  isDownloading
+}: {
+  generationId: string
+  outputPaths: string[]
+  onDownload: (genId: string, index: number) => void
+  onDownloadAll: (genId: string) => void
+  isDownloading: boolean
+}) => {
+  const [currentPage, setCurrentPage] = useState(0)
+  const videosPerPage = 5
+  const totalPages = Math.ceil(outputPaths.length / videosPerPage)
+  const startIndex = currentPage * videosPerPage
+  const endIndex = Math.min(startIndex + videosPerPage, outputPaths.length)
+  const currentVideos = outputPaths.slice(startIndex, endIndex)
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
+      {/* Download All Button */}
+      <button
+        onClick={() => onDownloadAll(generationId)}
+        disabled={isDownloading}
+        className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition flex items-center justify-center gap-2 font-semibold shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {isDownloading ? (
+          <>
+            <RotateCw className="w-5 h-5 animate-spin" />
+            Preparing ZIP... ({outputPaths.length} videos)
+          </>
+        ) : (
+          <>
+            <Archive className="w-5 h-5" />
+            Download All ({outputPaths.length} videos) as ZIP
+          </>
+        )}
+      </button>
+
+      {/* Individual Downloads with Pagination */}
+      <div>
+        <div className="text-xs font-medium text-gray-600 mb-2">Or download individual videos:</div>
+        <div className="grid grid-cols-2 gap-2">
+          {currentVideos.map((_, index) => {
+            const actualIndex = startIndex + index
+            return (
+              <button
+                key={actualIndex}
+                onClick={() => onDownload(generationId, actualIndex)}
+                className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition flex items-center justify-center gap-2 text-xs font-medium"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Video {actualIndex + 1}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
+            <button
+              onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+            >
+              <ChevronLeft className="w-3 h-3" />
+              Prev
+            </button>
+            <span className="text-xs text-gray-600">
+              Page {currentPage + 1} of {totalPages} ({startIndex + 1}-{endIndex} of {outputPaths.length})
+            </span>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+              disabled={currentPage === totalPages - 1}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+            >
+              Next
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 interface Project {
   id: string
@@ -99,7 +190,7 @@ interface GenerationSettings {
 
 export default function VideoMixer() {
   const navigate = useNavigate()
-  const { updateCreditBalance } = useAuthStore()
+  const { user, updateCreditBalance, updateStorageUsed } = useAuthStore()
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -248,6 +339,71 @@ export default function VideoMixer() {
     }
   }
 
+  // Auto-poll for in-progress generations
+  useEffect(() => {
+    if (!selectedProject) return
+
+    const inProgressGens = generations.filter(g =>
+      g.status === 'pending' || g.status === 'processing'
+    )
+
+    if (inProgressGens.length === 0) return
+
+    // Poll every 3 seconds
+    const interval = setInterval(() => {
+      loadGenerations(selectedProject.id)
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [selectedProject, generations])
+
+  // Download handler
+  const handleDownload = async (generationId: string, fileIndex: number) => {
+    try {
+      const res = await api.get(
+        `/api/apps/video-mixer/download/${generationId}/${fileIndex}`,
+        { responseType: 'blob' }
+      )
+
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `generated_video_${fileIndex + 1}.mp4`
+      link.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error: any) {
+      alert('Download failed: ' + (error.response?.data?.error || error.message))
+    }
+  }
+
+  // Download all as ZIP handler
+  const [downloadingZip, setDownloadingZip] = useState<Record<string, boolean>>({})
+
+  const handleDownloadAll = async (generationId: string) => {
+    setDownloadingZip(prev => ({ ...prev, [generationId]: true }))
+    try {
+      const res = await api.get(
+        `/api/apps/video-mixer/download-all/${generationId}`,
+        { responseType: 'blob' }
+      )
+
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `generation_${generationId}.zip`
+      link.click()
+      window.URL.revokeObjectURL(url)
+
+      // Show success message briefly
+      setTimeout(() => {
+        setDownloadingZip(prev => ({ ...prev, [generationId]: false }))
+      }, 1000)
+    } catch (error: any) {
+      setDownloadingZip(prev => ({ ...prev, [generationId]: false }))
+      alert('Download failed: ' + (error.response?.data?.error || error.message))
+    }
+  }
+
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newProject.name.trim()) return
@@ -370,14 +526,38 @@ export default function VideoMixer() {
           formData.append('file', file)
           formData.append('projectId', selectedProject.id)
 
-          await api.post('/api/apps/video-mixer/videos/upload', formData, {
+          const res = await api.post('/api/apps/video-mixer/videos/upload', formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
           })
+
+          // Update storage used in auth store
+          if (res.data.storageUsed !== undefined) {
+            updateStorageUsed(res.data.storageUsed)
+          }
+
           successCount++
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Failed to upload ${file.name}:`, error)
+
+          // Handle storage quota exceeded (413 error)
+          if (error.response?.status === 413) {
+            const data = error.response.data
+            const usedMB = (data.used / 1024 / 1024).toFixed(1)
+            const quotaMB = (data.quota / 1024 / 1024).toFixed(0)
+            const availableMB = (data.available / 1024 / 1024).toFixed(1)
+
+            alert(
+              `Storage quota exceeded!\n\n` +
+                `Used: ${usedMB} MB / ${quotaMB} MB\n` +
+                `Available: ${availableMB} MB\n` +
+                `File size: ${(data.fileSize / 1024 / 1024).toFixed(1)} MB\n\n` +
+                `Please delete some files or upgrade your plan.`
+            )
+            break // Stop uploading remaining files
+          }
+
           failedCount++
         }
       }
@@ -399,6 +579,19 @@ export default function VideoMixer() {
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+    }
+  }
+
+  const handleAssignToGroup = async (videoId: string, groupId: string | null) => {
+    try {
+      await api.put(`/api/apps/video-mixer/videos/${videoId}`, { groupId })
+
+      // Reload project to update video list
+      if (selectedProject) {
+        loadProjectDetail(selectedProject.id)
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to assign video to group')
     }
   }
 
@@ -486,6 +679,34 @@ export default function VideoMixer() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Storage Indicator */}
+              {user && user.storageQuota && (
+                <div className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-xs text-gray-500 mb-1">Storage Used</div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 w-32">
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${
+                            ((user.storageUsed || 0) / user.storageQuota) > 0.9
+                              ? 'bg-red-500'
+                              : ((user.storageUsed || 0) / user.storageQuota) > 0.7
+                              ? 'bg-yellow-500'
+                              : 'bg-blue-500'
+                          }`}
+                          style={{
+                            width: `${Math.min(((user.storageUsed || 0) / user.storageQuota) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-xs font-medium text-gray-700">
+                      {formatFileSize(user.storageUsed || 0)} / {formatFileSize(user.storageQuota)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {selectedProject && (
                 <div className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="text-xs text-gray-500">Project</div>
@@ -661,7 +882,7 @@ export default function VideoMixer() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-medium text-gray-900 truncate mb-1">{video.fileName}</h4>
-                              <div className="flex items-center gap-3 text-xs text-gray-500">
+                              <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
                                 <span className="flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
                                   {formatDuration(video.duration)}
@@ -671,6 +892,19 @@ export default function VideoMixer() {
                                   {formatFileSize(video.fileSize)}
                                 </span>
                               </div>
+                              {/* Group Assignment */}
+                              <select
+                                value={video.groupId || ''}
+                                onChange={(e) => handleAssignToGroup(video.id, e.target.value || null)}
+                                className="w-full text-xs px-2 py-1 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">No Group (Default)</option>
+                                {selectedProject.groups?.map(group => (
+                                  <option key={group.id} value={group.id}>
+                                    {group.name}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <button
                               onClick={() => handleDeleteVideo(video.id, video.fileName)}
@@ -841,10 +1075,13 @@ export default function VideoMixer() {
 
                             {/* Actions */}
                             {gen.status === 'completed' && gen.outputPaths && (
-                              <button className="w-full mt-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition flex items-center justify-center gap-2 text-sm font-medium">
-                                <Download className="w-4 h-4" />
-                                Download Results ({JSON.parse(gen.outputPaths).length} files)
-                              </button>
+                              <DownloadSection
+                                generationId={gen.id}
+                                outputPaths={JSON.parse(gen.outputPaths)}
+                                onDownload={handleDownload}
+                                onDownloadAll={handleDownloadAll}
+                                isDownloading={downloadingZip[gen.id] || false}
+                              />
                             )}
                             {gen.status === 'processing' && (
                               <div className="flex items-center justify-center gap-2 text-blue-600 text-sm font-medium mt-2">

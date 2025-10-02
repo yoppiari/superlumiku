@@ -132,6 +132,31 @@ export class VideoMixerService {
     return await repo.findVideosByProjectId(projectId)
   }
 
+  async getVideoById(videoId: string, userId: string) {
+    const video = await repo.findVideoById(videoId)
+    if (!video) {
+      throw new Error('Video not found')
+    }
+
+    // Verify project ownership
+    await this.getProject(video.projectId, userId)
+
+    return video
+  }
+
+  async updateVideo(videoId: string, userId: string, data: { groupId?: string | null }) {
+    const video = await repo.findVideoById(videoId)
+    if (!video) {
+      throw new Error('Video not found')
+    }
+
+    // Verify project ownership
+    await this.getProject(video.projectId, userId)
+
+    await repo.updateVideo(videoId, data)
+    return { success: true }
+  }
+
   async deleteVideo(videoId: string, userId: string) {
     const video = await repo.findVideoById(videoId)
     if (!video) {
@@ -346,6 +371,18 @@ export class VideoMixerService {
     // Verify project ownership
     await this.getProject(projectId, userId)
     return await repo.findGenerationsByProjectId(projectId)
+  }
+
+  async getGenerationById(generationId: string, userId: string) {
+    const generation = await repo.findGenerationById(generationId)
+    if (!generation) {
+      throw new Error('Generation not found')
+    }
+
+    // Verify project ownership
+    await this.getProject(generation.projectId, userId)
+
+    return generation
   }
 
   async getStats(userId: string) {

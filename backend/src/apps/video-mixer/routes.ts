@@ -3,8 +3,9 @@ import { authMiddleware } from '../../middleware/auth.middleware'
 import { deductCredits, recordCreditUsage } from '../../core/middleware/credit.middleware'
 import { VideoMixerService } from './services/video-mixer.service'
 import { videoMixerConfig } from './plugin.config'
-import { saveFile } from '../../lib/storage'
+import { saveFile, checkStorageQuota, updateUserStorage, deleteFile } from '../../lib/storage'
 import { getVideoDuration } from '../../lib/video-utils'
+import { addVideoMixerJob } from '../../lib/queue'
 import { z } from 'zod'
 
 const routes = new Hono()
@@ -166,6 +167,22 @@ routes.post('/videos/upload', authMiddleware, async (c) => {
       return c.json({ error: 'No file provided' }, 400)
     }
 
+    // Check storage quota BEFORE saving file
+    const quotaCheck = await checkStorageQuota(userId, file.size)
+
+    if (!quotaCheck.allowed) {
+      return c.json(
+        {
+          error: 'Storage quota exceeded',
+          used: quotaCheck.used,
+          quota: quotaCheck.quota,
+          fileSize: file.size,
+          available: quotaCheck.available,
+        },
+        413 // 413 Payload Too Large
+      )
+    }
+
     // Save file to storage
     const { filePath, fileName } = await saveFile(file, 'videos')
 
@@ -186,7 +203,10 @@ routes.post('/videos/upload', authMiddleware, async (c) => {
       order: 0,
     })
 
-    return c.json({ success: true, video })
+    // Update user storage usage
+    await updateUserStorage(userId, file.size)
+
+    return c.json({ success: true, video, storageUsed: quotaCheck.used + file.size })
   } catch (error: any) {
     return c.json({ error: error.message }, 400)
   }
@@ -203,12 +223,37 @@ routes.get('/projects/:projectId/videos', authMiddleware, async (c) => {
   }
 })
 
+routes.put('/videos/:id', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const videoId = c.req.param('id')
+    const body = await c.req.json()
+
+    await service.updateVideo(videoId, userId, body)
+    return c.json({ success: true })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
 routes.delete('/videos/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
     const videoId = c.req.param('id')
+
+    // Get video info before deleting (need fileSize and filePath)
+    const video = await service.getVideoById(videoId, userId)
+
+    // Delete file from storage
+    await deleteFile(video.filePath)
+
+    // Delete from database
     await service.deleteVideo(videoId, userId)
-    return c.json({ success: true })
+
+    // Reclaim storage quota (negative delta)
+    await updateUserStorage(userId, -video.fileSize)
+
+    return c.json({ success: true, freedSpace: video.fileSize })
   } catch (error: any) {
     return c.json({ error: error.message }, 400)
   }
@@ -271,11 +316,27 @@ routes.post(
         deduction.amount
       )
 
+      // Add job to queue for processing
+      const job = await addVideoMixerJob({
+        generationId: result.generation.id,
+        userId,
+        projectId: body.projectId,
+        settings: body.settings,
+        totalVideos: body.totalVideos,
+      })
+
+      // Warn if Redis is not configured
+      const message = job
+        ? 'Generation started! Check status in Generation History.'
+        : '⚠️ Generation created but Redis is not configured. Video processing will not start. See TODO_REDIS_SETUP.md'
+
       return c.json({
         success: true,
         generation: result.generation,
         creditUsed,
         creditBalance: newBalance,
+        message,
+        warning: !job ? 'Redis not configured - processing disabled' : undefined,
       })
     } catch (error: any) {
       return c.json({ error: error.message }, 400)
@@ -289,6 +350,109 @@ routes.get('/projects/:projectId/generations', authMiddleware, async (c) => {
     const projectId = c.req.param('projectId')
     const generations = await service.getGenerations(projectId, userId)
     return c.json({ success: true, generations })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// Download route
+routes.get('/download/:generationId/:fileIndex', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const generationId = c.req.param('generationId')
+    const fileIndex = parseInt(c.req.param('fileIndex'))
+
+    // Get generation
+    const generation = await service.getGenerationById(generationId, userId)
+
+    if (generation.status !== 'completed' || !generation.outputPaths) {
+      return c.json({ error: 'Generation not completed yet' }, 400)
+    }
+
+    const outputPaths = JSON.parse(generation.outputPaths)
+    if (fileIndex < 0 || fileIndex >= outputPaths.length) {
+      return c.json({ error: 'Invalid file index' }, 400)
+    }
+
+    const filePath = `./uploads${outputPaths[fileIndex]}`
+    const { promises: fs } = await import('fs')
+    const path = await import('path')
+
+    const fileExists = await fs.access(filePath).then(() => true).catch(() => false)
+
+    if (!fileExists) {
+      return c.json({ error: 'File not found' }, 404)
+    }
+
+    // Stream file
+    const fileBuffer = await fs.readFile(filePath)
+    const filename = path.basename(filePath)
+
+    return new Response(fileBuffer, {
+      headers: {
+        'Content-Type': 'video/mp4',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// Download all as ZIP
+routes.get('/download-all/:generationId', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const generationId = c.req.param('generationId')
+
+    // Get generation
+    const generation = await service.getGenerationById(generationId, userId)
+
+    if (generation.status !== 'completed' || !generation.outputPaths) {
+      return c.json({ error: 'Generation not completed yet' }, 400)
+    }
+
+    const outputPaths = JSON.parse(generation.outputPaths)
+    const { promises: fs } = await import('fs')
+    const path = await import('path')
+    const archiver = (await import('archiver')).default
+    const { Readable } = await import('stream')
+
+    // Create ZIP archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    })
+
+    // Handle errors
+    archive.on('error', (err) => {
+      throw err
+    })
+
+    // Add all files to ZIP
+    for (let i = 0; i < outputPaths.length; i++) {
+      const filePath = `./uploads${outputPaths[i]}`
+      const fileExists = await fs.access(filePath).then(() => true).catch(() => false)
+
+      if (fileExists) {
+        const fileBuffer = await fs.readFile(filePath)
+        const filename = path.basename(filePath)
+        archive.append(fileBuffer, { name: `video_${i + 1}_${filename}` })
+      }
+    }
+
+    // Finalize the archive
+    archive.finalize()
+
+    // Convert archive to web stream for Hono
+    const nodeStream = archive as any
+    const webStream = Readable.toWeb(nodeStream)
+
+    return new Response(webStream as any, {
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="generation_${generationId}.zip"`,
+      },
+    })
   } catch (error: any) {
     return c.json({ error: error.message }, 400)
   }

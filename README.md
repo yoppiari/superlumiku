@@ -39,9 +39,19 @@ bun dev:frontend # Frontend on http://localhost:5173
 
 ## 📚 Documentation
 
-- **[SETUP.md](docs/SETUP.md)** - Detailed setup instructions
-- **[UNIFIED_ARCHITECTURE.md](docs/UNIFIED_ARCHITECTURE.md)** - Complete system architecture
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Original architecture document
+### Core Documentation
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick start guide & test credentials
+- **[CURRENT_ARCHITECTURE.md](docs/CURRENT_ARCHITECTURE.md)** - Current system architecture
+- **[PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)** - Plugin system & app development
+- **[DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md)** - Development workflow & guidelines
+- **[CHANGELOG.md](CHANGELOG.md)** - Recent changes & bug fixes
+
+### App-Specific Documentation
+- **[VIDEO_MIXER_CHANGELOG.md](docs/VIDEO_MIXER_CHANGELOG.md)** - Video Mixer implementation history
+- **[ADD_NEW_APP_PROMPT.md](docs/ADD_NEW_APP_PROMPT.md)** - Template for creating new apps
+
+### Archived Documentation
+- **[docs/archive/](docs/archive/)** - Historical documentation from previous architecture
 
 ## 🧪 Test Credentials
 
@@ -137,10 +147,11 @@ Proprietary - All rights reserved
 ## 🆘 Support
 
 For issues or questions, please check:
-1. [SETUP.md](docs/SETUP.md) for setup help
-2. [UNIFIED_ARCHITECTURE.md](docs/UNIFIED_ARCHITECTURE.md) for architecture details
-3. Backend logs in terminal
-4. Frontend console in browser DevTools
+1. [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) - Troubleshooting section
+2. [CURRENT_ARCHITECTURE.md](docs/CURRENT_ARCHITECTURE.md) - System architecture
+3. [CHANGELOG.md](CHANGELOG.md) - Recent fixes & known issues
+4. Backend logs in terminal
+5. Frontend console in browser DevTools
 
 ---
 

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { randomBytes } from 'crypto'
+import prisma from '../db/client'
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads'
 
@@ -82,4 +83,69 @@ export async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+/**
+ * Calculate total storage used by user across all projects
+ */
+export async function getUserStorageUsed(userId: string): Promise<number> {
+  const videos = await prisma.videoMixerVideo.findMany({
+    where: {
+      project: {
+        userId,
+      },
+    },
+    select: {
+      fileSize: true,
+    },
+  })
+
+  return videos.reduce((sum, video) => sum + video.fileSize, 0)
+}
+
+/**
+ * Check if user has enough storage quota for file upload
+ */
+export async function checkStorageQuota(
+  userId: string,
+  fileSize: number
+): Promise<{ allowed: boolean; used: number; quota: number; available: number }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      storageQuota: true,
+      storageUsed: true,
+    },
+  })
+
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  const newUsage = user.storageUsed + fileSize
+  const allowed = newUsage <= user.storageQuota
+  const available = user.storageQuota - user.storageUsed
+
+  return {
+    allowed,
+    used: user.storageUsed,
+    quota: user.storageQuota,
+    available,
+  }
+}
+
+/**
+ * Update user storage usage
+ * @param userId - User ID
+ * @param delta - Change in bytes (positive = add, negative = subtract)
+ */
+export async function updateUserStorage(userId: string, delta: number): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      storageUsed: {
+        increment: delta,
+      },
+    },
+  })
 }

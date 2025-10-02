@@ -15,6 +15,10 @@ model User {
   name      String?
   role      String   @default("user") // user, admin
 
+  // Storage quota (in bytes)
+  storageQuota Int @default(1073741824)  // 1GB default (1024*1024*1024)
+  storageUsed  Int @default(0)           // Current usage in bytes
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

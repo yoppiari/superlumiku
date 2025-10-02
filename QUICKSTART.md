@@ -148,9 +148,11 @@ bun clean              # Remove all node_modules
 ## 📂 Project Files
 
 ### Documentation
-- **[SETUP.md](docs/SETUP.md)** - Complete setup guide with troubleshooting
-- **[UNIFIED_ARCHITECTURE.md](docs/UNIFIED_ARCHITECTURE.md)** - Full system architecture
+- **[CURRENT_ARCHITECTURE.md](docs/CURRENT_ARCHITECTURE.md)** - System architecture & current state
+- **[PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)** - Plugin system & how to add new apps
+- **[DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md)** - Development workflow & guidelines
 - **[README.md](README.md)** - Project overview
+- **[CHANGELOG.md](CHANGELOG.md)** - Recent changes & fixes
 
 ### Configuration Files
 - `.env.example` - Environment variables template
@@ -181,20 +183,22 @@ bun clean              # Remove all node_modules
 5. ✅ Verify dashboard and credit balance
 
 ### Development Tasks
-1. 🔄 Add Video Mix Pro tool
-2. 🔄 Add Carousel Generator tool
-3. 🔄 Implement plugin system
-4. 🔄 Add payment integration (Duitku)
-5. 🔄 Add tool-specific routes and components
+1. ✅ Add Video Mixer tool (COMPLETED)
+2. 🔄 Add background queue system for video processing
+3. 🔄 Add AI Generator tool (Eden AI integration)
+4. 🔄 Add Carousel Generator tool
+5. 🔄 Add Looping Video Generator tool
+6. 🔄 Add payment integration (Duitku)
 
-### Architecture Components to Implement
-Based on UNIFIED_ARCHITECTURE.md:
-- [ ] Tool Plugin System (frontend & backend)
-- [ ] Tool Registry
-- [ ] File Upload System
-- [ ] Credit Deduction Flow
-- [ ] Payment Gateway Integration
-- [ ] Tool-specific Components
+### Completed Architecture Components
+Based on PLUGIN_ARCHITECTURE.md:
+- [x] Tool Plugin System (frontend & backend)
+- [x] Tool Registry
+- [x] File Upload System
+- [x] Credit Deduction Flow
+- [ ] Background Job Queue (pending)
+- [ ] FFmpeg Video Processing (pending)
+- [ ] Payment Gateway Integration (pending)
 
 ## 🐛 Troubleshooting
 
@@ -249,16 +253,20 @@ CORS_ORIGIN="http://localhost:5173"
 - ✅ Basic UI pages (Home, Login, Dashboard)
 - ✅ State management (Zustand)
 - ✅ API client (Axios)
+- ✅ Tool plugin system (fully implemented)
+- ✅ Video Mixer app (UI, file upload, generation settings)
+- ✅ File upload & storage system
+- ✅ Credit deduction & tracking
 
 ### In Progress 🔄
-- 🔄 Tool plugin system
-- 🔄 Video Mix Pro tool
-- 🔄 Carousel Generator tool
+- 🔄 Background queue system for async processing
+- 🔄 FFmpeg video processing integration
 
 ### Planned 📋
+- 📋 AI Generator (Eden AI integration)
+- 📋 Carousel Generator tool
+- 📋 Looping Video Generator tool
 - 📋 Payment integration (Duitku)
-- 📋 File upload system
-- 📋 Tool-specific components
 - 📋 Admin panel
 - 📋 Analytics dashboard
 
@@ -266,11 +274,12 @@ CORS_ORIGIN="http://localhost:5173"
 
 If you encounter any issues:
 
-1. Check [SETUP.md](docs/SETUP.md) for detailed setup instructions
-2. Check [UNIFIED_ARCHITECTURE.md](docs/UNIFIED_ARCHITECTURE.md) for architecture details
-3. Review backend logs in terminal
-4. Check browser console for frontend errors
-5. Verify environment variables in `.env` files
+1. Check [PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md) for plugin system details
+2. Check [CURRENT_ARCHITECTURE.md](docs/CURRENT_ARCHITECTURE.md) for system architecture
+3. Check [CHANGELOG.md](CHANGELOG.md) for recent fixes
+4. Review backend logs in terminal
+5. Check browser console for frontend errors
+6. Verify environment variables in `.env` files
 
 ## 🎉 Success Criteria
 

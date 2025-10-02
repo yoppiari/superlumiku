@@ -139,6 +139,13 @@ export class VideoMixerRepository {
     })
   }
 
+  async updateVideo(videoId: string, data: { groupId?: string | null }) {
+    return await prisma.videoMixerVideo.update({
+      where: { id: videoId },
+      data,
+    })
+  }
+
   async deleteVideo(videoId: string) {
     return await prisma.videoMixerVideo.delete({
       where: { id: videoId },

@@ -6,6 +6,8 @@ interface User {
   email: string
   name?: string
   creditBalance: number
+  storageQuota?: number
+  storageUsed?: number
 }
 
 interface AuthState {
@@ -15,6 +17,7 @@ interface AuthState {
   setAuth: (user: User, token: string) => void
   logout: () => void
   updateCreditBalance: (balance: number) => void
+  updateStorageUsed: (storageUsed: number) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -37,6 +40,11 @@ export const useAuthStore = create<AuthState>()(
       updateCreditBalance: (balance) =>
         set((state) => ({
           user: state.user ? { ...state.user, creditBalance: balance } : null,
+        })),
+
+      updateStorageUsed: (storageUsed: number) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, storageUsed } : null,
         })),
     }),
     {
