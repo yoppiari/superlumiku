@@ -408,3 +408,59 @@ model CarouselGeneration {
   @@index([status])
   @@map("carousel_generations")
 }
+
+// ========================================
+// Looping Flow App Models
+// ========================================
+
+model LoopingFlowProject {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  videos      LoopingFlowVideo[]
+  generations LoopingFlowGeneration[]
+
+  @@index([userId])
+  @@map("looping_flow_projects")
+}
+
+model LoopingFlowVideo {
+  id          String   @id @default(cuid())
+  projectId   String
+  fileName    String
+  filePath    String   // Path to uploaded video file
+  fileSize    Int      // File size in bytes
+  duration    Float    // Duration in seconds
+  mimeType    String
+  createdAt   DateTime @default(now())
+
+  project     LoopingFlowProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("looping_flow_videos")
+}
+
+model LoopingFlowGeneration {
+  id              String   @id @default(cuid())
+  projectId       String
+  userId          String
+  videoId         String   // Reference to source video
+  targetDuration  Int      // Target duration in seconds
+  creditUsed      Int      // Total credits used
+  status          String   @default("pending") // pending, processing, completed, failed
+  outputPath      String?  // Path to generated looped video
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  project         LoopingFlowProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+  @@map("looping_flow_generations")
+}

@@ -8,15 +8,23 @@ import paymentRoutes from './routes/payment.routes'
 import creditsRoutes from './routes/credits.routes'
 import deviceRoutes from './routes/device.routes'
 import generationRoutes from './routes/generation.routes'
+import statsRoutes from './routes/stats.routes'
 
 // Plugin System
 import { loadPlugins } from './plugins/loader'
 import { pluginRegistry } from './plugins/registry'
 
+// Workers
+import { LoopProcessorWorker } from './apps/looping-flow/workers/loop-processor.worker'
+
 const app = new Hono()
 
 // Load all plugins
 loadPlugins()
+
+// Start background workers
+const loopWorker = new LoopProcessorWorker()
+loopWorker.start()
 
 // Middleware
 app.use('*', logger())
@@ -36,6 +44,7 @@ app.route('/api/credits', creditsRoutes)
 app.route('/api/payment', paymentRoutes)
 app.route('/api/devices', deviceRoutes)
 app.route('/api/generations', generationRoutes)
+app.route('/api/stats', statsRoutes)
 
 // Get all apps for dashboard
 app.get('/api/apps', (c) => {

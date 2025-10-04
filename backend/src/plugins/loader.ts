@@ -4,12 +4,20 @@ import { pluginRegistry } from './registry'
 import videoMixerConfig from '../apps/video-mixer/plugin.config'
 import videoMixerRoutes from '../apps/video-mixer/routes'
 
+import carouselMixConfig from '../apps/carousel-mix/plugin.config'
+import carouselMixRoutes from '../apps/carousel-mix/routes'
+
+import loopingFlowConfig from '../apps/looping-flow/plugin.config'
+import loopingFlowRoutes from '../apps/looping-flow/routes'
+
 /**
  * Load all plugins into registry
  */
 export function loadPlugins() {
   // Register each plugin
   pluginRegistry.register(videoMixerConfig, videoMixerRoutes)
+  pluginRegistry.register(carouselMixConfig, carouselMixRoutes)
+  pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)

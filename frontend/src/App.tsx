@@ -9,6 +9,7 @@ import Credits from './pages/Credits'
 import MyWork from './pages/MyWork'
 import VideoMixer from './apps/VideoMixer'
 import CarouselMix from './apps/CarouselMix'
+import LoopingFlow from './apps/LoopingFlow'
 import { setupSSOListeners, extractSSOFromURL } from './lib/sso'
 import { useAuthStore } from './stores/authStore'
 
@@ -42,6 +43,8 @@ function AppContent() {
       <Route path="/apps/video-mixer" element={<VideoMixer />} />
       <Route path="/apps/carousel-mix" element={<CarouselMix />} />
       <Route path="/apps/carousel-mix/:projectId" element={<CarouselMix />} />
+      <Route path="/apps/looping-flow" element={<LoopingFlow />} />
+      <Route path="/apps/looping-flow/:projectId" element={<LoopingFlow />} />
     </Routes>
   )
 }

@@ -19,7 +19,13 @@ import {
   ArrowDown,
   ArrowUp,
   Video,
-  Target
+  Target,
+  DollarSign,
+  Briefcase,
+  FolderKanban,
+  LogIn,
+  Film,
+  Layers
 } from 'lucide-react'
 
 interface AppData {
@@ -40,6 +46,15 @@ const iconMap: Record<string, any> = {
   'message-square': MessageSquare,
   'folder-open': FolderOpen,
   video: Video,
+  film: Film,
+  layers: Layers,
+}
+
+interface DashboardStats {
+  totalSpending: number
+  totalWorks: number
+  totalProjects: number
+  lastLogin: string
 }
 
 export default function Dashboard() {
@@ -50,6 +65,13 @@ export default function Dashboard() {
   const [loadingApps, setLoadingApps] = useState(true)
   const [recentGenerations, setRecentGenerations] = useState<GenerationItem[]>([])
   const [loadingGenerations, setLoadingGenerations] = useState(true)
+  const [stats, setStats] = useState<DashboardStats>({
+    totalSpending: 0,
+    totalWorks: 0,
+    totalProjects: 0,
+    lastLogin: new Date().toISOString(),
+  })
+  const [loadingStats, setLoadingStats] = useState(true)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -86,13 +108,64 @@ export default function Dashboard() {
         console.error('Failed to fetch recent generations:', err)
         setLoadingGenerations(false)
       })
+
+    // Fetch dashboard stats
+    api
+      .get('/api/stats/dashboard')
+      .then((res) => {
+        setStats(res.data)
+        setLoadingStats(false)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch dashboard stats:', err)
+        setLoadingStats(false)
+      })
   }, [isAuthenticated, navigate])
 
-  const stats = [
-    { icon: ListChecks, value: '24', label: 'Active Projects', color: 'bg-slate-50 text-slate-700' },
-    { icon: TrendingUp, value: '156', label: 'Total Tasks', color: 'bg-blue-50 text-blue-700' },
-    { icon: CheckCircle2, value: '89%', label: 'Completion Rate', color: 'bg-green-50 text-green-700' },
-    { icon: Clock, value: '142h', label: 'Total Hours', color: 'bg-orange-50 text-orange-700' },
+  const formatLastLogin = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString()
+  }
+
+  const dashboardStats = [
+    {
+      icon: Coins,
+      value: loadingStats ? '...' : `${stats.totalSpending.toLocaleString()}`,
+      label: 'Spending (This Month)',
+      color: 'bg-purple-50 text-purple-700',
+      suffix: ' Credits'
+    },
+    {
+      icon: Briefcase,
+      value: loadingStats ? '...' : `${stats.totalWorks}`,
+      label: 'Total Works (This Month)',
+      color: 'bg-blue-50 text-blue-700',
+      suffix: ''
+    },
+    {
+      icon: FolderKanban,
+      value: loadingStats ? '...' : `${stats.totalProjects}`,
+      label: 'Total Projects (This Month)',
+      color: 'bg-green-50 text-green-700',
+      suffix: ''
+    },
+    {
+      icon: LogIn,
+      value: loadingStats ? '...' : formatLastLogin(stats.lastLogin),
+      label: 'Last Login',
+      color: 'bg-orange-50 text-orange-700',
+      suffix: ''
+    },
   ]
 
   const handleAppClick = (appId: string) => {
@@ -142,7 +215,7 @@ export default function Dashboard() {
       <main className="max-w-[1400px] mx-auto px-6 md:px-10 py-8 md:py-12">
         {/* Quick Stats */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10 md:mb-14">
-          {stats.map((stat, i) => {
+          {dashboardStats.map((stat, i) => {
             const Icon = stat.icon
             return (
               <div key={i} className="bg-white p-5 md:p-7 rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-soft transition-all">
@@ -151,7 +224,10 @@ export default function Dashboard() {
                     <Icon className="w-5 h-5" />
                   </div>
                 </div>
-                <div className="text-3xl md:text-[2rem] font-semibold text-slate-900 mb-1 tracking-tighter">{stat.value}</div>
+                <div className="text-3xl md:text-[2rem] font-semibold text-slate-900 mb-1 tracking-tighter">
+                  {stat.value}
+                  {stat.suffix && !loadingStats && <span className="text-sm text-slate-500">{stat.suffix}</span>}
+                </div>
                 <div className="text-sm text-slate-600">{stat.label}</div>
               </div>
             )
