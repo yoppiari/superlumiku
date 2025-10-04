@@ -333,33 +333,7 @@ export class VideoMixerService {
       settings: JSON.stringify(settings),
       creditUsed,
       estimatedDuration,
-
-      // Mixing options
-      enableOrderMixing: settings.enableOrderMixing,
-      enableDifferentStart: settings.enableDifferentStart,
-      fixedStartVideoId: settings.fixedStartVideoId,
-      enableGroupMixing: settings.enableGroupMixing,
-      groupMixingMode: settings.groupMixingMode,
-      enableSpeedVariations: settings.enableSpeedVariations,
-      speedMin: settings.speedMin,
-      speedMax: settings.speedMax,
-
-      // Quality
-      metadataSource: settings.metadataSource,
-      videoBitrate: settings.videoBitrate,
-      videoResolution: settings.videoResolution,
-      frameRate: settings.frameRate,
-      aspectRatio: settings.aspectRatio,
-
-      // Duration
-      durationType: settings.durationType,
-      fixedDuration: settings.fixedDuration,
-      smartDistribution: settings.smartDistribution,
-      distributionMode: settings.distributionMode,
-
-      // Audio
-      audioOption: settings.audioOption,
-    })
+    } as any)
 
     return {
       generation,

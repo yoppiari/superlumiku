@@ -117,13 +117,37 @@ Pas kamu paste prompt kayak di atas, Claude Code akan:
 2. ✅ **Generate** struktur folder & boilerplate code
 3. ✅ **Setup database** models & migrations
 4. ✅ **Implement backend** (API, logic, validation)
-5. ✅ **Create frontend** UI yang cantik & responsive
+5. ✅ **Create frontend** UI yang cantik & responsive dengan:
+   - Header sticky (tetap di atas pas scroll)
+   - Save indicator di header (kalau ada auto-save)
+   - Credit balance & profile dropdown
+   - Responsive design (mobile, tablet, desktop)
 6. ✅ **Connect** semuanya (routing, plugin registry)
 7. ✅ **Test** semua fitur berfungsi
 
 **Hasilnya**: App lengkap siap pakai dalam 1-2 menit! ⚡
 
 **Catatan**: Claude yang akan translate prompt kamu. Jadi tulis se-natural mungkin, ga perlu format khusus!
+
+## Standard UI/UX yang Otomatis Diterapkan
+
+Setiap app baru otomatis mengikuti standard ini:
+
+### Header (Wajib)
+- ✅ Sticky di atas (ga ilang pas scroll)
+- ✅ Tombol back ke dashboard
+- ✅ Icon & nama app
+- ✅ Credit balance
+- ✅ Profile dropdown
+- ✅ Save indicator (kalau ada auto-save)
+
+### Layout
+- ✅ Warna konsisten (slate theme)
+- ✅ Responsive (mobile, tablet, desktop)
+- ✅ Spacing & padding seragam
+- ✅ Icons dari Lucide
+
+**Penting**: Semua ini otomatis! Kamu cuma perlu jelasin fungsi app-nya aja.
 
 ---
 

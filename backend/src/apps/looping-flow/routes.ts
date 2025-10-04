@@ -6,6 +6,7 @@ import { LoopingFlowService } from './services/looping-flow.service'
 import { loopingFlowConfig } from './plugin.config'
 import { saveFile, checkStorageQuota, updateUserStorage, deleteFile } from '../../lib/storage'
 import { getVideoDuration } from '../../lib/video-utils'
+import { addLoopingFlowJob, getLoopingFlowJobStatus } from '../../lib/queue'
 import { z } from 'zod'
 
 const routes = new Hono<{ Variables: AuthVariables }>()
@@ -25,6 +26,16 @@ const generateSchema = z.object({
   projectId: z.string(),
   videoId: z.string(),
   targetDuration: z.number().min(1),
+  // Package 1: Loop settings
+  loopStyle: z.enum(['simple', 'crossfade', 'boomerang']).optional(),
+  crossfadeDuration: z.number().min(0.5).max(2.0).optional(),
+  videoCrossfade: z.boolean().optional(),
+  audioCrossfade: z.boolean().optional(),
+  // Package 2: Audio settings
+  masterVolume: z.number().min(0).max(100).optional(),
+  audioFadeIn: z.number().min(0).max(10).optional(),
+  audioFadeOut: z.number().min(0).max(10).optional(),
+  muteOriginal: z.boolean().optional(),
 })
 
 // ===== Projects =====
@@ -164,12 +175,54 @@ routes.post(
       const userId = c.get('userId')
       const body = generateSchema.parse(await c.req.json())
 
+      // Get video info
+      const video = await service.getVideoById(body.videoId, userId)
+
+      // Get audio layers if any
+      const audioLayers = await service.getAudioLayers(body.generationId || '')
+
       const generation = await service.createGeneration(
         body.projectId,
         userId,
         body.videoId,
-        body.targetDuration
+        body.targetDuration,
+        {
+          loopStyle: body.loopStyle,
+          crossfadeDuration: body.crossfadeDuration,
+          videoCrossfade: body.videoCrossfade,
+          audioCrossfade: body.audioCrossfade,
+          masterVolume: body.masterVolume,
+          audioFadeIn: body.audioFadeIn,
+          audioFadeOut: body.audioFadeOut,
+          muteOriginal: body.muteOriginal,
+        }
       )
+
+      // Add job to queue
+      await addLoopingFlowJob({
+        generationId: generation.id,
+        userId,
+        projectId: body.projectId,
+        videoId: body.videoId,
+        videoPath: video.filePath,
+        targetDuration: body.targetDuration,
+        loopStyle: body.loopStyle || 'crossfade',
+        crossfadeDuration: body.crossfadeDuration,
+        videoCrossfade: body.videoCrossfade,
+        audioCrossfade: body.audioCrossfade,
+        masterVolume: body.masterVolume,
+        audioFadeIn: body.audioFadeIn,
+        audioFadeOut: body.audioFadeOut,
+        muteOriginal: body.muteOriginal,
+        audioLayers: audioLayers.map(layer => ({
+          id: layer.id,
+          filePath: layer.filePath,
+          volume: layer.volume,
+          muted: layer.muted,
+          fadeIn: layer.fadeIn,
+          fadeOut: layer.fadeOut,
+        })),
+      })
 
       const deduction = c.get('creditDeduction')
       const { newBalance, creditUsed } = await recordCreditUsage(
@@ -252,6 +305,113 @@ routes.post('/generations/:id/cancel', authMiddleware, async (c) => {
     const generationId = c.req.param('id')
     const generation = await service.cancelGeneration(generationId, userId)
     return c.json({ success: true, generation })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// ===== Audio Layers (Package 2) =====
+routes.post('/generations/:generationId/audio-layers', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const generationId = c.req.param('generationId')
+    const formData = await c.req.formData()
+
+    const file = formData.get('file') as File
+    const layerIndex = parseInt(formData.get('layerIndex') as string)
+    const volume = parseFloat(formData.get('volume') as string) || 100
+    const fadeIn = parseFloat(formData.get('fadeIn') as string) || 0
+    const fadeOut = parseFloat(formData.get('fadeOut') as string) || 0
+
+    if (!file) {
+      return c.json({ error: 'No file provided' }, 400)
+    }
+
+    // Verify generation belongs to user
+    await service.getGenerationById(generationId, userId)
+
+    // Check storage quota
+    const quotaCheck = await checkStorageQuota(userId, file.size)
+    if (!quotaCheck.allowed) {
+      return c.json({
+        error: 'Storage quota exceeded',
+        used: quotaCheck.used,
+        quota: quotaCheck.quota,
+      }, 413)
+    }
+
+    // Save audio file
+    const { filePath, fileName } = await saveFile(file, 'audio-layers')
+    const fullPath = `./uploads${filePath}`
+
+    // Get audio duration
+    const duration = await getVideoDuration(fullPath) // Can use same util for audio
+
+    // Create audio layer record
+    const audioLayer = await service.createAudioLayer({
+      generationId,
+      layerIndex,
+      fileName,
+      filePath,
+      fileSize: file.size,
+      duration,
+      volume,
+      fadeIn,
+      fadeOut,
+    })
+
+    // Update storage
+    await updateUserStorage(userId, file.size)
+
+    return c.json({ success: true, audioLayer })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+routes.get('/generations/:generationId/audio-layers', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const generationId = c.req.param('generationId')
+
+    // Verify generation belongs to user
+    await service.getGenerationById(generationId, userId)
+
+    const audioLayers = await service.getAudioLayers(generationId)
+    return c.json({ success: true, audioLayers })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+routes.patch('/audio-layers/:layerId', authMiddleware, async (c) => {
+  try {
+    const layerId = c.req.param('layerId')
+    const body = await c.req.json()
+
+    const audioLayer = await service.updateAudioLayer(layerId, {
+      volume: body.volume,
+      muted: body.muted,
+      fadeIn: body.fadeIn,
+      fadeOut: body.fadeOut,
+    })
+
+    return c.json({ success: true, audioLayer })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+routes.delete('/audio-layers/:layerId', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const layerId = c.req.param('layerId')
+
+    const audioLayer = await service.deleteAudioLayer(layerId, userId)
+    await deleteFile(audioLayer.filePath)
+    await updateUserStorage(userId, -audioLayer.fileSize)
+
+    return c.json({ success: true, freedSpace: audioLayer.fileSize })
   } catch (error: any) {
     return c.json({ error: error.message }, 400)
   }

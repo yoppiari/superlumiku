@@ -6,6 +6,7 @@ import { initStorage } from './lib/storage'
 // Import workers
 import './workers/video-mixer.worker'
 import './workers/carousel-mix.worker'
+import './workers/looping-flow.worker'
 
 // Test database connection
 async function checkDatabase() {

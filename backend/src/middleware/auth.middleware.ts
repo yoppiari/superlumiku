@@ -1,8 +1,9 @@
 import { Context, Next } from 'hono'
 import { verifyToken } from '../lib/jwt'
 import prisma from '../db/client'
+import { AuthContext } from '../types/hono'
 
-export const authMiddleware = async (c: Context, next: Next) => {
+export const authMiddleware = async (c: AuthContext, next: Next) => {
   const authHeader = c.req.header('Authorization')
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

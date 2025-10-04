@@ -40,10 +40,27 @@ export class LoopingFlowService {
     projectId: string,
     userId: string,
     videoId: string,
-    targetDuration: number
+    targetDuration: number,
+    options?: {
+      loopStyle?: string
+      crossfadeDuration?: number
+      videoCrossfade?: boolean
+      audioCrossfade?: boolean
+      masterVolume?: number
+      audioFadeIn?: number
+      audioFadeOut?: number
+      muteOriginal?: boolean
+    }
   ) {
     const creditUsed = this.calculateCreditCost(targetDuration)
-    return this.repository.createGeneration(projectId, userId, videoId, targetDuration, creditUsed)
+    return this.repository.createGeneration(
+      projectId,
+      userId,
+      videoId,
+      targetDuration,
+      creditUsed,
+      options
+    )
   }
 
   async getGenerations(projectId: string, userId: string) {
@@ -67,5 +84,35 @@ export class LoopingFlowService {
     }
 
     return this.repository.cancelGeneration(generationId)
+  }
+
+  // Audio layer methods
+  async getAudioLayers(generationId: string) {
+    return this.repository.getAudioLayers(generationId)
+  }
+
+  async createAudioLayer(data: any) {
+    return this.repository.createAudioLayer(data)
+  }
+
+  async updateAudioLayer(layerId: string, data: any) {
+    return this.repository.updateAudioLayer(layerId, data)
+  }
+
+  async deleteAudioLayer(layerId: string, userId: string) {
+    // Get the audio layer to verify ownership through generation
+    const layer = await this.repository.getAudioLayers('')
+    const layerData = layer.find((l: any) => l.id === layerId)
+
+    if (!layerData) {
+      throw new Error('Audio layer not found')
+    }
+
+    // Verify the generation belongs to the user
+    await this.repository.getGenerationById(layerData.generationId, userId)
+
+    // Delete the layer
+    const deleted = await this.repository.deleteAudioLayer(layerId)
+    return deleted
   }
 }

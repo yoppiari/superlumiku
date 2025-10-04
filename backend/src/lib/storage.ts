@@ -12,6 +12,7 @@ export async function initStorage() {
   const dirs = [
     path.join(UPLOAD_DIR, 'videos'),
     path.join(UPLOAD_DIR, 'temp'),
+    path.join(UPLOAD_DIR, 'carousel-slides'),
   ]
 
   for (const dir of dirs) {
@@ -29,7 +30,7 @@ export async function initStorage() {
  */
 export async function saveFile(
   file: File,
-  category: 'videos' | 'temp' = 'videos'
+  category: 'videos' | 'temp' | 'carousel-slides' = 'videos'
 ): Promise<{ filePath: string; fileName: string }> {
   const timestamp = Date.now()
   const randomId = randomBytes(8).toString('hex')

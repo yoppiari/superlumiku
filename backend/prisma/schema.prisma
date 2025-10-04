@@ -457,10 +457,45 @@ model LoopingFlowGeneration {
   createdAt       DateTime @default(now())
   completedAt     DateTime?
 
+  // Package 1: Perfect Seamless Loop
+  loopStyle          String  @default("crossfade") // simple, crossfade, boomerang
+  crossfadeDuration  Float   @default(1.0)         // 0.5 - 2.0 seconds
+  audioCrossfade     Boolean @default(true)
+  videoCrossfade     Boolean @default(true)
+
+  // Package 2: Multi-Layer Audio
+  audioLayers     String?  // JSON array of audio layer configs
+  masterVolume    Float    @default(100)
+  audioFadeIn     Float    @default(2.0)
+  audioFadeOut    Float    @default(2.0)
+  muteOriginal    Boolean  @default(false)
+
   project         LoopingFlowProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audioLayerFiles LoopingFlowAudioLayer[]
 
   @@index([projectId])
   @@index([userId])
   @@index([status])
   @@map("looping_flow_generations")
+}
+
+model LoopingFlowAudioLayer {
+  id              String   @id @default(cuid())
+  generationId    String
+  generation      LoopingFlowGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  layerIndex      Int      // 0, 1, 2, 3
+  fileName        String
+  filePath        String
+  fileSize        Int
+  duration        Float
+  volume          Float    @default(100)
+  muted           Boolean  @default(false)
+  fadeIn          Float    @default(0)
+  fadeOut         Float    @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@index([generationId])
+  @@map("looping_flow_audio_layers")
 }

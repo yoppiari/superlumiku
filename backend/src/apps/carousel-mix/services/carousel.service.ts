@@ -36,9 +36,17 @@ export class CarouselService {
     return project
   }
 
-  async updateProject(id: string, userId: string, data: Partial<{ name: string; description: string }>) {
+  async updateProject(id: string, userId: string, data: Partial<{ name: string; description: string; defaultNumSlides: number }>) {
     // Verify ownership
     await this.getProjectById(id, userId)
+
+    // Validate defaultNumSlides if provided
+    if (data.defaultNumSlides !== undefined) {
+      if (data.defaultNumSlides < 2 || data.defaultNumSlides > 8) {
+        throw new Error('defaultNumSlides must be between 2 and 8')
+      }
+    }
+
     return repo.updateProject(id, data)
   }
 
@@ -112,53 +120,22 @@ export class CarouselService {
     userId: string,
     data: {
       content: string
-      slidePosition: number // NEW: Required for position-based system
-      style?: any
-      position?: any
-      alignment?: string
-      fontSize?: number
-      fontColor?: string
-      fontWeight?: string
+      slidePosition: number
       order: number
     }
   ) {
     // Verify project ownership
     await this.getProjectById(projectId, userId)
 
-    // Prepare data with JSON serialization for complex fields
-    const textData: any = {
+    // Ensure position settings exist (create with defaults if needed)
+    await this.ensurePositionSettingsExist(projectId, data.slidePosition)
+
+    // Create text with only content - styling comes from position settings
+    return repo.createText(projectId, {
       content: data.content,
-      slidePosition: data.slidePosition, // NEW: Pass slidePosition to repository
+      slidePosition: data.slidePosition,
       order: data.order,
-    }
-
-    // If comprehensive styling is provided, serialize it
-    if (data.style) {
-      textData.styleData = JSON.stringify(data.style)
-      // Also populate legacy fields for backward compatibility
-      textData.fontSize = data.style.fontSize || 24
-      textData.fontColor = data.style.color || '#FFFFFF'
-      textData.fontWeight = data.style.fontWeight >= 700 ? 'bold' : 'normal'
-    } else if (data.fontSize !== undefined || data.fontColor !== undefined || data.fontWeight !== undefined) {
-      // Legacy fields provided
-      textData.fontSize = data.fontSize
-      textData.fontColor = data.fontColor
-      textData.fontWeight = data.fontWeight
-    }
-
-    // If comprehensive position is provided, serialize it
-    if (data.position) {
-      textData.positionData = JSON.stringify(data.position)
-      // Also populate legacy position field
-      textData.position = data.position.preset || 'center'
-      textData.alignment = data.position.align || 'center'
-    } else if (data.alignment !== undefined) {
-      // Legacy alignment provided
-      textData.alignment = data.alignment
-      textData.position = 'center'
-    }
-
-    return repo.createText(projectId, textData)
+    })
   }
 
   async getTexts(projectId: string, userId: string) {
@@ -172,18 +149,12 @@ export class CarouselService {
     userId: string,
     data: Partial<{
       content: string
-      style: any
-      position: any
-      alignment: string
-      fontSize: number
-      fontColor: string
-      fontWeight: string
       order: number
     }>
   ) {
     // TODO: Add proper authorization check
 
-    // Prepare data with JSON serialization for complex fields
+    // Only content and order can be updated - styling is at position level
     const textData: any = {}
 
     if (data.content !== undefined) {
@@ -192,31 +163,6 @@ export class CarouselService {
 
     if (data.order !== undefined) {
       textData.order = data.order
-    }
-
-    // If comprehensive styling is provided, serialize it
-    if (data.style) {
-      textData.styleData = JSON.stringify(data.style)
-      // Also update legacy fields for backward compatibility
-      textData.fontSize = data.style.fontSize || 24
-      textData.fontColor = data.style.color || '#FFFFFF'
-      textData.fontWeight = data.style.fontWeight >= 700 ? 'bold' : 'normal'
-    } else {
-      // Update individual legacy fields if provided
-      if (data.fontSize !== undefined) textData.fontSize = data.fontSize
-      if (data.fontColor !== undefined) textData.fontColor = data.fontColor
-      if (data.fontWeight !== undefined) textData.fontWeight = data.fontWeight
-    }
-
-    // If comprehensive position is provided, serialize it
-    if (data.position) {
-      textData.positionData = JSON.stringify(data.position)
-      // Also update legacy position fields
-      textData.position = data.position.preset || 'center'
-      textData.alignment = data.position.align || 'center'
-    } else {
-      // Update individual legacy field if provided
-      if (data.alignment !== undefined) textData.alignment = data.alignment
     }
 
     return repo.updateText(textId, textData)
@@ -434,5 +380,72 @@ export class CarouselService {
 
   async getStats(userId: string) {
     return repo.getProjectStats(userId)
+  }
+
+  // ===========================
+  // POSITION SETTINGS METHODS
+  // ===========================
+
+  async getPositionSettings(projectId: string, userId: string, slidePosition: number) {
+    // Verify ownership
+    await this.getProjectById(projectId, userId)
+
+    let settings = await repo.getPositionSettings(projectId, slidePosition)
+
+    // Create default if not exists
+    if (!settings) {
+      settings = await repo.createDefaultPositionSettings(projectId, slidePosition)
+    }
+
+    return settings
+  }
+
+  async getAllPositionSettings(projectId: string, userId: string) {
+    // Verify ownership
+    await this.getProjectById(projectId, userId)
+
+    return repo.getAllPositionSettings(projectId)
+  }
+
+  async updatePositionSettings(
+    projectId: string,
+    userId: string,
+    slidePosition: number,
+    data: {
+      fontFamily?: string
+      fontSize?: number
+      fontColor?: string
+      fontWeight?: number
+      backgroundColor?: string
+      textPosition?: string
+      textAlignment?: string
+      positionX?: number
+      positionY?: number
+      textShadow?: string
+      textOutline?: string
+      paddingData?: string
+    }
+  ) {
+    // Verify ownership
+    await this.getProjectById(projectId, userId)
+
+    return repo.upsertPositionSettings(projectId, slidePosition, data)
+  }
+
+  async deletePositionSettings(projectId: string, userId: string, slidePosition: number) {
+    // Verify ownership
+    await this.getProjectById(projectId, userId)
+
+    return repo.deletePositionSettings(projectId, slidePosition)
+  }
+
+  async ensurePositionSettingsExist(projectId: string, slidePosition: number) {
+    const settings = await repo.getPositionSettings(projectId, slidePosition)
+
+    if (!settings) {
+      return repo.createDefaultPositionSettings(projectId, slidePosition)
+    }
+
+    return settings
   }
 }

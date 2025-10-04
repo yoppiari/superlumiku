@@ -272,13 +272,19 @@ export function loadPlugins() {
 
 #### Step 6: Create Frontend Component
 
+**IMPORTANT:** Follow the [UI Standards](UI_STANDARDS.md) for header and layout consistency!
+
 ```tsx
 // frontend/src/apps/MyApp.tsx
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
-import { useAuthStore } from '../store/authStore'
+import { useAuthStore } from '../stores/authStore'
+import ProfileDropdown from '../components/ProfileDropdown'
+import { ArrowLeft, Zap, Coins } from 'lucide-react'
 
 export default function MyApp() {
+  const navigate = useNavigate()
   const { user, updateCreditBalance } = useAuthStore()
   const [items, setItems] = useState([])
 
@@ -304,9 +310,50 @@ export default function MyApp() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <h1 className="text-3xl font-bold mb-6">My App</h1>
-      {/* UI components */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Standard Header - DO NOT MODIFY */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">
+                    My App
+                  </h1>
+                  <p className="text-sm md:text-[0.9375rem] text-slate-600">
+                    App description here
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 md:gap-6">
+              <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
+                <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
+                <span className="font-medium text-slate-900">
+                  {(user?.creditBalance || 0).toLocaleString()} Credits
+                </span>
+              </div>
+              <ProfileDropdown />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto p-4 lg:p-8">
+        {/* Your UI components here */}
+      </div>
     </div>
   )
 }
@@ -604,6 +651,12 @@ ls backend/prisma/migrations/
 
 ## Resources
 
+### Documentation
+- **[UI Standards](UI_STANDARDS.md)** - Header format, colors, typography (MUST READ!)
+- **[Plugin Architecture](PLUGIN_ARCHITECTURE.md)** - How plugins work
+- **[Redis Setup](REDIS_SETUP_GUIDE.md)** - Queue system setup
+
+### External Libraries
 - **Bun Docs:** https://bun.sh/docs
 - **Hono Docs:** https://hono.dev
 - **Prisma Docs:** https://www.prisma.io/docs

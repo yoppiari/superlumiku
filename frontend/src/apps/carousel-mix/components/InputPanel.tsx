@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useCarouselMixStore } from '../../../stores/carouselMixStore'
 import { SlidePositionSection } from './SlidePositionSection'
-import { Upload, Plus, X, ChevronDown, ChevronUp, Image as ImageIcon, Pencil, Save, Check, Loader2 } from 'lucide-react'
 
 interface InputPanelProps {
   projectId: string
@@ -12,62 +11,60 @@ export function InputPanel({ projectId }: InputPanelProps) {
     currentProject,
     updateGenerationSettings,
     generationSettings,
-    isSaving,
-    lastSaved,
+    updateProject,
   } = useCarouselMixStore()
 
-  const [timeAgo, setTimeAgo] = useState('')
+  // Local state for editing
+  const [localName, setLocalName] = useState('')
+  const [localDescription, setLocalDescription] = useState('')
 
+  // Initialize local state when project loads
   useEffect(() => {
-    if (!lastSaved) {
-      setTimeAgo('')
-      return
+    if (currentProject) {
+      setLocalName(currentProject.name)
+      setLocalDescription(currentProject.description || '')
     }
+  }, [currentProject?.id])
 
-    const updateTimeAgo = () => {
-      const now = new Date()
-      const diff = Math.floor((now.getTime() - lastSaved.getTime()) / 1000)
+  // Stable callback for saving
+  const saveProjectName = useCallback((projectId: string, name: string) => {
+    console.log('Saving project name:', name)
+    updateProject(projectId, { name })
+  }, [updateProject])
 
-      if (diff < 5) {
-        setTimeAgo('just now')
-      } else if (diff < 60) {
-        setTimeAgo(`${diff}s ago`)
-      } else if (diff < 3600) {
-        const mins = Math.floor(diff / 60)
-        setTimeAgo(`${mins}m ago`)
-      } else {
-        const hours = Math.floor(diff / 3600)
-        setTimeAgo(`${hours}h ago`)
-      }
-    }
+  const saveProjectDescription = useCallback((projectId: string, description: string) => {
+    console.log('Saving project description:', description)
+    updateProject(projectId, { description })
+  }, [updateProject])
 
-    updateTimeAgo()
-    const interval = setInterval(updateTimeAgo, 1000)
+  // Debounced save for name
+  useEffect(() => {
+    if (!currentProject || localName === currentProject.name) return
 
-    return () => clearInterval(interval)
-  }, [lastSaved])
+    const timer = setTimeout(() => {
+      saveProjectName(currentProject.id, localName)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [localName, currentProject?.id, currentProject?.name, saveProjectName])
+
+  // Debounced save for description
+  useEffect(() => {
+    if (!currentProject || localDescription === (currentProject.description || '')) return
+
+    const timer = setTimeout(() => {
+      saveProjectDescription(currentProject.id, localDescription)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [localDescription, currentProject?.id, currentProject?.description, saveProjectDescription])
 
   if (!currentProject) return null
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-8 border-b border-gray-200 pb-4">
+      <div className="mb-8 border-b border-gray-200 pb-4">
         <h2 className="text-2xl font-bold">1. Input Materials</h2>
-
-        {/* Save Indicator */}
-        <div className="flex items-center gap-2 text-sm">
-          {isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              <span className="text-blue-600 font-medium">Saving...</span>
-            </>
-          ) : lastSaved ? (
-            <>
-              <Check className="w-4 h-4 text-green-600" />
-              <span className="text-gray-600">Saved {timeAgo}</span>
-            </>
-          ) : null}
-        </div>
       </div>
 
       {/* Project Title */}
@@ -75,9 +72,21 @@ export function InputPanel({ projectId }: InputPanelProps) {
         <label className="block text-sm font-medium text-gray-700 mb-2">Project Title</label>
         <input
           type="text"
-          value={currentProject.name}
-          readOnly
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+          value={localName}
+          onChange={(e) => setLocalName(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+
+      {/* Project Description */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+        <textarea
+          value={localDescription}
+          onChange={(e) => setLocalDescription(e.target.value)}
+          rows={2}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+          placeholder="Add a description for your project..."
         />
       </div>
 

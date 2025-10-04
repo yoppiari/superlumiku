@@ -14,17 +14,10 @@ import statsRoutes from './routes/stats.routes'
 import { loadPlugins } from './plugins/loader'
 import { pluginRegistry } from './plugins/registry'
 
-// Workers
-import { LoopProcessorWorker } from './apps/looping-flow/workers/loop-processor.worker'
-
 const app = new Hono()
 
 // Load all plugins
 loadPlugins()
-
-// Start background workers
-const loopWorker = new LoopProcessorWorker()
-loopWorker.start()
 
 // Middleware
 app.use('*', logger())

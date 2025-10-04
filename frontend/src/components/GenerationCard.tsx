@@ -1,4 +1,4 @@
-import { Download, Trash2, Eye, Video, FolderOpen } from 'lucide-react'
+import { Download, Trash2, Eye, Video, FolderOpen, Images } from 'lucide-react'
 import type { GenerationItem } from '../types/generation'
 
 interface GenerationCardProps {
@@ -35,7 +35,7 @@ export default function GenerationCard({
   onDelete,
   compact = false,
 }: GenerationCardProps) {
-  const Icon = generation.appIcon === 'video' ? Video : FolderOpen
+  const Icon = generation.appId === 'video-mixer' ? Video : Images
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -67,7 +67,12 @@ export default function GenerationCard({
           <Icon className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-slate-900 mb-1 truncate">{generation.projectName}</h4>
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="text-sm font-medium text-slate-900 truncate">{generation.projectName}</h4>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${APP_COLORS[generation.appId]} border`}>
+              {generation.appId === 'video-mixer' ? 'Video' : 'Carousel'}
+            </span>
+          </div>
           <p className="text-xs text-slate-600">{formatDate(generation.createdAt)}</p>
         </div>
         <div className="flex flex-col items-end gap-2">

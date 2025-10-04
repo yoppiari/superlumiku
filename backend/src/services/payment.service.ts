@@ -108,7 +108,7 @@ export class PaymentService {
         body: JSON.stringify(requestPayload),
       })
 
-      const duitkuResponse: DuitkuCreatePaymentResponse = await response.json()
+      const duitkuResponse = await response.json() as DuitkuCreatePaymentResponse
 
       if (duitkuResponse.statusCode !== '00') {
         throw new Error(duitkuResponse.statusMessage || 'Failed to create payment')

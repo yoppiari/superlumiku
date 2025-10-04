@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { PaymentService } from '../services/payment.service'
+import { AuthVariables } from '../types/hono'
 
-const creditsRoutes = new Hono()
+const creditsRoutes = new Hono<{ Variables: AuthVariables }>()
 const paymentService = new PaymentService()
 
 // Get credit balance

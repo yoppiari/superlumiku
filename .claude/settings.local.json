@@ -31,7 +31,17 @@
       "Bash(dir uploads)",
       "Bash(dir:*)",
       "Bash(ffprobe:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git remote get-url:*)",
+      "Bash(git mv:*)",
+      "Bash(npx tsc:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(bunx prisma migrate dev:*)",
+      "Bash(cat:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(unzip:*)",
+      "Bash(sqlite3:*)",
+      "Bash(DEBUG=1 bun run src/test-carousel-with-text.ts)"
     ],
     "deny": [],
     "ask": []

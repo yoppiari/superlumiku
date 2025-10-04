@@ -98,12 +98,38 @@ export class LoopProcessorWorker {
       console.log(`🎬 Target duration: ${generation.targetDuration}s`)
       console.log(`🎥 Source duration: ${video.duration}s`)
 
+      // Get audio layers for this generation
+      const audioLayers = await this.repository.getAudioLayers(generation.id)
+
+      // Build loop options
+      const loopOptions = {
+        loopStyle: generation.loopStyle as 'simple' | 'crossfade' | 'boomerang',
+        crossfadeDuration: generation.crossfadeDuration,
+        videoCrossfade: generation.videoCrossfade,
+        audioCrossfade: generation.audioCrossfade,
+        audioLayers: audioLayers.map((layer) => ({
+          filePath: path.join(process.cwd(), 'uploads', layer.filePath),
+          volume: layer.volume,
+          muted: layer.muted,
+          fadeIn: layer.fadeIn,
+          fadeOut: layer.fadeOut,
+        })),
+        masterVolume: generation.masterVolume,
+        audioFadeIn: generation.audioFadeIn,
+        audioFadeOut: generation.audioFadeOut,
+        muteOriginal: generation.muteOriginal,
+      }
+
+      console.log(`🎵 Loop style: ${loopOptions.loopStyle}`)
+      console.log(`🎚️  Audio layers: ${audioLayers.length}`)
+
       // Process video looping
       const result = await this.ffmpegLooper.processLoop(
         inputPath,
         outputPath,
         generation.targetDuration,
-        video.duration
+        video.duration,
+        loopOptions
       )
 
       if (result.success) {

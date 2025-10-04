@@ -2,8 +2,9 @@ import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { PaymentService } from '../services/payment.service'
 import { z } from 'zod'
+import { AuthVariables } from '../types/hono'
 
-const paymentRoutes = new Hono()
+const paymentRoutes = new Hono<{ Variables: AuthVariables }>()
 const paymentService = new PaymentService()
 
 // Validation schemas
@@ -61,7 +62,7 @@ paymentRoutes.post('/duitku/callback', async (c) => {
 // Get payment status
 paymentRoutes.get('/status/:merchantOrderId', authMiddleware, async (c) => {
   try {
-    const merchantOrderId = c.param('merchantOrderId')
+    const merchantOrderId = c.req.param('merchantOrderId')
 
     const payment = await paymentService.getPaymentStatus(merchantOrderId)
 

@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuthStore } from '../stores/authStore'
+import ProfileDropdown from '../components/ProfileDropdown'
 import {
-  Video, Plus, Trash2, FolderPlus, Upload, Shuffle, Zap, Play,
+  Video, Plus, Trash2, FolderPlus, Upload, Shuffle,
   ArrowLeft, Settings, Grid3x3, List, Film, Clock, HardDrive,
-  ChevronDown, X, Eye, Download, RotateCw, Info, Sliders, Volume2,
-  Archive, ChevronLeft, ChevronRight
+  Download, RotateCw, Info, Volume2,
+  Archive, ChevronLeft, ChevronRight, Coins
 } from 'lucide-react'
 
 // Download Section Component
@@ -198,8 +199,6 @@ export default function VideoMixer() {
   const [showNewProject, setShowNewProject] = useState(false)
   const [newProject, setNewProject] = useState({ name: '', description: '' })
   const [newGroupName, setNewGroupName] = useState('')
-  const [estimating, setEstimating] = useState(false)
-  const [estimate, setEstimate] = useState<any>(null)
   const [uploading, setUploading] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [generations, setGenerations] = useState<Generation[]>([])
@@ -449,24 +448,6 @@ export default function VideoMixer() {
     }
   }
 
-  const handleEstimate = async () => {
-    if (!selectedProject) return
-
-    setEstimating(true)
-    try {
-      const res = await api.post('/api/apps/video-mixer/estimate', {
-        projectId: selectedProject.id,
-        totalVideos: videosToGenerate,
-        settings,
-      })
-      setEstimate(res.data.estimate)
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to estimate')
-    } finally {
-      setEstimating(false)
-    }
-  }
-
   const handleGenerate = async () => {
     if (!selectedProject) return
     if (!confirm(`Generate ${videosToGenerate} videos? This will cost ${totalCost} credits.`)) return
@@ -657,62 +638,33 @@ export default function VideoMixer() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-[1920px] mx-auto px-6 py-4">
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-[1920px] mx-auto px-6 md:px-10 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600 hover:text-gray-900"
+                className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
-                  <Video className="w-6 h-6 text-white" />
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                  <Video className="w-5 h-5" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Video Mixer</h1>
-                  <p className="text-sm text-gray-500">Mix & generate video combinations</p>
+                  <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">Video Mixer</h1>
+                  <p className="text-sm md:text-[0.9375rem] text-slate-600">Mix & generate video combinations</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Storage Indicator */}
-              {user && user.storageQuota && (
-                <div className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="text-xs text-gray-500 mb-1">Storage Used</div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 w-32">
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all ${
-                            ((user.storageUsed || 0) / user.storageQuota) > 0.9
-                              ? 'bg-red-500'
-                              : ((user.storageUsed || 0) / user.storageQuota) > 0.7
-                              ? 'bg-yellow-500'
-                              : 'bg-blue-500'
-                          }`}
-                          style={{
-                            width: `${Math.min(((user.storageUsed || 0) / user.storageQuota) * 100, 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-xs font-medium text-gray-700">
-                      {formatFileSize(user.storageUsed || 0)} / {formatFileSize(user.storageQuota)}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedProject && (
-                <div className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="text-xs text-gray-500">Project</div>
-                  <div className="font-semibold text-gray-900">{selectedProject.name}</div>
-                </div>
-              )}
+            <div className="flex items-center gap-4 md:gap-6">
+              <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
+                <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
+                <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
+              </div>
+              <ProfileDropdown />
             </div>
           </div>
         </div>
@@ -871,7 +823,7 @@ export default function VideoMixer() {
 
                   {selectedProject.videos && selectedProject.videos.length > 0 ? (
                     <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-4' : 'space-y-2'}>
-                      {selectedProject.videos.map((video, index) => (
+                      {selectedProject.videos.map((video) => (
                         <div
                           key={video.id}
                           className="group bg-gray-50 hover:bg-gray-100 rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition"

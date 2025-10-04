@@ -66,7 +66,17 @@ export class LoopingFlowRepository {
     userId: string,
     videoId: string,
     targetDuration: number,
-    creditUsed: number
+    creditUsed: number,
+    options?: {
+      loopStyle?: string
+      crossfadeDuration?: number
+      videoCrossfade?: boolean
+      audioCrossfade?: boolean
+      masterVolume?: number
+      audioFadeIn?: number
+      audioFadeOut?: number
+      muteOriginal?: boolean
+    }
   ) {
     return prisma.loopingFlowGeneration.create({
       data: {
@@ -76,6 +86,14 @@ export class LoopingFlowRepository {
         targetDuration,
         creditUsed,
         status: 'pending',
+        loopStyle: options?.loopStyle || 'crossfade',
+        crossfadeDuration: options?.crossfadeDuration ?? 1.0,
+        videoCrossfade: options?.videoCrossfade ?? true,
+        audioCrossfade: options?.audioCrossfade ?? true,
+        masterVolume: options?.masterVolume ?? 100,
+        audioFadeIn: options?.audioFadeIn ?? 2.0,
+        audioFadeOut: options?.audioFadeOut ?? 2.0,
+        muteOriginal: options?.muteOriginal ?? false,
       },
     })
   }
@@ -155,6 +173,50 @@ export class LoopingFlowRepository {
         errorMessage,
         completedAt: new Date(),
       },
+    })
+  }
+
+  // Audio layer methods
+  async getAudioLayers(generationId: string) {
+    return prisma.loopingFlowAudioLayer.findMany({
+      where: { generationId },
+      orderBy: { layerIndex: 'asc' },
+    })
+  }
+
+  async createAudioLayer(data: {
+    generationId: string
+    layerIndex: number
+    fileName: string
+    filePath: string
+    fileSize: number
+    duration: number
+    volume?: number
+    muted?: boolean
+    fadeIn?: number
+    fadeOut?: number
+  }) {
+    return prisma.loopingFlowAudioLayer.create({ data })
+  }
+
+  async updateAudioLayer(
+    layerId: string,
+    data: {
+      volume?: number
+      muted?: boolean
+      fadeIn?: number
+      fadeOut?: number
+    }
+  ) {
+    return prisma.loopingFlowAudioLayer.update({
+      where: { id: layerId },
+      data,
+    })
+  }
+
+  async deleteAudioLayer(layerId: string) {
+    return prisma.loopingFlowAudioLayer.delete({
+      where: { id: layerId },
     })
   }
 }

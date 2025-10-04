@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../../middleware/auth.middleware'
+import { AuthVariables } from '../../types/hono'
 import { deductCredits, recordCreditUsage } from '../../core/middleware/credit.middleware'
 import { VideoMixerService } from './services/video-mixer.service'
 import { videoMixerConfig } from './plugin.config'
@@ -8,7 +9,7 @@ import { getVideoDuration } from '../../lib/video-utils'
 import { addVideoMixerJob } from '../../lib/queue'
 import { z } from 'zod'
 
-const routes = new Hono()
+const routes = new Hono<{ Variables: AuthVariables }>()
 const service = new VideoMixerService()
 
 // Validation schemas
@@ -311,9 +312,9 @@ routes.post(
       const deduction = c.get('creditDeduction')
       const { newBalance, creditUsed } = await recordCreditUsage(
         userId,
-        deduction.appId,
-        deduction.action,
-        deduction.amount
+        deduction?.appId || 'video-mixer',
+        deduction?.action || 'generate',
+        deduction?.amount || 0
       )
 
       // Add job to queue for processing

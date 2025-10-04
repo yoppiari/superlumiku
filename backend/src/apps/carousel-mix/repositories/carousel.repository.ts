@@ -51,6 +51,9 @@ export class CarouselRepository {
         texts: {
           orderBy: { order: 'asc' },
         },
+        positionSettings: {
+          orderBy: { slidePosition: 'asc' },
+        },
         generations: {
           orderBy: { createdAt: 'desc' },
         },
@@ -58,7 +61,7 @@ export class CarouselRepository {
     })
   }
 
-  async updateProject(id: string, data: Partial<{ name: string; description: string }>) {
+  async updateProject(id: string, data: Partial<{ name: string; description: string; defaultNumSlides: number }>) {
     return prisma.carouselProject.update({
       where: { id },
       data,
@@ -124,13 +127,7 @@ export class CarouselRepository {
 
   async createText(projectId: string, data: {
     content: string
-    styleData?: string
-    positionData?: string
-    position?: string
-    alignment?: string
-    fontSize?: number
-    fontColor?: string
-    fontWeight?: string
+    slidePosition: number
     order: number
   }) {
     return prisma.carouselText.create({
@@ -150,13 +147,6 @@ export class CarouselRepository {
 
   async updateText(id: string, data: Partial<{
     content: string
-    styleData: string
-    positionData: string
-    position: string
-    alignment: string
-    fontSize: number
-    fontColor: string
-    fontWeight: string
     order: number
   }>) {
     return prisma.carouselText.update({
@@ -255,5 +245,82 @@ export class CarouselRepository {
       totalGenerations,
       totalSetsGenerated: totalSetsGenerated._sum.numSetsGenerated || 0,
     }
+  }
+
+  // ===========================
+  // POSITION SETTINGS OPERATIONS
+  // ===========================
+
+  async getPositionSettings(projectId: string, slidePosition: number) {
+    return prisma.carouselPositionSettings.findUnique({
+      where: {
+        projectId_slidePosition: {
+          projectId,
+          slidePosition,
+        },
+      },
+    })
+  }
+
+  async getAllPositionSettings(projectId: string) {
+    return prisma.carouselPositionSettings.findMany({
+      where: { projectId },
+      orderBy: { slidePosition: 'asc' },
+    })
+  }
+
+  async upsertPositionSettings(
+    projectId: string,
+    slidePosition: number,
+    data: {
+      fontFamily?: string
+      fontSize?: number
+      fontColor?: string
+      fontWeight?: number
+      backgroundColor?: string
+      textPosition?: string
+      textAlignment?: string
+      positionX?: number
+      positionY?: number
+      textShadow?: string
+      textOutline?: string
+      paddingData?: string
+    }
+  ) {
+    return prisma.carouselPositionSettings.upsert({
+      where: {
+        projectId_slidePosition: {
+          projectId,
+          slidePosition,
+        },
+      },
+      create: {
+        projectId,
+        slidePosition,
+        ...data,
+      },
+      update: data,
+    })
+  }
+
+  async deletePositionSettings(projectId: string, slidePosition: number) {
+    return prisma.carouselPositionSettings.delete({
+      where: {
+        projectId_slidePosition: {
+          projectId,
+          slidePosition,
+        },
+      },
+    })
+  }
+
+  async createDefaultPositionSettings(projectId: string, slidePosition: number) {
+    return prisma.carouselPositionSettings.create({
+      data: {
+        projectId,
+        slidePosition,
+        // Uses default values from schema
+      },
+    })
   }
 }

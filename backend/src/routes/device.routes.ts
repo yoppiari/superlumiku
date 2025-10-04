@@ -1,8 +1,9 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { DeviceService } from '../services/device.service'
+import { AuthVariables } from '../types/hono'
 
-const deviceRoutes = new Hono()
+const deviceRoutes = new Hono<{ Variables: AuthVariables }>()
 const deviceService = new DeviceService()
 
 // Get all devices for current user
@@ -22,7 +23,7 @@ deviceRoutes.get('/', authMiddleware, async (c) => {
 deviceRoutes.delete('/:deviceId', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
-    const deviceId = c.param('deviceId')
+    const deviceId = c.req.param('deviceId')
 
     const result = await deviceService.removeDevice(userId, deviceId)
 

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Upload, X, Image as ImageIcon, FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { useCarouselMixStore } from '../../../stores/carouselMixStore'
-import type { Slide, TextVariation, TextStyle } from '../../../stores/carouselMixStore'
-import { TextStylePresetSelector } from './TextStylePresetSelector'
+import type { Slide, TextVariation } from '../../../stores/carouselMixStore'
 import { TextVariationItem } from './TextVariationItem'
+import { PositionTextStyleEditor } from './PositionTextStyleEditor'
 
 interface SlidePositionSectionProps {
   position: number
@@ -17,23 +17,21 @@ export function SlidePositionSection({ position, projectId }: SlidePositionSecti
     deleteSlide,
     addTextVariation,
     deleteTextVariation,
+    updatePositionSettings,
+    positionSettings,
     isUploading,
   } = useCarouselMixStore()
 
   const [isExpanded, setIsExpanded] = useState(true)
   const [newTextContent, setNewTextContent] = useState('')
   const [showTextInput, setShowTextInput] = useState(false)
-  const [defaultTextStyle, setDefaultTextStyle] = useState<TextStyle>({
-    fontFamily: 'Inter',
-    fontSize: 32,
-    fontWeight: 700,
-    color: '#FFFFFF',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  })
 
   // Filter slides and texts for this position
   const slidesAtPosition = currentProject?.slides.filter(s => s.slidePosition === position) || []
   const textsAtPosition = currentProject?.texts.filter(t => t.slidePosition === position) || []
+
+  // Get position settings
+  const positionSetting = positionSettings[`${projectId}-${position}`] || null
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -59,25 +57,9 @@ export function SlidePositionSection({ position, projectId }: SlidePositionSecti
     if (!newTextContent.trim()) return
 
     try {
-      // Convert numeric fontWeight to 'normal' or 'bold'
-      const fontWeight = defaultTextStyle.fontWeight >= 600 ? 'bold' : 'normal'
-
       const textData = {
         content: newTextContent,
         slidePosition: position,
-        style: defaultTextStyle, // Send complete style object with numeric fontWeight
-        position: {
-          preset: 'center',
-          x: 50,
-          y: 50,
-          align: 'center',
-          verticalAlign: 'middle',
-          padding: { top: 20, right: 20, bottom: 20, left: 20 },
-        },
-        fontSize: defaultTextStyle.fontSize,
-        fontColor: defaultTextStyle.color,
-        fontWeight: fontWeight, // Use converted value for legacy field
-        alignment: 'center',
         order: textsAtPosition.length,
       }
 
@@ -136,6 +118,14 @@ export function SlidePositionSection({ position, projectId }: SlidePositionSecti
       {/* Content */}
       {isExpanded && (
         <div className="p-4 bg-white space-y-4">
+          {/* Position Text Style Editor */}
+          <PositionTextStyleEditor
+            position={position}
+            projectId={projectId}
+            settings={positionSetting}
+            onUpdate={(settings) => updatePositionSettings(projectId, position, settings)}
+          />
+
           {/* Images Section */}
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
@@ -226,8 +216,6 @@ export function SlidePositionSection({ position, projectId }: SlidePositionSecti
             {/* Text Input Form */}
             {showTextInput && (
               <div className="space-y-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
-                <TextStylePresetSelector onSelect={setDefaultTextStyle} />
-
                 <textarea
                   value={newTextContent}
                   onChange={(e) => setNewTextContent(e.target.value)}

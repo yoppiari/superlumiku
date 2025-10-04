@@ -132,14 +132,7 @@ export class VideoMixerRepository {
     })
   }
 
-  async updateVideo(videoId: string, data: { fileName?: string; groupId?: string; order?: number }) {
-    return await prisma.videoMixerVideo.update({
-      where: { id: videoId },
-      data,
-    })
-  }
-
-  async updateVideo(videoId: string, data: { groupId?: string | null }) {
+  async updateVideo(videoId: string, data: { fileName?: string; groupId?: string | null; order?: number }) {
     return await prisma.videoMixerVideo.update({
       where: { id: videoId },
       data,

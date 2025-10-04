@@ -3,12 +3,12 @@ import { PluginConfig } from './types'
 
 export class PluginRegistry {
   private plugins: Map<string, PluginConfig> = new Map()
-  private routes: Map<string, Hono> = new Map()
+  private routes: Map<string, Hono<any>> = new Map()
 
   /**
    * Register a new plugin app
    */
-  register(config: PluginConfig, routes: Hono) {
+  register(config: PluginConfig, routes: Hono<any>) {
     if (this.plugins.has(config.appId)) {
       throw new Error(`Plugin ${config.appId} is already registered`)
     }
@@ -36,7 +36,7 @@ export class PluginRegistry {
   /**
    * Get routes for a plugin
    */
-  getRoutes(appId: string): Hono | undefined {
+  getRoutes(appId: string): Hono<any> | undefined {
     return this.routes.get(appId)
   }
 
