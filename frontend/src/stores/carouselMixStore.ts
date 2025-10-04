@@ -58,19 +58,8 @@ export interface TextPosition {
 export interface TextVariation {
   id: string
   projectId: string
-  slidePosition: number // NEW: Which position in carousel (1, 2, 3, ..., N)
+  slidePosition: number // Which position in carousel (1, 2, 3, ..., N)
   content: string
-
-  // New comprehensive styling
-  style: TextStyle
-  position: TextPosition
-
-  // Legacy fields (kept for backward compatibility)
-  fontSize: number
-  fontColor: string
-  fontWeight: string
-  alignment: string
-
   order: number
   createdAt: string
 }
@@ -96,11 +85,32 @@ export interface TextsByPosition {
   [position: number]: TextVariation[]
 }
 
+export interface PositionSettings {
+  id?: string
+  projectId: string
+  slidePosition: number
+  fontFamily: string
+  fontSize: number
+  fontColor: string
+  fontWeight: number
+  backgroundColor: string
+  textPosition: string
+  textAlignment: string
+  positionX: number
+  positionY: number
+  textShadow?: string
+  textOutline?: string
+  paddingData?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface Project {
   id: string
   userId: string
   name: string
   description?: string
+  defaultNumSlides: number
   slides: Slide[]
   texts: TextVariation[]
   generations: Generation[]
@@ -222,6 +232,9 @@ interface CarouselMixState {
   generationSettings: GenerationSettings
   combinationEstimate: CombinationEstimate | null
 
+  // Position Settings
+  positionSettings: Record<string, PositionSettings> // keyed by "${projectId}-${position}"
+
   // Actions - Projects
   loadProjects: () => Promise<void>
   createProject: (name: string, description?: string) => Promise<Project>
@@ -240,8 +253,13 @@ interface CarouselMixState {
   updateTextVariation: (textId: string, data: Partial<TextVariation>) => Promise<void>
   deleteTextVariation: (textId: string) => Promise<void>
 
+  // Actions - Position Settings
+  loadPositionSettings: (projectId: string) => Promise<void>
+  getPositionSettings: (projectId: string, position: number) => PositionSettings | null
+  updatePositionSettings: (projectId: string, position: number, settings: Partial<PositionSettings>) => Promise<void>
+
   // Actions - Generation
-  updateGenerationSettings: (settings: Partial<GenerationSettings>) => void
+  updateGenerationSettings: (settings: Partial<GenerationSettings>) => Promise<void>
   calculateCombinations: (projectId: string) => Promise<CombinationEstimate>
   generateCarousels: (projectId: string) => Promise<Generation>
 
@@ -278,6 +296,7 @@ export const useCarouselMixStore = create<CarouselMixState>()(
     lastSaved: null,
     generationSettings: initialGenerationSettings,
     combinationEstimate: null,
+    positionSettings: {},
 
     // ===== Projects Actions =====
 
@@ -312,6 +331,15 @@ export const useCarouselMixStore = create<CarouselMixState>()(
 
         set((state) => {
           state.projects.unshift(newProject)
+          // Set as current project immediately to avoid blank page
+          state.currentProject = newProject
+          state.generationSettings.numSlides = newProject.defaultNumSlides || 4
+          state.isDirty = false
+        })
+
+        // Load position settings in background (non-blocking)
+        get().loadPositionSettings(newProject.id).catch((error) => {
+          console.error('Failed to load position settings:', error)
         })
 
         return newProject
@@ -327,8 +355,13 @@ export const useCarouselMixStore = create<CarouselMixState>()(
 
         set((state) => {
           state.currentProject = res.data.project
+          // Load defaultNumSlides into generationSettings
+          state.generationSettings.numSlides = res.data.project.defaultNumSlides || 4
           state.isDirty = false
         })
+
+        // Load position settings
+        await get().loadPositionSettings(projectId)
       } catch (error) {
         console.error('Failed to load project:', error)
         throw error
@@ -336,6 +369,10 @@ export const useCarouselMixStore = create<CarouselMixState>()(
     },
 
     updateProject: async (projectId: string, data: { name?: string; description?: string }) => {
+      set((state) => {
+        state.isSaving = true
+      })
+
       try {
         await api.put(`/api/apps/carousel-mix/projects/${projectId}`, data)
 
@@ -353,9 +390,14 @@ export const useCarouselMixStore = create<CarouselMixState>()(
             if (data.description !== undefined) state.currentProject.description = data.description
           }
 
-          state.markClean()
+          state.isDirty = false
+          state.isSaving = false
+          state.lastSaved = new Date()
         })
       } catch (error) {
+        set((state) => {
+          state.isSaving = false
+        })
         console.error('Failed to update project:', error)
         throw error
       }
@@ -560,9 +602,71 @@ export const useCarouselMixStore = create<CarouselMixState>()(
       }
     },
 
+    // ===== Position Settings Actions =====
+
+    loadPositionSettings: async (projectId: string) => {
+      try {
+        const res = await api.get(`/api/apps/carousel-mix/projects/${projectId}/positions/settings`)
+        const settings = res.data.positionSettings || []
+
+        set((state) => {
+          // Clear existing settings for this project
+          Object.keys(state.positionSettings).forEach(key => {
+            if (key.startsWith(`${projectId}-`)) {
+              delete state.positionSettings[key]
+            }
+          })
+
+          // Load new settings
+          settings.forEach((setting: PositionSettings) => {
+            const key = `${projectId}-${setting.slidePosition}`
+            state.positionSettings[key] = setting
+          })
+        })
+      } catch (error) {
+        console.error('Failed to load position settings:', error)
+        // Don't throw - position settings are optional
+      }
+    },
+
+    getPositionSettings: (projectId: string, position: number) => {
+      const key = `${projectId}-${position}`
+      return get().positionSettings[key] || null
+    },
+
+    updatePositionSettings: async (projectId: string, position: number, settings: Partial<PositionSettings>) => {
+      set((state) => {
+        state.isSaving = true
+      })
+
+      try {
+        const res = await api.put(
+          `/api/apps/carousel-mix/projects/${projectId}/positions/${position}/settings`,
+          settings
+        )
+
+        const updatedSettings = res.data.positionSettings
+
+        set((state) => {
+          const key = `${projectId}-${position}`
+          state.positionSettings[key] = updatedSettings
+          state.isSaving = false
+          state.lastSaved = new Date()
+        })
+      } catch (error) {
+        set((state) => {
+          state.isSaving = false
+        })
+        console.error('Failed to update position settings:', error)
+        throw error
+      }
+    },
+
     // ===== Generation Actions =====
 
-    updateGenerationSettings: (settings: Partial<GenerationSettings>) => {
+    updateGenerationSettings: async (settings: Partial<GenerationSettings>) => {
+      const currentProject = get().currentProject
+
       set((state) => {
         state.generationSettings = {
           ...state.generationSettings,
@@ -570,6 +674,28 @@ export const useCarouselMixStore = create<CarouselMixState>()(
         }
         state.combinationEstimate = null // Invalidate estimate when settings change
       })
+
+      // Auto-save numSlides to backend if project is loaded and numSlides changed
+      if (currentProject && settings.numSlides !== undefined) {
+        try {
+          set((state) => { state.isSaving = true })
+
+          await api.put(`/api/apps/carousel-mix/projects/${currentProject.id}`, {
+            defaultNumSlides: settings.numSlides,
+          })
+
+          set((state) => {
+            if (state.currentProject) {
+              state.currentProject.defaultNumSlides = settings.numSlides!
+            }
+            state.isSaving = false
+            state.lastSaved = new Date()
+          })
+        } catch (error) {
+          console.error('Failed to save carousel length:', error)
+          set((state) => { state.isSaving = false })
+        }
+      }
     },
 
     calculateCombinations: async (projectId: string) => {
