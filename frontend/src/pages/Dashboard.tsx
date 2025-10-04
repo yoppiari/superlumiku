@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import api from '../lib/api'
 import ProfileDropdown from '../components/ProfileDropdown'
+import GenerationCard from '../components/GenerationCard'
+import type { GenerationItem } from '../types/generation'
 import {
   ListChecks,
   TrendingUp,
@@ -14,10 +16,6 @@ import {
   MessageSquare,
   FolderOpen,
   Coins,
-  FileEdit,
-  Smartphone,
-  Palette,
-  Code,
   ArrowDown,
   ArrowUp,
   Video,
@@ -45,11 +43,13 @@ const iconMap: Record<string, any> = {
 }
 
 export default function Dashboard() {
-  const { user, isAuthenticated, logout } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
   const [creditBalance, setCreditBalance] = useState(user?.creditBalance || 2450)
   const [apps, setApps] = useState<AppData[]>([])
   const [loadingApps, setLoadingApps] = useState(true)
+  const [recentGenerations, setRecentGenerations] = useState<GenerationItem[]>([])
+  const [loadingGenerations, setLoadingGenerations] = useState(true)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -74,12 +74,19 @@ export default function Dashboard() {
         console.error('Failed to fetch apps:', err)
         setLoadingApps(false)
       })
-  }, [isAuthenticated, navigate])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/')
-  }
+    // Fetch recent generations
+    api
+      .get('/api/generations/recent?limit=5')
+      .then((res) => {
+        setRecentGenerations(res.data.generations || [])
+        setLoadingGenerations(false)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch recent generations:', err)
+        setLoadingGenerations(false)
+      })
+  }, [isAuthenticated, navigate])
 
   const stats = [
     { icon: ListChecks, value: '24', label: 'Active Projects', color: 'bg-slate-50 text-slate-700' },
@@ -92,12 +99,19 @@ export default function Dashboard() {
     navigate(`/apps/${appId}`)
   }
 
-  const recentWork = [
-    { icon: FileEdit, title: 'Website Redesign Project', time: 'Updated 2 hours ago', status: 'progress', days: '4 days left' },
-    { icon: Smartphone, title: 'Mobile App Development', time: 'Updated 5 hours ago', status: 'progress', days: '7 days left' },
-    { icon: Palette, title: 'Brand Identity Design', time: 'Updated yesterday', status: 'completed', days: 'Completed' },
-    { icon: Code, title: 'API Integration Task', time: 'Created 3 days ago', status: 'pending', days: 'Not started' },
-  ]
+  const handleDownload = (generation: GenerationItem) => {
+    // Download first file or create ZIP for multiple files
+    if (generation.outputPaths.length === 1) {
+      window.open(generation.outputPaths[0], '_blank')
+    } else {
+      // TODO: Implement bulk download
+      alert('Bulk download coming soon')
+    }
+  }
+
+  const handleNavigateToMyWork = () => {
+    navigate('/my-work')
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -206,35 +220,34 @@ export default function Dashboard() {
         <section className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 mb-10 md:mb-14">
           <div className="flex items-center justify-between mb-7">
             <h2 className="text-xl md:text-[1.375rem] font-semibold text-slate-900 tracking-tighter">Recent Work</h2>
-            <button className="px-5 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all">
+            <button
+              onClick={handleNavigateToMyWork}
+              className="px-5 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all"
+            >
               View All
             </button>
           </div>
           <div className="space-y-3">
-            {recentWork.map((work, i) => {
-              const Icon = work.icon
-              return (
-                <div key={i} className="flex items-center gap-4 md:gap-5 p-4 md:p-5 bg-slate-50 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer">
-                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-6 h-6 md:w-7 md:h-7 text-slate-700" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm md:text-[0.9375rem] font-medium text-slate-900 mb-1">{work.title}</h4>
-                    <p className="text-xs md:text-[0.8125rem] text-slate-600">{work.time}</p>
-                  </div>
-                  <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-5">
-                    <span className="text-xs md:text-[0.8125rem] text-slate-500 hidden md:inline">{work.days}</span>
-                    <span className={`px-3.5 py-1.5 rounded-md text-xs font-medium ${
-                      work.status === 'completed' ? 'bg-green-50 text-green-700' :
-                      work.status === 'progress' ? 'bg-blue-50 text-blue-700' :
-                      'bg-orange-50 text-orange-700'
-                    }`}>
-                      {work.status === 'completed' ? 'Completed' : work.status === 'progress' ? 'In Progress' : 'Pending'}
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
+            {loadingGenerations ? (
+              <div className="text-center py-8 text-slate-600">
+                Loading recent work...
+              </div>
+            ) : recentGenerations.length === 0 ? (
+              <div className="text-center py-12">
+                <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-600 mb-1">No recent work yet</p>
+                <p className="text-sm text-slate-500">Start creating with the apps above</p>
+              </div>
+            ) : (
+              recentGenerations.map((generation) => (
+                <GenerationCard
+                  key={generation.id}
+                  generation={generation}
+                  onDownload={handleDownload}
+                  compact
+                />
+              ))
+            )}
           </div>
         </section>
 

@@ -1,11 +1,13 @@
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
+import { serveStatic } from 'hono/bun'
 import { corsMiddleware } from './middleware/cors.middleware'
 import authRoutes from './routes/auth.routes'
 import creditRoutes from './routes/credit.routes'
 import paymentRoutes from './routes/payment.routes'
 import creditsRoutes from './routes/credits.routes'
 import deviceRoutes from './routes/device.routes'
+import generationRoutes from './routes/generation.routes'
 
 // Plugin System
 import { loadPlugins } from './plugins/loader'
@@ -20,6 +22,9 @@ loadPlugins()
 app.use('*', logger())
 app.use('*', corsMiddleware)
 
+// Serve static files from uploads directory
+app.use('/uploads/*', serveStatic({ root: './' }))
+
 // Health check
 app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() })
@@ -30,6 +35,7 @@ app.route('/api/auth', authRoutes)
 app.route('/api/credits', creditsRoutes)
 app.route('/api/payment', paymentRoutes)
 app.route('/api/devices', deviceRoutes)
+app.route('/api/generations', generationRoutes)
 
 // Get all apps for dashboard
 app.get('/api/apps', (c) => {

@@ -292,7 +292,7 @@ export class FFmpegService {
         command.format('mp4').outputOptions(outputOptions)
 
         // Progress tracking
-        command.on('progress', (progress) => {
+        command.on('progress', (progress: any) => {
           if (onProgress && progress.percent) {
             onProgress(Math.min(progress.percent, 100))
           }
@@ -347,5 +347,22 @@ export class FFmpegService {
   rotateArray<T>(array: T[], positions: number): T[] {
     const pos = positions % array.length
     return [...array.slice(pos), ...array.slice(0, pos)]
+  }
+
+  /**
+   * Generate thumbnail from video
+   */
+  async generateThumbnail(videoPath: string, outputPath: string, timeOffset: number = 1): Promise<void> {
+    return new Promise((resolve, reject) => {
+      ffmpeg(videoPath)
+        .screenshots({
+          timestamps: [timeOffset],
+          filename: path.basename(outputPath),
+          folder: path.dirname(outputPath),
+          size: '640x360'
+        })
+        .on('end', () => resolve())
+        .on('error', (err: any) => reject(new Error(`Thumbnail generation failed: ${err.message}`)))
+    })
   }
 }

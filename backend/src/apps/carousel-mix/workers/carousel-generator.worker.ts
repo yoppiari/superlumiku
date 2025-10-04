@@ -129,6 +129,23 @@ export class CarouselGeneratorWorker {
       const zipPath = await this.createZipPackage(allSets, generationId)
       console.log(`   ✅ ZIP created: ${zipPath}`)
 
+      // Generate thumbnail from first image
+      if (allSets.length > 0 && allSets[0].length > 0) {
+        try {
+          const thumbnailDir = path.join(UPLOAD_DIR, 'carousel-mix', generation.userId, generationId)
+          await fs.mkdir(thumbnailDir, { recursive: true })
+          const thumbnailPath = path.join(thumbnailDir, 'thumb.jpg')
+          const firstImagePath = path.join(process.cwd(), allSets[0][0])
+          await sharp(firstImagePath)
+            .resize(640, 360, { fit: 'cover' })
+            .jpeg({ quality: 80 })
+            .toFile(thumbnailPath)
+          console.log(`   📸 Thumbnail generated: thumb.jpg`)
+        } catch (error) {
+          console.error(`   ⚠️  Thumbnail generation failed:`, error)
+        }
+      }
+
       // Update generation status
       await prisma.carouselGeneration.update({
         where: { id: generationId },

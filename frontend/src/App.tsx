@@ -6,7 +6,9 @@ import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import Credits from './pages/Credits'
+import MyWork from './pages/MyWork'
 import VideoMixer from './apps/VideoMixer'
+import CarouselMix from './apps/CarouselMix'
 import { setupSSOListeners, extractSSOFromURL } from './lib/sso'
 import { useAuthStore } from './stores/authStore'
 
@@ -33,10 +35,13 @@ function AppContent() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/my-work" element={<MyWork />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/credits" element={<Credits />} />
       <Route path="/apps/video-mixer" element={<VideoMixer />} />
+      <Route path="/apps/carousel-mix" element={<CarouselMix />} />
+      <Route path="/apps/carousel-mix/:projectId" element={<CarouselMix />} />
     </Routes>
   )
 }

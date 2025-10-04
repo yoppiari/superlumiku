@@ -247,6 +247,25 @@ const worker = new Worker<VideoMixerJob>(
         console.log(`   ✅ Generated: ${outputFilename}`)
       }
 
+      // Generate thumbnail from first video
+      if (outputPaths.length > 0) {
+        try {
+          const generation = await prisma.videoMixerGeneration.findUnique({
+            where: { id: generationId },
+          })
+          if (generation) {
+            const thumbnailDir = path.join(UPLOAD_DIR, 'video-mixer', generation.userId, generationId)
+            fs.mkdirSync(thumbnailDir, { recursive: true })
+            const thumbnailPath = path.join(thumbnailDir, 'thumb.jpg')
+            const firstVideoPath = path.join(process.cwd(), outputPaths[0])
+            await ffmpegService.generateThumbnail(firstVideoPath, thumbnailPath)
+            console.log(`   📸 Thumbnail generated: thumb.jpg`)
+          }
+        } catch (error) {
+          console.error(`   ⚠️  Thumbnail generation failed:`, error)
+        }
+      }
+
       // Update generation status
       await prisma.videoMixerGeneration.update({
         where: { id: generationId },
@@ -274,9 +293,9 @@ const worker = new Worker<VideoMixerJob>(
     }
   },
   {
-    connection: redis,
+    connection: redis ? redis : undefined,
     concurrency: 1, // Process one job at a time (CPU intensive)
-  }
+  } as any
 )
 
 worker.on('completed', (job) => {
