@@ -3,6 +3,10 @@ import { env } from './config/env'
 import prisma from './db/client'
 import { initStorage } from './lib/storage'
 
+// Import workers
+import './workers/video-mixer.worker'
+import './workers/carousel-mix.worker'
+
 // Test database connection
 async function checkDatabase() {
   try {

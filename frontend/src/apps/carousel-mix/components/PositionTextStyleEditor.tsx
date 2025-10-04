@@ -6,7 +6,8 @@ export interface PositionSettings {
   projectId: string
   slidePosition: number
   fontFamily: string
-  fontSize: number
+  fontSize: number             // Deprecated - kept for backward compatibility
+  fontSizePercent: number      // Font size as % of image height (NEW)
   fontColor: string
   fontWeight: number
   backgroundColor: string
@@ -153,7 +154,8 @@ export function PositionTextStyleEditor({ position, projectId, settings, onUpdat
     projectId,
     slidePosition: position,
     fontFamily: 'Inter',
-    fontSize: 32,
+    fontSize: 32,               // Deprecated
+    fontSizePercent: 4.5,       // Default 4.5% of image height
     fontColor: '#FFFFFF',
     fontWeight: 700,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -263,19 +265,20 @@ export function PositionTextStyleEditor({ position, projectId, settings, onUpdat
           {/* Font Size */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Font Size: {currentSettings.fontSize}px
+              Font Size: {currentSettings.fontSizePercent?.toFixed(1) || '4.5'}%
             </label>
             <input
               type="range"
-              min="5"
-              max="25"
-              value={currentSettings.fontSize}
-              onChange={(e) => onUpdate({ fontSize: parseInt(e.target.value) })}
+              min="1"
+              max="15"
+              step="0.1"
+              value={currentSettings.fontSizePercent || 4.5}
+              onChange={(e) => onUpdate({ fontSizePercent: parseFloat(e.target.value) })}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>5px</span>
-              <span>25px</span>
+              <span>1% (Small)</span>
+              <span>15% (Large)</span>
             </div>
           </div>
 

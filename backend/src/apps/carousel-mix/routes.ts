@@ -485,13 +485,31 @@ routes.get('/generations/:generationId/download', authMiddleware, async (c) => {
       return c.json({ error: 'No output file available' }, 404)
     }
 
-    // TODO: Serve file for download
-    return c.json({
-      success: true,
-      downloadUrl: generation.outputPath,
-      message: 'Download ready',
+    // Construct absolute path to ZIP file
+    const filePath = `${process.cwd()}/uploads/${generation.outputPath}`
+
+    // Check if file exists
+    const file = Bun.file(filePath)
+    const exists = await file.exists()
+
+    if (!exists) {
+      console.error(`ZIP file not found: ${filePath}`)
+      return c.json({ error: 'Output file not found on server' }, 404)
+    }
+
+    // Get filename from path
+    const fileName = generation.outputPath.split('/').pop() || 'carousel.zip'
+
+    // Serve the file
+    return c.body(file.stream(), {
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': file.size.toString(),
+      },
     })
   } catch (error: any) {
+    console.error('Download error:', error)
     return c.json({ error: error.message }, 400)
   }
 })

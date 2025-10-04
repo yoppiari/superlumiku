@@ -286,3 +286,125 @@ model VideoMixerGeneration {
   @@index([status])
   @@map("video_mixer_generations")
 }
+
+// ========================================
+// Carousel Mix App Models
+// ========================================
+
+model CarouselProject {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  defaultNumSlides Int     @default(4) // Default carousel length (2-8)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  slides           CarouselSlide[]
+  texts            CarouselText[]
+  generations      CarouselGeneration[]
+  positionSettings CarouselPositionSettings[]
+
+  @@index([userId])
+  @@map("carousel_projects")
+}
+
+model CarouselSlide {
+  id            String   @id @default(cuid())
+  projectId     String
+  slidePosition Int      @default(1) // Which position in carousel (1, 2, 3, ..., N)
+  fileName      String
+  filePath      String
+  fileType      String   // 'image' or 'video'
+  fileSize      Int      // bytes
+  width         Int?     // Image width in pixels
+  height        Int?     // Image height in pixels
+  thumbnail     String?  // Thumbnail path for preview
+  order         Int      // Display order within same position (for UI sorting)
+  createdAt     DateTime @default(now())
+
+  project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([projectId, slidePosition])
+  @@map("carousel_slides")
+}
+
+model CarouselText {
+  id            String   @id @default(cuid())
+  projectId     String
+  slidePosition Int      @default(1) // Which position in carousel (1, 2, 3, ..., N)
+  content       String   // Only text content - styling moved to CarouselPositionSettings
+  order         Int      // Display order within same position (for UI sorting)
+  createdAt     DateTime @default(now())
+
+  project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([projectId, slidePosition])
+  @@map("carousel_texts")
+}
+
+// Position-level text styling settings (shared across all text variations in a position)
+model CarouselPositionSettings {
+  id            String   @id @default(cuid())
+  projectId     String
+  slidePosition Int      // Position number (1, 2, 3, ..., N)
+
+  // Text Style Settings (shared across all text variations in this position)
+  fontFamily       String   @default("Inter")
+  fontSize         Int      @default(32)          // Deprecated - kept for backward compatibility
+  fontSizePercent  Float    @default(4.5)         // Font size as % of image height (NEW)
+  fontColor        String   @default("#FFFFFF")
+  fontWeight       Int      @default(700)
+  backgroundColor  String   @default("rgba(0, 0, 0, 0.5)")
+
+  // Text Position Settings
+  textPosition  String   @default("center")     // preset: center, top-left, top-center, etc.
+  textAlignment String   @default("center")     // left, center, right, justify
+  positionX     Int      @default(50)           // X position percentage (0-100)
+  positionY     Int      @default(50)           // Y position percentage (0-100)
+
+  // Advanced Styling (JSON)
+  textShadow    String?  // JSON: { offsetX, offsetY, blur, color }
+  textOutline   String?  // JSON: { width, color }
+  paddingData   String?  // JSON: { top, right, bottom, left }
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project       CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, slidePosition])
+  @@index([projectId])
+  @@map("carousel_position_settings")
+}
+
+model CarouselGeneration {
+  id                    String    @id @default(cuid())
+  projectId             String
+  userId                String
+  status                String    @default("pending") // pending, processing, completed, failed
+  numSlides             Int       // 2, 4, 6, or 8
+  numSetsGenerated      Int       // How many carousel sets were generated
+  creditUsed            Int
+
+  // Text Variation Settings
+  textVariationAlgo     String?   @default("sequential") // random, sequential, weighted
+  textVariationSettings String?   // JSON string with algorithm-specific settings
+
+  // Output
+  outputPath            String?   // Path to ZIP file
+  outputPaths           String?   // JSON array of individual file paths
+  errorMessage          String?
+
+  createdAt             DateTime  @default(now())
+  completedAt           DateTime?
+
+  project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+  @@map("carousel_generations")
+}

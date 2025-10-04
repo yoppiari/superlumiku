@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useCarouselMixStore, groupSlidesByPosition, groupTextsByPosition, getCombinationBreakdown } from '../../../stores/carouselMixStore'
 import { useAuthStore } from '../../../stores/authStore'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Eye, RefreshCw } from 'lucide-react'
+import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Eye, RefreshCw, Download, Clock, FileVideo } from 'lucide-react'
 
 interface ResultsPanelProps {
   projectId: string
@@ -10,7 +10,7 @@ interface ResultsPanelProps {
 
 export function ResultsPanel({ projectId }: ResultsPanelProps) {
   const navigate = useNavigate()
-  const { user, updateCreditBalance } = useAuthStore()
+  const { user, token, updateCreditBalance } = useAuthStore()
   const {
     currentProject,
     generationSettings,
@@ -47,6 +47,24 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProject?.id, currentProject?.slides.length, currentProject?.texts.length])
+
+  // Auto-refresh generations every 5 seconds if there are processing/pending generations
+  useEffect(() => {
+    if (!currentProject) return
+
+    const hasActiveGeneration = currentProject.generations?.some(
+      g => g.status === 'processing' || g.status === 'pending'
+    )
+    if (!hasActiveGeneration) return
+
+    const interval = setInterval(() => {
+      // Reload only the current project instead of all projects
+      const { selectProject } = useCarouselMixStore.getState()
+      selectProject(currentProject.id)
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [currentProject?.generations, currentProject?.id])
 
   const handleCalculate = async () => {
     if (!currentProject) return
@@ -172,6 +190,66 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
     if (strength <= 2) return 'bg-yellow-100'
     if (strength <= 3) return 'bg-blue-100'
     return 'bg-green-100'
+  }
+
+  const handleDownload = async (generationId: string) => {
+    try {
+      if (!token) {
+        alert('Authentication required. Please log in again.')
+        return
+      }
+
+      // Fetch with auth header
+      const response = await fetch(
+        `http://localhost:3000/api/apps/carousel-mix/generations/${generationId}/download`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Download failed')
+      }
+
+      // Get blob from response
+      const blob = await response.blob()
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `carousel_${generationId}.zip`
+      document.body.appendChild(a)
+      a.click()
+
+      // Cleanup
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error: any) {
+      console.error('Download error:', error)
+      alert(`Download failed: ${error.message}`)
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-600 bg-green-100'
+      case 'processing': return 'text-blue-600 bg-blue-100'
+      case 'failed': return 'text-red-600 bg-red-100'
+      default: return 'text-gray-600 bg-gray-100'
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <CheckCircle className="w-4 h-4" />
+      case 'processing': return <Loader className="w-4 h-4 animate-spin" />
+      case 'failed': return <AlertCircle className="w-4 h-4" />
+      default: return <Clock className="w-4 h-4" />
+    }
   }
 
   if (!currentProject) return null
@@ -321,7 +399,8 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
                 {previewSamples.map((sample, idx) => {
                   // Get settings or use defaults
                   const settings = sample.settings || {
-                    fontSize: 16,
+                    fontSize: 16,               // Deprecated
+                    fontSizePercent: 4.5,       // Default 4.5% of image height
                     fontColor: '#FFFFFF',
                     fontWeight: 700,
                     fontFamily: 'Arial',
@@ -347,8 +426,13 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
                   }
 
                   const getTextStyle = () => {
+                    // Calculate font size from percentage (container is preview size, not 1080px)
+                    const containerRef = document.querySelector('.aspect-square') as HTMLElement
+                    const containerHeight = containerRef?.offsetHeight || 350 // Fallback to 350px
+                    const actualFontSize = (settings.fontSizePercent || settings.fontSize / 350 * 100 || 4.5) / 100 * containerHeight
+
                     return {
-                      fontSize: `${settings.fontSize}px`,
+                      fontSize: `${actualFontSize}px`,
                       color: settings.fontColor,
                       fontWeight: settings.fontWeight,
                       fontFamily: settings.fontFamily,
@@ -539,6 +623,76 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
           </div>
         )}
       </div>
+
+      {/* Generated Results Section */}
+      {currentProject.generations && currentProject.generations.length > 0 && (
+        <div className="mt-6">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FileVideo className="w-5 h-5 text-green-600" />
+              <h3 className="font-semibold text-gray-800">Generated Carousels</h3>
+            </div>
+
+            <div className="space-y-3">
+              {currentProject.generations.map((generation) => (
+                <div
+                  key={generation.id}
+                  className="bg-white rounded-lg border-2 border-green-100 p-4 hover:shadow-md transition"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(generation.status)}`}>
+                        {getStatusIcon(generation.status)}
+                        {generation.status}
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {new Date(generation.createdAt).toLocaleDateString()} {new Date(generation.createdAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    {generation.status === 'completed' && (
+                      <button
+                        onClick={() => handleDownload(generation.id)}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download ZIP
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Carousels:</span>
+                      <span className="ml-2 font-semibold text-gray-800">{generation.numSetsGenerated}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Slides each:</span>
+                      <span className="ml-2 font-semibold text-gray-800">{generation.numSlides}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Cost:</span>
+                      <span className="ml-2 font-semibold text-gray-800">{generation.creditUsed} credits</span>
+                    </div>
+                  </div>
+
+                  {generation.status === 'processing' && (
+                    <div className="mt-3 text-xs text-blue-600 flex items-center gap-2">
+                      <Loader className="w-3 h-3 animate-spin" />
+                      Processing... This may take a few minutes.
+                    </div>
+                  )}
+
+                  {generation.status === 'failed' && generation.error && (
+                    <div className="mt-3 text-xs text-red-600">
+                      Error: {generation.error}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
