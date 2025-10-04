@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useCarouselMixStore, groupSlidesByPosition, groupTextsByPosition, getCombinationBreakdown } from '../../../stores/carouselMixStore'
 import { useAuthStore } from '../../../stores/authStore'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Check, Loader2 } from 'lucide-react'
+import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Eye, RefreshCw } from 'lucide-react'
 
 interface ResultsPanelProps {
   projectId: string
@@ -18,41 +18,12 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
     calculateCombinations,
     generateCarousels,
     isGenerating,
-    isSaving,
-    lastSaved,
+    positionSettings,
   } = useCarouselMixStore()
 
   const [isCalculating, setIsCalculating] = useState(false)
-  const [timeAgo, setTimeAgo] = useState('')
-
-  useEffect(() => {
-    if (!lastSaved) {
-      setTimeAgo('')
-      return
-    }
-
-    const updateTimeAgo = () => {
-      const now = new Date()
-      const diff = Math.floor((now.getTime() - lastSaved.getTime()) / 1000)
-
-      if (diff < 5) {
-        setTimeAgo('just now')
-      } else if (diff < 60) {
-        setTimeAgo(`${diff}s ago`)
-      } else if (diff < 3600) {
-        const mins = Math.floor(diff / 60)
-        setTimeAgo(`${mins}m ago`)
-      } else {
-        const hours = Math.floor(diff / 3600)
-        setTimeAgo(`${hours}h ago`)
-      }
-    }
-
-    updateTimeAgo()
-    const interval = setInterval(updateTimeAgo, 1000)
-
-    return () => clearInterval(interval)
-  }, [lastSaved])
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
+  const [previewSamples, setPreviewSamples] = useState<Array<{image: string, text: string, settings?: any}>>([])
 
   // Auto-calculate when settings change
   useEffect(() => {
@@ -66,6 +37,17 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
     currentProject?.texts.length,
   ])
 
+  // Auto-generate preview when project loads or changes
+  useEffect(() => {
+    if (currentProject && currentProject.slides.length > 0) {
+      // Clear old previews first
+      setPreviewSamples([])
+      // Generate new preview
+      setTimeout(() => handleGeneratePreview(), 100)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject?.id, currentProject?.slides.length, currentProject?.texts.length])
+
   const handleCalculate = async () => {
     if (!currentProject) return
 
@@ -77,6 +59,67 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
     } finally {
       setIsCalculating(false)
     }
+  }
+
+  const handleGeneratePreview = () => {
+    if (!currentProject || currentProject.slides.length < 1) return
+
+    setIsGeneratingPreview(true)
+
+    setTimeout(() => {
+      try {
+        const samples = []
+
+        // Group slides and texts by position
+        const slidesByPosition = groupSlidesByPosition(currentProject.slides)
+        const textsByPosition = groupTextsByPosition(currentProject.texts)
+
+        // Get unique positions that have slides
+        const positions = Object.keys(slidesByPosition).map(Number).sort((a, b) => a - b)
+        const numSamples = Math.min(3, positions.length)
+
+        // Generate sample for each position
+        for (let i = 0; i < numSamples; i++) {
+          const position = positions[i]
+          const slidesAtPosition = slidesByPosition[position] || []
+          const textsAtPosition = textsByPosition[position] || []
+
+          if (slidesAtPosition.length === 0) continue
+
+          // Pick random slide from THIS position
+          const randomSlide = slidesAtPosition[Math.floor(Math.random() * slidesAtPosition.length)]
+
+          // Pick random text from THIS position (if available)
+          const randomText = textsAtPosition.length > 0
+            ? textsAtPosition[Math.floor(Math.random() * textsAtPosition.length)]
+            : null
+
+          // Get position settings from store
+          const positionSetting = positionSettings[`${currentProject.id}-${position}`]
+
+          // Construct proper image URL - backend serves at /uploads/
+          const imageUrl = `http://localhost:3000/uploads${randomSlide.filePath}`
+
+          console.log(`Preview sample for position ${position}:`, {
+            imageUrl,
+            text: randomText?.content,
+            filePath: randomSlide.filePath,
+            position,
+            settings: positionSetting
+          })
+
+          samples.push({
+            image: imageUrl,
+            text: randomText?.content || '',
+            settings: positionSetting
+          })
+        }
+
+        setPreviewSamples(samples)
+      } finally {
+        setIsGeneratingPreview(false)
+      }
+    }, 100)
   }
 
   const handleGenerate = async () => {
@@ -245,6 +288,111 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
         </div>
       </div>
 
+      {/* Preview Results */}
+      {currentProject && currentProject.slides.length > 0 && (
+        <div className="mb-6">
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Eye className="w-5 h-5 text-gray-700" />
+                <h3 className="font-semibold text-gray-800">Preview Results</h3>
+              </div>
+              <button
+                onClick={handleGeneratePreview}
+                disabled={isGeneratingPreview}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium rounded-lg transition flex items-center gap-2 disabled:opacity-50"
+              >
+                {isGeneratingPreview ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Generate Random Preview
+                  </>
+                )}
+              </button>
+            </div>
+
+            {previewSamples.length > 0 ? (
+              <div className="grid grid-cols-3 gap-4">
+                {previewSamples.map((sample, idx) => {
+                  // Get settings or use defaults
+                  const settings = sample.settings || {
+                    fontSize: 16,
+                    fontColor: '#FFFFFF',
+                    fontWeight: 700,
+                    fontFamily: 'Arial',
+                    textPosition: 'center',
+                    textAlignment: 'center',
+                    positionX: 50,
+                    positionY: 50,
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)'
+                  }
+
+                  // Calculate position based on settings
+                  const getPositionStyle = () => {
+                    const baseStyle: any = {
+                      position: 'absolute',
+                      left: `${settings.positionX}%`,
+                      top: `${settings.positionY}%`,
+                      transform: 'translate(-50%, -50%)',
+                      textAlign: settings.textAlignment as any,
+                      maxWidth: '90%'
+                    }
+
+                    return baseStyle
+                  }
+
+                  const getTextStyle = () => {
+                    return {
+                      fontSize: `${settings.fontSize}px`,
+                      color: settings.fontColor,
+                      fontWeight: settings.fontWeight,
+                      fontFamily: settings.fontFamily,
+                      backgroundColor: settings.backgroundColor,
+                      padding: '12px 20px',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(4px)',
+                      whiteSpace: 'nowrap' as any,
+                      overflow: 'hidden' as any,
+                      textOverflow: 'ellipsis' as any
+                    }
+                  }
+
+                  return (
+                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden shadow-lg bg-gray-200">
+                      <img
+                        src={sample.image}
+                        alt={`Preview ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E'
+                        }}
+                      />
+                      {sample.text && sample.text.trim() !== '' && (
+                        <div style={getPositionStyle()}>
+                          <div style={getTextStyle()}>
+                            {sample.text}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">Click "Generate Random Preview" to see sample combinations</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Anti-Fingerprinting Strength */}
       {combinationEstimate && combinationEstimate.strength !== undefined && (
         <div className="mb-6">
@@ -349,31 +497,8 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
         <p className="text-xs text-gray-500 mt-1">Generate 1-100 unique carousels</p>
       </div>
 
-      {/* Save Button */}
+      {/* Generate Button */}
       <div className="space-y-3">
-        <button
-          disabled={isSaving}
-          className={`w-full px-6 py-3 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
-            isSaving
-              ? 'bg-blue-50 border-2 border-blue-200 text-blue-600 cursor-wait'
-              : lastSaved
-              ? 'bg-gray-100 border-2 border-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-gray-100 border-2 border-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Check className="w-5 h-5" />
-              {lastSaved ? `Saved ${timeAgo}` : 'No changes to save'}
-            </>
-          )}
-        </button>
-
         {combinationEstimate && !combinationEstimate.feasible && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />

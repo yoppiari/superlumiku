@@ -6,6 +6,8 @@ import { CarouselService } from './services/carousel.service'
 import { CombinationService } from './services/combination.service'
 import { carouselMixConfig } from './plugin.config'
 import { saveFile, checkStorageQuota, updateUserStorage } from '../../lib/storage'
+import { addCarouselMixJob } from '../../lib/queue'
+import { generateCarousels } from './workers/carousel-generator.worker'
 import { z } from 'zod'
 
 // Type declarations for context variables
@@ -32,95 +34,33 @@ const createProjectSchema = z.object({
 const updateProjectSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
+  defaultNumSlides: z.number().min(2).max(8).optional(),
 })
 
 const createTextSchema = z.object({
   content: z.string().min(1, 'Text content is required'),
-  slidePosition: z.number().min(1).max(8), // NEW: Required for position-based system
-
-  // New comprehensive styling
-  style: z.object({
-    fontFamily: z.string(),
-    fontSize: z.number().min(8).max(200),
-    fontWeight: z.union([z.literal(300), z.literal(400), z.literal(500), z.literal(700), z.literal(900)]),
-    color: z.string(),
-    backgroundColor: z.string().optional(),
-    shadow: z.object({
-      offsetX: z.number(),
-      offsetY: z.number(),
-      blur: z.number(),
-      color: z.string(),
-    }).optional(),
-    outline: z.object({
-      width: z.number(),
-      color: z.string(),
-    }).optional(),
-  }).optional(),
-
-  position: z.object({
-    preset: z.enum(['top-left', 'top-center', 'top-right', 'middle-left', 'center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right', 'custom']),
-    x: z.number().min(0).max(100),
-    y: z.number().min(0).max(100),
-    align: z.enum(['left', 'center', 'right', 'justify']),
-    verticalAlign: z.enum(['top', 'middle', 'bottom']),
-    padding: z.object({
-      top: z.number(),
-      right: z.number(),
-      bottom: z.number(),
-      left: z.number(),
-    }),
-  }).optional(),
-
-  // Legacy fields (kept for backward compatibility)
-  alignment: z.enum(['left', 'center', 'right']).optional(),
-  fontSize: z.number().min(8).max(200).optional(),
-  fontColor: z.string().optional(),
-  fontWeight: z.enum(['normal', 'bold']).optional(),
+  slidePosition: z.number().min(1).max(8),
   order: z.number().min(0),
 })
 
 const updateTextSchema = z.object({
   content: z.string().min(1).optional(),
+  order: z.number().min(0).optional(),
+})
 
-  // New comprehensive styling
-  style: z.object({
-    fontFamily: z.string(),
-    fontSize: z.number().min(8).max(200),
-    fontWeight: z.union([z.literal(300), z.literal(400), z.literal(500), z.literal(700), z.literal(900)]),
-    color: z.string(),
-    backgroundColor: z.string().optional(),
-    shadow: z.object({
-      offsetX: z.number(),
-      offsetY: z.number(),
-      blur: z.number(),
-      color: z.string(),
-    }).optional(),
-    outline: z.object({
-      width: z.number(),
-      color: z.string(),
-    }).optional(),
-  }).optional(),
-
-  position: z.object({
-    preset: z.enum(['top-left', 'top-center', 'top-right', 'middle-left', 'center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right', 'custom']),
-    x: z.number().min(0).max(100),
-    y: z.number().min(0).max(100),
-    align: z.enum(['left', 'center', 'right', 'justify']),
-    verticalAlign: z.enum(['top', 'middle', 'bottom']),
-    padding: z.object({
-      top: z.number(),
-      right: z.number(),
-      bottom: z.number(),
-      left: z.number(),
-    }),
-  }).optional(),
-
-  // Legacy fields (kept for backward compatibility)
-  alignment: z.string().optional(),
+const positionSettingsSchema = z.object({
+  fontFamily: z.string().optional(),
   fontSize: z.number().min(8).max(200).optional(),
   fontColor: z.string().optional(),
-  fontWeight: z.string().optional(),
-  order: z.number().min(0).optional(),
+  fontWeight: z.number().min(300).max(900).optional(),
+  backgroundColor: z.string().optional(),
+  textPosition: z.string().optional(),
+  textAlignment: z.enum(['left', 'center', 'right', 'justify']).optional(),
+  positionX: z.number().min(0).max(100).optional(),
+  positionY: z.number().min(0).max(100).optional(),
+  textShadow: z.string().optional(),
+  textOutline: z.string().optional(),
+  paddingData: z.string().optional(),
 })
 
 const generateCarouselSchema = z.object({
@@ -475,7 +415,21 @@ routes.post(
         { generationId: generation.id, projectId, numSlides: body.numSlides, numSets: body.numSets }
       )
 
-      // TODO: Add to background queue for actual generation
+      // Add to background queue for actual generation
+      const job = await addCarouselMixJob({
+        generationId: generation.id,
+        userId,
+        projectId,
+      })
+
+      // If Redis is not configured, run synchronously (for development)
+      if (!job) {
+        console.log('🔧 Running carousel generation synchronously (Redis not configured)')
+        // Run in background without blocking response
+        generateCarousels(generation.id).catch((error) => {
+          console.error('Error in background generation:', error)
+        })
+      }
 
       return c.json({
         success: true,
@@ -537,6 +491,52 @@ routes.get('/generations/:generationId/download', authMiddleware, async (c) => {
       downloadUrl: generation.outputPath,
       message: 'Download ready',
     })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// ========================================
+// POSITION SETTINGS ENDPOINTS
+// ========================================
+
+routes.get('/projects/:projectId/positions/:position/settings', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
+    const position = parseInt(c.req.param('position'))
+
+    const positionSettings = await service.getPositionSettings(projectId, userId, position)
+
+    return c.json({ success: true, positionSettings })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+routes.put('/projects/:projectId/positions/:position/settings', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
+    const position = parseInt(c.req.param('position'))
+    const body = positionSettingsSchema.parse(await c.req.json())
+
+    const positionSettings = await service.updatePositionSettings(projectId, userId, position, body)
+
+    return c.json({ success: true, positionSettings })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+routes.get('/projects/:projectId/positions/settings', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
+
+    const positionSettings = await service.getAllPositionSettings(projectId, userId)
+
+    return c.json({ success: true, positionSettings })
   } catch (error: any) {
     return c.json({ error: error.message }, 400)
   }
