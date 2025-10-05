@@ -9,13 +9,13 @@ if ! pgrep nginx > /dev/null; then
 fi
 
 # Check if Backend is responding
-if ! curl -f http://localhost:3000/health > /dev/null 2>&1; then
+if ! curl -f http://localhost:3001/health > /dev/null 2>&1; then
     echo "❌ Backend health check failed"
     exit 1
 fi
 
-# Check if Nginx is serving frontend
-if ! curl -f http://localhost:80/ > /dev/null 2>&1; then
+# Check if Nginx is serving on port 3000
+if ! curl -f http://localhost:3000/ > /dev/null 2>&1; then
     echo "❌ Nginx health check failed"
     exit 1
 fi

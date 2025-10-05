@@ -1,6 +1,7 @@
 import { LoopingFlowRepository } from '../repositories/looping-flow.repository'
 import { FFmpegLooper } from '../utils/ffmpeg-looper'
 import path from 'path'
+import fs from 'fs'
 import { createId } from '@paralleldrive/cuid2'
 
 export class LoopProcessorWorker {
@@ -123,14 +124,102 @@ export class LoopProcessorWorker {
       console.log(`🎵 Loop style: ${loopOptions.loopStyle}`)
       console.log(`🎚️  Audio layers: ${audioLayers.length}`)
 
-      // Process video looping
-      const result = await this.ffmpegLooper.processLoop(
-        inputPath,
-        outputPath,
+      // Calculate optimal base loop duration
+      const totalLoopsNeeded = Math.ceil(generation.targetDuration / video.duration)
+      const baseLoopDuration = this.ffmpegLooper.calculateBaseLoopDuration(
         generation.targetDuration,
-        video.duration,
-        loopOptions
+        video.duration
       )
+
+      console.log(`📊 Total loops needed: ${totalLoopsNeeded}`)
+      console.log(`📊 Base loop duration: ${baseLoopDuration}s (${Math.ceil(baseLoopDuration / video.duration)} loops)`)
+      console.log(`📊 Target duration: ${generation.targetDuration}s`)
+
+      let result: { success: boolean; error?: string }
+
+      // Two-stage rendering for long durations
+      if (baseLoopDuration < generation.targetDuration) {
+        console.log(`🔄 ENTERING TWO-STAGE RENDERING`)
+        console.log(`🔄 Two-stage rendering: Base (${baseLoopDuration}s) → Extended (${generation.targetDuration}s)`)
+
+        // Stage 1: Create base loop
+        const baseLoopFileName = `loop-${generation.id}-base-${createId()}.mp4`
+        const baseLoopPath = path.join(process.cwd(), 'uploads', 'cache', baseLoopFileName)
+
+        // Ensure cache directory exists
+        const cacheDir = path.join(process.cwd(), 'uploads', 'cache')
+        if (!fs.existsSync(cacheDir)) {
+          fs.mkdirSync(cacheDir, { recursive: true })
+        }
+
+        console.log(`📦 Stage 1: Creating base loop (${baseLoopDuration}s)...`)
+        const baseResult = await this.ffmpegLooper.processLoop(
+          inputPath,
+          baseLoopPath,
+          baseLoopDuration,
+          video.duration,
+          loopOptions
+        )
+
+        if (!baseResult.success) {
+          console.error(`❌ Base loop creation failed: ${baseResult.error}`)
+          result = baseResult
+        } else {
+          console.log(`✅ Base loop created: ${baseLoopPath}`)
+
+          // Verify base file exists and check duration
+          if (!fs.existsSync(baseLoopPath)) {
+            console.error(`❌ Base loop file not found at ${baseLoopPath}`)
+            result = { success: false, error: 'Base loop file not created' }
+          } else {
+            const baseFileSize = fs.statSync(baseLoopPath).size
+            console.log(`📊 Base loop file size: ${(baseFileSize / 1024 / 1024).toFixed(2)} MB`)
+
+            // Stage 2: Extend via concat demuxer
+            console.log(`📦 Stage 2: Extending to ${generation.targetDuration}s via concat demuxer...`)
+            console.log(`📦 Input: ${baseLoopPath}`)
+            console.log(`📦 Output: ${outputPath}`)
+            console.log(`📦 Repeats needed: ${Math.ceil(generation.targetDuration / baseLoopDuration)}`)
+
+            result = await this.ffmpegLooper.extendWithConcatDemuxer(
+              baseLoopPath,
+              outputPath,
+              baseLoopDuration,
+              generation.targetDuration
+            )
+
+            if (result.success) {
+              console.log(`✅ Concat demuxer completed successfully`)
+              // Verify final file
+              if (fs.existsSync(outputPath)) {
+                const finalFileSize = fs.statSync(outputPath).size
+                console.log(`📊 Final file size: ${(finalFileSize / 1024 / 1024).toFixed(2)} MB`)
+              } else {
+                console.error(`❌ Final output file not found at ${outputPath}`)
+                result = { success: false, error: 'Final output file not created' }
+              }
+            } else {
+              console.error(`❌ Concat demuxer failed: ${result.error}`)
+            }
+
+            // Cleanup base loop cache
+            if (fs.existsSync(baseLoopPath)) {
+              fs.unlinkSync(baseLoopPath)
+              console.log(`🗑️  Cleaned up base loop cache`)
+            }
+          }
+        }
+      } else {
+        // Direct rendering for short durations
+        console.log(`⚡ Direct rendering (${generation.targetDuration}s)`)
+        result = await this.ffmpegLooper.processLoop(
+          inputPath,
+          outputPath,
+          generation.targetDuration,
+          video.duration,
+          loopOptions
+        )
+      }
 
       if (result.success) {
         // Mark as completed

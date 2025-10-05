@@ -80,8 +80,8 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/healthcheck.sh
 # Create necessary directories
 RUN mkdir -p /app/backend/uploads /app/backend/outputs /var/log/nginx
 
-# Expose port
-EXPOSE 80
+# Expose port (Nginx on 3000, Backend on 3001)
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

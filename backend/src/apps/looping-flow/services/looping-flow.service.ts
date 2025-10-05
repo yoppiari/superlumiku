@@ -1,11 +1,22 @@
 import { LoopingFlowRepository } from '../repositories/looping-flow.repository'
+import { FFmpegLooper } from '../utils/ffmpeg-looper'
 
 export class LoopingFlowService {
   private repository = new LoopingFlowRepository()
+  private ffmpegLooper = new FFmpegLooper()
 
-  // Credit calculation: 2 credits per 15 minutes (900 seconds)
+  /**
+   * Credit calculation:
+   * Base: 2 credits (for creating base loop)
+   * Additional: +1 credit per hour
+   * Examples:
+   * - 10 min = 2 credits
+   * - 30 min = 2 credits
+   * - 60 min = 3 credits
+   * - 120 min = 4 credits
+   */
   calculateCreditCost(targetDuration: number): number {
-    return Math.ceil(targetDuration / 900) * 2
+    return this.ffmpegLooper.calculateCreditCost(targetDuration)
   }
 
   async getProjects(userId: string) {
