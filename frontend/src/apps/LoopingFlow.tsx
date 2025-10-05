@@ -113,6 +113,30 @@ export default function LoopingFlow() {
     setCreditEstimate(cost)
   }, [targetDuration])
 
+  // Auto-refresh project when there are pending/processing generations
+  useEffect(() => {
+    if (!currentProject) return
+
+    const hasActiveGenerations = currentProject.generations.some(
+      gen => gen.status === 'pending' || gen.status === 'processing'
+    )
+
+    if (!hasActiveGenerations) return
+
+    // Poll every 3 seconds
+    const interval = setInterval(async () => {
+      try {
+        const projectRes = await api.get(`/api/apps/looping-flow/projects/${currentProject.id}`)
+        setCurrentProject(projectRes.data.project)
+        setProjects(projects.map(p => p.id === currentProject.id ? projectRes.data.project : p))
+      } catch (error) {
+        console.error('Failed to refresh project:', error)
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [currentProject, projects])
+
   const loadProjects = async () => {
     try {
       setLoading(true)
@@ -567,22 +591,22 @@ export default function LoopingFlow() {
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white"
                       >
                         <option value="simple">Simple Loop (Fast)</option>
-                        <option value="crossfade">Crossfade (Recommended)</option>
-                        <option value="boomerang">Boomerang (Forward + Reverse)</option>
+                        <option value="crossfade">Blend Overlay (Recommended)</option>
+                        <option value="boomerang">Boomerang (Hypnotic)</option>
                       </select>
                       <p className="text-xs text-slate-500 mt-1">
-                        {loopStyle === 'simple' && 'Fast processing, basic looping'}
-                        {loopStyle === 'crossfade' && 'Smooth transitions, best for meditation videos'}
-                        {loopStyle === 'boomerang' && 'Perfect seamless loop, video plays forward then reverse'}
+                        {loopStyle === 'simple' && 'Best for: Quick previews, any video type with acceptable hard cuts'}
+                        {loopStyle === 'crossfade' && 'Best for: Nature scenes, meditation, ambience videos (clouds, water, trees, abstract patterns)'}
+                        {loopStyle === 'boomerang' && 'Best for: Symmetrical content, hypnotic patterns, kaleidoscope effects, trance meditation'}
                       </p>
                     </div>
 
-                    {/* Crossfade Controls */}
+                    {/* Blend Overlay Controls */}
                     {loopStyle === 'crossfade' && (
                       <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-2">
-                            Crossfade Duration: {crossfadeDuration}s
+                            Blend Transition Duration: {crossfadeDuration}s
                           </label>
                           <input
                             type="range"
@@ -593,6 +617,9 @@ export default function LoopingFlow() {
                             onChange={(e) => setCrossfadeDuration(parseFloat(e.target.value))}
                             className="w-full"
                           />
+                          <p className="text-xs text-slate-500 mt-1">
+                            How long the blend transition lasts at loop points (shorter = subtle, longer = more visible)
+                          </p>
                         </div>
 
                         <div className="flex items-center gap-4">
@@ -603,7 +630,7 @@ export default function LoopingFlow() {
                               onChange={(e) => setVideoCrossfade(e.target.checked)}
                               className="w-4 h-4"
                             />
-                            <span className="text-sm text-slate-700">Video Crossfade</span>
+                            <span className="text-sm text-slate-700">Video Blend</span>
                           </label>
 
                           <label className="flex items-center gap-2 cursor-pointer">
@@ -613,7 +640,7 @@ export default function LoopingFlow() {
                               onChange={(e) => setAudioCrossfade(e.target.checked)}
                               className="w-4 h-4"
                             />
-                            <span className="text-sm text-slate-700">Audio Crossfade</span>
+                            <span className="text-sm text-slate-700">Audio Blend</span>
                           </label>
                         </div>
                       </div>
@@ -897,22 +924,22 @@ export default function LoopingFlow() {
                             <div>
                               <span className="font-medium">Style:</span>{' '}
                               {gen.loopStyle === 'simple' && 'Simple Loop'}
-                              {gen.loopStyle === 'crossfade' && 'Crossfade'}
+                              {gen.loopStyle === 'crossfade' && 'Blend Overlay'}
                               {gen.loopStyle === 'boomerang' && 'Boomerang'}
                               {!gen.loopStyle && 'Default'}
                             </div>
                             {gen.loopStyle === 'crossfade' && gen.crossfadeDuration && (
                               <div>
-                                <span className="font-medium">Crossfade:</span> {gen.crossfadeDuration}s
+                                <span className="font-medium">Blend:</span> {gen.crossfadeDuration}s
                               </div>
                             )}
                             {gen.loopStyle === 'crossfade' && (
                               <>
                                 <div>
-                                  <span className="font-medium">Video:</span> {gen.videoCrossfade ? 'Yes' : 'No'}
+                                  <span className="font-medium">Video Blend:</span> {gen.videoCrossfade ? 'Yes' : 'No'}
                                 </div>
                                 <div>
-                                  <span className="font-medium">Audio:</span> {gen.audioCrossfade ? 'Yes' : 'No'}
+                                  <span className="font-medium">Audio Blend:</span> {gen.audioCrossfade ? 'Yes' : 'No'}
                                 </div>
                               </>
                             )}

@@ -176,6 +176,7 @@ export class FFmpegLooper {
       -t ${targetDuration} \
       ${mapOptions} \
       -c:v libx264 -preset medium -crf 23 \
+      -pix_fmt yuv420p -profile:v high \
       -c:a aac -b:a 192k \
       -movflags +faststart \
       "${outputPath}"`
@@ -184,10 +185,9 @@ export class FFmpegLooper {
   }
 
   /**
-   * Build crossfade loop command (smooth transitions)
-   * NOTE: xfade/acrossfade filters require 2 separate inputs and cannot be used with stream_loop
-   * Instead, we use simple loop which is already seamless (end frame connects to start frame)
-   * with optional fade in/out for smooth audio transitions
+   * Build crossfade loop command with truly seamless transitions
+   * Strategy: Multiple input copies with xfade/acrossfade chain
+   * Most reliable method - no freeze, no black screen, smooth blending
    */
   private buildCrossfadeCommand(
     inputPath: string,
@@ -203,20 +203,94 @@ export class FFmpegLooper {
     audioFadeOut: number = 2.0,
     muteOriginal: boolean = false
   ): string {
-    // For "crossfade" style with stream_loop, we just use simple loop
-    // The loop is already seamless since end frame connects to start frame
-    // We can add fade in/out for smoother audio transition feeling
-    return this.buildSimpleLoopCommand(
-      inputPath,
-      outputPath,
-      this.calculateLoops(sourceDuration, targetDuration),
-      targetDuration,
-      audioLayers,
-      masterVolume,
-      audioFadeIn,
-      audioFadeOut,
-      muteOriginal
-    )
+    const loops = this.calculateLoops(sourceDuration, targetDuration)
+    const xfadeDuration = Math.min(crossfadeDuration, sourceDuration / 4)
+
+    let filterComplex = ''
+    let mapOptions = ''
+
+    if (videoCrossfade || audioCrossfade) {
+      // Build multiple input flags for the same video
+      let inputs = ''
+      for (let i = 0; i < loops; i++) {
+        inputs += `-i "${inputPath}" `
+      }
+
+      // Build xfade chain for video
+      let videoFilter = ''
+      if (videoCrossfade) {
+        let currentLabel = '[0:v]'
+        for (let i = 1; i < loops; i++) {
+          const nextLabel = i === loops - 1 ? '[vout]' : `[vx${i}]`
+          const offset = i * sourceDuration - i * xfadeDuration
+          videoFilter += `${currentLabel}[${i}:v]xfade=transition=fade:duration=${xfadeDuration}:offset=${offset}${nextLabel};`
+          currentLabel = nextLabel
+        }
+      } else {
+        // No video crossfade, just use first input
+        videoFilter = '[0:v]copy[vout];'
+      }
+
+      // Build acrossfade chain for audio
+      let audioFilter = ''
+      if (audioCrossfade && !muteOriginal) {
+        let currentAudioLabel = '[0:a]'
+        for (let i = 1; i < loops; i++) {
+          const nextLabel = i === loops - 1 ? '[abase]' : `[ax${i}]`
+          audioFilter += `${currentAudioLabel}[${i}:a]acrossfade=d=${xfadeDuration}${nextLabel};`
+          currentAudioLabel = nextLabel
+        }
+      } else if (!muteOriginal) {
+        // No audio crossfade, just use first input with loop
+        audioFilter = '[0:a]aloop=loop=' + (loops - 1) + ':size=' + Math.floor(sourceDuration * 48000) + '[abase];'
+      }
+
+      filterComplex = videoFilter + audioFilter
+
+      // Update input commands to use multiple inputs
+      let inputCommands = inputs.trim()
+
+      // Add audio layer inputs
+      audioLayers.forEach((layer) => {
+        inputCommands += ` -stream_loop -1 -i "${layer.filePath}"`
+      })
+
+      // Add audio mixing if needed
+      if (audioLayers.length > 0 || muteOriginal) {
+        const audioMixFilter = this.buildAudioMixFilter(
+          audioLayers.length,
+          audioLayers,
+          masterVolume,
+          audioFadeIn,
+          audioFadeOut,
+          muteOriginal,
+          targetDuration,
+          muteOriginal ? null : 'abase',
+          loops // Offset audio layer input indices
+        )
+        filterComplex = filterComplex + audioMixFilter
+        mapOptions = '-map "[vout]" -map "[aout]"'
+      } else {
+        mapOptions = '-map "[vout]" -map "[abase]"'
+      }
+
+      const command = `ffmpeg -y ${inputCommands} -filter_complex "${filterComplex}" -t ${targetDuration} ${mapOptions} -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -movflags +faststart "${outputPath}"`
+
+      return command.replace(/\s+/g, ' ').trim()
+    } else {
+      // No crossfade at all, fallback to simple loop
+      return this.buildSimpleLoopCommand(
+        inputPath,
+        outputPath,
+        loops,
+        targetDuration,
+        audioLayers,
+        masterVolume,
+        audioFadeIn,
+        audioFadeOut,
+        muteOriginal
+      )
+    }
   }
 
   /**
@@ -284,6 +358,7 @@ export class FFmpegLooper {
       -t ${targetDuration} \
       ${mapOptions} \
       -c:v libx264 -preset medium -crf 23 \
+      -pix_fmt yuv420p -profile:v high \
       -c:a aac -b:a 192k \
       -movflags +faststart \
       "${outputPath}"`
@@ -302,13 +377,14 @@ export class FFmpegLooper {
     fadeOut: number = 2.0,
     muteOriginal: boolean = false,
     targetDuration: number,
-    originalAudioLabel: string = '0:a'
+    originalAudioLabel: string | null = '0:a',
+    inputIndexOffset: number = 0
   ): string {
     const filters: string[] = []
     const mixInputs: string[] = []
 
     // Original video audio
-    if (!muteOriginal) {
+    if (!muteOriginal && originalAudioLabel) {
       const origVol = masterVolume / 100
       filters.push(
         `[${originalAudioLabel}]volume=${origVol},afade=t=in:st=0:d=${fadeIn},afade=t=out:st=${
@@ -320,7 +396,7 @@ export class FFmpegLooper {
 
     // Audio layers
     audioLayers.forEach((layer, idx) => {
-      const inputIdx = idx + 1 // Input 0 is the video
+      const inputIdx = inputIndexOffset + idx + 1 // Offset by loop count if using multiple inputs
       const vol = layer.muted ? 0 : (layer.volume * masterVolume) / 10000
       const layerFadeIn = layer.fadeIn || fadeIn
       const layerFadeOut = layer.fadeOut || fadeOut
