@@ -21,5 +21,13 @@ export function loadPlugins() {
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)
-  console.log(`🚀 Dashboard apps: ${pluginRegistry.getDashboardApps().length}\n`)
+  console.log(`🚀 Dashboard apps: ${pluginRegistry.getDashboardApps().length}`)
+
+  // Warning for disabled Looping Flow in production
+  if (!loopingFlowConfig.features.enabled) {
+    console.log(`⚠️  Looping Flow: DISABLED (Production mode)`)
+    console.log(`   Reason: Large file outputs - localhost only until cloud storage ready\n`)
+  } else {
+    console.log('')
+  }
 }
