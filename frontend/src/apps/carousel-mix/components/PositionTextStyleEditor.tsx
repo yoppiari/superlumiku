@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Type, Palette, Move, Check } from 'lucide-react'
+import { Type, Check } from 'lucide-react'
 
 export interface PositionSettings {
   id?: string
@@ -7,7 +7,7 @@ export interface PositionSettings {
   slidePosition: number
   fontFamily: string
   fontSize: number             // Deprecated - kept for backward compatibility
-  fontSizePercent: number      // Font size as % of image height (NEW)
+  fontSizePercent?: number      // Font size as % of image height (NEW)
   fontColor: string
   fontWeight: number
   backgroundColor: string

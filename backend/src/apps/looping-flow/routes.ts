@@ -267,21 +267,24 @@ routes.get('/download/:generationId', authMiddleware, async (c) => {
     }
 
     const filePath = `./uploads${generation.outputPath}`
-    const { promises: fs } = await import('fs')
     const path = await import('path')
 
-    const fileExists = await fs.access(filePath).then(() => true).catch(() => false)
-    if (!fileExists) {
+    // Use Bun.file for efficient streaming
+    const file = Bun.file(filePath)
+    const exists = await file.exists()
+
+    if (!exists) {
       return c.json({ error: 'File not found' }, 404)
     }
 
-    const fileBuffer = await fs.readFile(filePath)
     const filename = path.basename(filePath)
 
-    return new Response(fileBuffer, {
+    // Stream the file
+    return new Response(file.stream(), {
       headers: {
         'Content-Type': 'video/mp4',
         'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': file.size.toString(),
       },
     })
   } catch (error: any) {

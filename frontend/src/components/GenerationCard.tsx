@@ -1,4 +1,4 @@
-import { Download, Trash2, Eye, Video, FolderOpen, Images } from 'lucide-react'
+import { Download, Trash2, Eye, Video, Images } from 'lucide-react'
 import type { GenerationItem } from '../types/generation'
 
 interface GenerationCardProps {

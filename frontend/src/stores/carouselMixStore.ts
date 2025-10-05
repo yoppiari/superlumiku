@@ -72,6 +72,7 @@ export interface Generation {
   numSetsGenerated: number
   creditUsed: number
   outputPath?: string
+  error?: string
   createdAt: string
   completedAt?: string
 }
@@ -91,6 +92,7 @@ export interface PositionSettings {
   slidePosition: number
   fontFamily: string
   fontSize: number
+  fontSizePercent?: number
   fontColor: string
   fontWeight: number
   backgroundColor: string
@@ -159,6 +161,8 @@ export interface CombinationEstimate {
     perSet: number
     total: number
   }
+  strength?: number
+  strengthLabel?: string
 }
 
 // ===== Helper Functions =====

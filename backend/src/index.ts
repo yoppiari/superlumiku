@@ -28,6 +28,7 @@ async function start() {
   Bun.serve({
     fetch: app.fetch,
     port: env.PORT,
+    idleTimeout: 255, // Maximum 255 seconds for Bun
   })
 
   console.log(`🚀 Server running on http://localhost:${env.PORT}`)

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Upload, X, Image as ImageIcon, FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { useCarouselMixStore } from '../../../stores/carouselMixStore'
-import type { Slide, TextVariation } from '../../../stores/carouselMixStore'
 import { TextVariationItem } from './TextVariationItem'
 import { PositionTextStyleEditor } from './PositionTextStyleEditor'
 
@@ -16,7 +15,6 @@ export function SlidePositionSection({ position, projectId }: SlidePositionSecti
     uploadSlide,
     deleteSlide,
     addTextVariation,
-    deleteTextVariation,
     updatePositionSettings,
     positionSettings,
     isUploading,

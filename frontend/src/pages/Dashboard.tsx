@@ -6,10 +6,6 @@ import ProfileDropdown from '../components/ProfileDropdown'
 import GenerationCard from '../components/GenerationCard'
 import type { GenerationItem } from '../types/generation'
 import {
-  ListChecks,
-  TrendingUp,
-  CheckCircle2,
-  Clock,
   FileText,
   BarChart3,
   Calendar,
@@ -20,7 +16,6 @@ import {
   ArrowUp,
   Video,
   Target,
-  DollarSign,
   Briefcase,
   FolderKanban,
   LogIn,

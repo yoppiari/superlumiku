@@ -8,7 +8,7 @@ interface ResultsPanelProps {
   projectId: string
 }
 
-export function ResultsPanel({ projectId }: ResultsPanelProps) {
+export function ResultsPanel({}: ResultsPanelProps) {
   const navigate = useNavigate()
   const { user, token, updateCreditBalance } = useAuthStore()
   const {
@@ -19,6 +19,7 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
     generateCarousels,
     isGenerating,
     positionSettings,
+    updateGenerationSettings,
   } = useCarouselMixStore()
 
   const [isCalculating, setIsCalculating] = useState(false)
@@ -596,7 +597,7 @@ export function ResultsPanel({ projectId }: ResultsPanelProps) {
             isGenerating ||
             !combinationEstimate ||
             !combinationEstimate.feasible ||
-            (user && user.creditBalance < combinationEstimate.credits.total)
+            (user !== null && user.creditBalance < combinationEstimate.credits.total)
           }
           className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 shadow-lg"
         >

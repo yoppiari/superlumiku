@@ -4,8 +4,8 @@ import { api } from '../lib/api'
 import { useAuthStore } from '../stores/authStore'
 import ProfileDropdown from '../components/ProfileDropdown'
 import {
-  Film, Plus, Trash2, FolderPlus, Upload, ArrowLeft, Coins, Download, RotateCw, Clock, Info, X,
-  Music, Volume2, VolumeX, Settings
+  Film, Trash2, FolderPlus, Upload, ArrowLeft, Coins, Download, RotateCw, Clock, Info, X,
+  Music, Settings
 } from 'lucide-react'
 
 interface Project {
@@ -107,10 +107,23 @@ export default function LoopingFlow() {
   }, [projectId, projects])
 
   useEffect(() => {
-    // Calculate credit estimate: 2 credits per 15 minutes
+    // Calculate credit estimate using new formula:
+    // Base: 2 credits per 10 minutes (minimum 2 credits)
+    // Bonus for very long videos (>5 hours): +2 credits per hour after hour 5
+    const minutes = targetDuration
     const durationInSeconds = targetDuration * 60
-    const cost = Math.ceil(durationInSeconds / 900) * 2
-    setCreditEstimate(cost)
+
+    // Base: 2 credits per 10 minutes (minimum 2)
+    const baseCost = Math.max(2, Math.ceil(minutes / 10) * 2)
+
+    // Bonus for very long videos (> 5 hours)
+    if (minutes > 300) { // 5 hours = 300 minutes
+      const hours = durationInSeconds / 3600
+      const extraHours = Math.ceil(hours - 5)
+      setCreditEstimate(baseCost + (extraHours * 2))
+    } else {
+      setCreditEstimate(baseCost)
+    }
   }, [targetDuration])
 
   // Auto-refresh project when there are pending/processing generations
@@ -189,7 +202,7 @@ export default function LoopingFlow() {
 
     try {
       setUploading(true)
-      const res = await api.post('/api/apps/looping-flow/videos/upload', formData, {
+      await api.post('/api/apps/looping-flow/videos/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
@@ -651,11 +664,14 @@ export default function LoopingFlow() {
                         <Info className="w-5 h-5" />
                         <span className="font-medium">Credit Estimate</span>
                       </div>
-                      <p className="text-blue-700">
-                        {creditEstimate} credits for {targetDuration} minute{targetDuration !== 1 ? 's' : ''} video
+                      <p className="text-blue-700 font-semibold text-lg">
+                        {creditEstimate} credit{creditEstimate !== 1 ? 's' : ''}
                       </p>
-                      <p className="text-sm text-blue-600 mt-1">
-                        (2 credits per 15 minutes)
+                      <p className="text-sm text-blue-700 mt-0.5">
+                        for {targetDuration} minute{targetDuration !== 1 ? 's' : ''} video
+                      </p>
+                      <p className="text-xs text-blue-600 mt-2">
+                        2 credits per 10 min{targetDuration > 300 && ' + bonus'}
                       </p>
                     </div>
                   </div>
@@ -701,7 +717,7 @@ export default function LoopingFlow() {
                     </div>
 
                     {/* Audio Layer List */}
-                    {audioLayers.map((layer, idx) => (
+                    {audioLayers.map((layer) => (
                       <div key={layer.id} className="p-4 bg-purple-50 rounded-lg">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
@@ -876,7 +892,8 @@ export default function LoopingFlow() {
                     }
 
                     const statusInfo = getStatusInfo()
-                    const estimatedTime = Math.ceil(gen.targetDuration / 60) * 2 // Rough estimate: 2 min per minute of video
+                    const targetMinutes = Math.ceil(gen.targetDuration / 60)
+                    const estimatedTime = Math.ceil(targetMinutes / 10) * 2 // Rough estimate: 2 min per 10 min of video
 
                     return (
                       <div key={gen.id} className="p-4 bg-slate-50 rounded-lg">

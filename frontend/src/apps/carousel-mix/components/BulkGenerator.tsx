@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useCarouselMixStore } from '../../../stores/carouselMixStore'
 import { InputPanel } from './InputPanel'
 import { ResultsPanel } from './ResultsPanel'
