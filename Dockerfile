@@ -27,14 +27,14 @@ WORKDIR /app/backend
 # Copy backend package files
 COPY backend/package.json backend/bun.lock* ./
 
-# Install dependencies
-RUN bun install --frozen-lockfile --production
+# Install ALL dependencies (including devDependencies for Prisma)
+RUN bun install --frozen-lockfile
 
 # Copy backend source
 COPY backend/ ./
 
 # Generate Prisma Client
-RUN bun prisma generate
+RUN bun run prisma:generate
 
 # ============================================
 # Stage 3: Production Image
