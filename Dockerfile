@@ -8,8 +8,8 @@ WORKDIR /app/frontend
 # Copy frontend package files
 COPY frontend/package*.json ./
 
-# Install dependencies (use npm install since package-lock.json might not exist)
-RUN npm install --omit=dev
+# Install ALL dependencies (including devDependencies for TypeScript build)
+RUN npm install
 
 # Copy frontend source
 COPY frontend/ ./
