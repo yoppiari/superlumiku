@@ -60,6 +60,20 @@ mkdir -p /app/backend/uploads /app/backend/outputs
 chmod -R 755 /app/backend/uploads /app/backend/outputs
 echo "✅ Storage directories ready"
 
+# Verify frontend files
+echo "🔍 Verifying frontend files..."
+if [ ! -f "/app/frontend/dist/index.html" ]; then
+    echo "❌ ERROR: Frontend index.html not found at /app/frontend/dist/index.html"
+    echo "   Contents of /app/frontend:"
+    ls -la /app/frontend/ || echo "   Directory not found"
+    echo "   Contents of /app/frontend/dist:"
+    ls -la /app/frontend/dist/ || echo "   Directory not found"
+    exit 1
+fi
+echo "✅ Frontend files verified"
+echo "   Files in /app/frontend/dist:"
+ls -lh /app/frontend/dist/ | head -n 10
+
 # Start Nginx in background
 echo "🌐 Starting Nginx..."
 nginx -t || {

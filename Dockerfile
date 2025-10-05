@@ -17,6 +17,10 @@ COPY frontend/ ./
 # Build frontend for production
 RUN npm run build
 
+# Verify frontend build output exists
+RUN ls -la dist/ && \
+    test -f dist/index.html || (echo "ERROR: Frontend build failed - index.html not found!" && exit 1)
+
 # ============================================
 # Stage 2: Build Backend
 # ============================================
@@ -57,6 +61,10 @@ COPY --from=backend-builder /app/backend ./backend
 
 # Copy frontend dist from builder
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+# Verify frontend files were copied
+RUN ls -la /app/frontend/dist/ && \
+    test -f /app/frontend/dist/index.html || (echo "ERROR: Frontend dist not copied correctly!" && exit 1)
 
 # Copy root package.json if needed
 COPY package.json ./
