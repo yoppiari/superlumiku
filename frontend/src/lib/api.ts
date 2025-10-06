@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-// Use relative path in production, localhost in development
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:3000')
+// Use root path in production (Nginx will proxy /api/...), localhost in development
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '' : 'http://localhost:3000')
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
