@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useCarouselMixStore } from '../stores/carouselMixStore'
 import { useAuthStore } from '../stores/authStore'
 import ProfileDropdown from '../components/ProfileDropdown'
+import CreateProjectModal from '../components/CreateProjectModal'
 import { BulkGenerator } from './carousel-mix/components/BulkGenerator'
 import { Layers, Plus, ArrowLeft, Coins, CloudCheck, Loader2, Trash2 } from 'lucide-react'
 
@@ -25,6 +26,7 @@ export default function CarouselMix() {
   } = useCarouselMixStore()
 
   const [showSaved, setShowSaved] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   // Show "Saved" indicator after save completes
   useEffect(() => {
@@ -52,18 +54,9 @@ export default function CarouselMix() {
     }
   }, [projectId])
 
-  const handleCreateProject = async () => {
-    const name = prompt('Project name:')
-    if (!name?.trim()) return
-
-    const description = prompt('Description (optional):')
-
-    try {
-      const project = await createProject(name, description || undefined)
-      navigate(`/apps/carousel-mix/${project.id}`)
-    } catch (error: any) {
-      alert(error.message || 'Failed to create project')
-    }
+  const handleCreateProject = async (name: string, description?: string) => {
+    const project = await createProject(name, description)
+    navigate(`/apps/carousel-mix/${project.id}`)
   }
 
   const handleSelectProject = (id: string) => {
@@ -212,7 +205,7 @@ export default function CarouselMix() {
 
         {/* New Project Button */}
         <button
-          onClick={handleCreateProject}
+          onClick={() => setShowCreateModal(true)}
           className="mb-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg"
         >
           <Plus className="w-5 h-5" />
@@ -268,6 +261,13 @@ export default function CarouselMix() {
           )}
         </div>
       </div>
+
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreateProject}
+      />
     </div>
   )
 }
