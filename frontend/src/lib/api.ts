@@ -1,12 +1,29 @@
 import axios from 'axios'
 
 // Use root path in production (Nginx will proxy /api/...), localhost in development
-// Check if running on localhost, if not assume production
-const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-const API_BASE_URL = import.meta.env.VITE_API_URL || (isLocalhost ? 'http://localhost:3000' : '')
+// Function to get API base URL
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+
+  // Server-side rendering check
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  // Check if running on localhost
+  const hostname = window.location.hostname
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3000'
+  }
+
+  // Production: use empty string for relative URLs
+  return ''
+}
 
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },

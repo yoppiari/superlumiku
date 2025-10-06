@@ -5,9 +5,21 @@ import { useNavigate } from 'react-router-dom'
 import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Eye, RefreshCw, Download, Clock, FileVideo } from 'lucide-react'
 
 // Use root path in production (Nginx will proxy), localhost in development
-// Check if running on localhost, if not assume production
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-const API_BASE_URL = import.meta.env.VITE_API_URL || (isLocalhost ? 'http://localhost:3000' : '')
+// Function to get API base URL dynamically
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+
+  // Check if running on localhost
+  const hostname = window.location.hostname
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3000'
+  }
+
+  // Production: use empty string for relative URLs
+  return ''
+}
 
 interface ResultsPanelProps {
   projectId: string
@@ -122,7 +134,7 @@ export function ResultsPanel({}: ResultsPanelProps) {
           const positionSetting = positionSettings[`${currentProject.id}-${position}`]
 
           // Construct proper image URL - backend serves at /uploads/
-          const imageUrl = `${API_BASE_URL}/uploads${randomSlide.filePath}`
+          const imageUrl = `${getApiBaseUrl()}/uploads${randomSlide.filePath}`
 
           console.log(`Preview sample for position ${position}:`, {
             imageUrl,
@@ -207,7 +219,7 @@ export function ResultsPanel({}: ResultsPanelProps) {
 
       // Fetch with auth header
       const response = await fetch(
-        `${API_BASE_URL}/api/apps/carousel-mix/generations/${generationId}/download`,
+        `${getApiBaseUrl()}/api/apps/carousel-mix/generations/${generationId}/download`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
