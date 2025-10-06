@@ -8,16 +8,21 @@ import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Eye, Refr
 // Function to get API base URL dynamically
 const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
+    console.log('[API URL] Using VITE_API_URL:', import.meta.env.VITE_API_URL)
     return import.meta.env.VITE_API_URL
   }
 
   // Check if running on localhost
   const hostname = window.location.hostname
+  console.log('[API URL] Hostname detected:', hostname)
+
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    console.log('[API URL] Using localhost URL')
     return 'http://localhost:3000'
   }
 
   // Production: use empty string for relative URLs
+  console.log('[API URL] Using production (empty string for relative URLs)')
   return ''
 }
 
