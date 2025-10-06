@@ -4,28 +4,6 @@ import { useAuthStore } from '../../../stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Eye, RefreshCw, Download, Clock, FileVideo } from 'lucide-react'
 
-// Use root path in production (Nginx will proxy), localhost in development
-// Function to get API base URL dynamically
-const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    console.log('[API URL] Using VITE_API_URL:', import.meta.env.VITE_API_URL)
-    return import.meta.env.VITE_API_URL
-  }
-
-  // Check if running on localhost
-  const hostname = window.location.hostname
-  console.log('[API URL] Hostname detected:', hostname)
-
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    console.log('[API URL] Using localhost URL')
-    return 'http://localhost:3000'
-  }
-
-  // Production: use empty string for relative URLs
-  console.log('[API URL] Using production (empty string for relative URLs)')
-  return ''
-}
-
 interface ResultsPanelProps {
   projectId: string
 }
@@ -139,16 +117,10 @@ export function ResultsPanel({}: ResultsPanelProps) {
           const positionSetting = positionSettings[`${currentProject.id}-${position}`]
 
           // Construct proper image URL - backend serves at /uploads/
-          // DIRECT inline check to avoid any module-level caching issues
-          const hostname = window.location.hostname
-          const baseUrl = (hostname === 'localhost' || hostname === '127.0.0.1')
-            ? 'http://localhost:3000'
-            : ''
-          const imageUrl = `${baseUrl}/uploads${randomSlide.filePath}`
+          // Use relative path (works for both dev proxy and production nginx)
+          const imageUrl = `/uploads${randomSlide.filePath}`
 
           console.log(`Preview sample for position ${position}:`, {
-            hostname,
-            baseUrl,
             imageUrl,
             text: randomText?.content,
             filePath: randomSlide.filePath,
@@ -231,7 +203,7 @@ export function ResultsPanel({}: ResultsPanelProps) {
 
       // Fetch with auth header
       const response = await fetch(
-        `${getApiBaseUrl()}/api/apps/carousel-mix/generations/${generationId}/download`,
+        `/api/apps/carousel-mix/generations/${generationId}/download`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
