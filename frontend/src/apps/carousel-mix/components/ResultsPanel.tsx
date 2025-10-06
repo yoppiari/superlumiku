@@ -4,6 +4,9 @@ import { useAuthStore } from '../../../stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Zap, Coins, AlertCircle, CheckCircle, Loader, Hash, Eye, RefreshCw, Download, Clock, FileVideo } from 'lucide-react'
 
+// Use root path in production (Nginx will proxy), localhost in development
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '' : 'http://localhost:3000')
+
 interface ResultsPanelProps {
   projectId: string
 }
@@ -117,7 +120,7 @@ export function ResultsPanel({}: ResultsPanelProps) {
           const positionSetting = positionSettings[`${currentProject.id}-${position}`]
 
           // Construct proper image URL - backend serves at /uploads/
-          const imageUrl = `http://localhost:3000/uploads${randomSlide.filePath}`
+          const imageUrl = `${API_BASE_URL}/uploads${randomSlide.filePath}`
 
           console.log(`Preview sample for position ${position}:`, {
             imageUrl,
@@ -202,7 +205,7 @@ export function ResultsPanel({}: ResultsPanelProps) {
 
       // Fetch with auth header
       const response = await fetch(
-        `http://localhost:3000/api/apps/carousel-mix/generations/${generationId}/download`,
+        `${API_BASE_URL}/api/apps/carousel-mix/generations/${generationId}/download`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
