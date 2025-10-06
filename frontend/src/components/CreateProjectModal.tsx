@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Layers, FileText, X, Sparkles } from 'lucide-react'
+import { Layers, FileText, X } from 'lucide-react'
 
 interface CreateProjectModalProps {
   isOpen: boolean
@@ -81,7 +81,7 @@ export default function CreateProjectModal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                  <Sparkles className="w-5 h-5 text-white" />
+                  <Layers className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-slate-900">
                   {title}
