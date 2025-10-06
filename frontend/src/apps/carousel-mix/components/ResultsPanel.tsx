@@ -139,9 +139,16 @@ export function ResultsPanel({}: ResultsPanelProps) {
           const positionSetting = positionSettings[`${currentProject.id}-${position}`]
 
           // Construct proper image URL - backend serves at /uploads/
-          const imageUrl = `${getApiBaseUrl()}/uploads${randomSlide.filePath}`
+          // DIRECT inline check to avoid any module-level caching issues
+          const hostname = window.location.hostname
+          const baseUrl = (hostname === 'localhost' || hostname === '127.0.0.1')
+            ? 'http://localhost:3000'
+            : ''
+          const imageUrl = `${baseUrl}/uploads${randomSlide.filePath}`
 
           console.log(`Preview sample for position ${position}:`, {
+            hostname,
+            baseUrl,
             imageUrl,
             text: randomText?.content,
             filePath: randomSlide.filePath,
