@@ -49,7 +49,7 @@ function AppContent() {
       <Route path="/apps/looping-flow/:projectId" element={<LoopingFlow />} />
       <Route path="/apps/video-generator" element={<VideoGenerator />} />
       <Route path="/apps/video-generator/:projectId" element={<VideoGenerator />} />
-      <Route path="/apps/poster-editor" element={<PosterEditor userId="test-user" />} />
+      <Route path="/apps/poster-editor" element={<PosterEditor />} />
     </Routes>
   )
 }

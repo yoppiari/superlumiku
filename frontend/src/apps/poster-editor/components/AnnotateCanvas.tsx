@@ -1,19 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { X, Check } from 'lucide-react'
 import type { Annotation } from '../types/annotation'
 
 interface AnnotateCanvasProps {
-  imageUrl: string
-  imageWidth: number
-  imageHeight: number
   annotations: Annotation[]
   onAnnotationsChange: (annotations: Annotation[]) => void
 }
 
 export function AnnotateCanvas({
-  imageUrl,
-  imageWidth,
-  imageHeight,
   annotations,
   onAnnotationsChange
 }: AnnotateCanvasProps) {

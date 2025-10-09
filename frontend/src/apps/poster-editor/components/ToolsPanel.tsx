@@ -16,7 +16,6 @@ export function ToolsPanel({ posterId, onOperationSuccess, onInpaintClick, inpai
   const [isDetecting, setIsDetecting] = useState(false)
   const [isEnhancing, setIsEnhancing] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
-  const [showModeSelector, setShowModeSelector] = useState(false)
 
   const handleDetectText = async () => {
     if (!posterId) {

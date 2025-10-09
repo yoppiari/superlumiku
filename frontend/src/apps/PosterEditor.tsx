@@ -11,7 +11,7 @@ import { InpaintPanel } from './poster-editor/components/InpaintPanel'
 import { AnnotationPanel } from './poster-editor/components/AnnotationPanel'
 import type { Annotation } from './poster-editor/types/annotation'
 import { getImageUrl } from '../lib/imageUrl'
-import { Plus, FolderOpen, FileImage, Calendar, Trash2, Edit2, X, Coins, ArrowLeft, Image } from 'lucide-react'
+import { Plus, FolderOpen, FileImage, Calendar, Trash2, X, Coins, ArrowLeft, Image } from 'lucide-react'
 
 interface Project {
   id: string
@@ -46,7 +46,6 @@ export function PosterEditor() {
   const [maskDataUrl, setMaskDataUrl] = useState('')
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [batchProcessing, setBatchProcessing] = useState(false)
-  const [batchId, setBatchId] = useState('')
 
   // Load projects
   useEffect(() => {
@@ -141,7 +140,6 @@ export function PosterEditor() {
       }
 
       const newBatchId = response.data.batchId
-      setBatchId(newBatchId)
 
       // Mark all ready annotations as processing
       setAnnotations(annotations.map(ann =>
@@ -162,7 +160,7 @@ export function PosterEditor() {
 
         if (statusResponse.data.overallStatus === 'completed') {
           // All annotations completed
-          setAnnotations(annotations.map((ann, index) => ({
+          setAnnotations(annotations.map((ann) => ({
             ...ann,
             status: 'completed' as const
           })))
@@ -312,7 +310,7 @@ export function PosterEditor() {
                 <div className="h-48 bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center relative overflow-hidden">
                   {project.posters.length > 0 ? (
                     <div className="grid grid-cols-2 gap-1 w-full h-full p-2">
-                      {project.posters.slice(0, 4).map((poster, idx) => (
+                      {project.posters.slice(0, 4).map((poster) => (
                         <div key={poster.id} className="relative bg-white rounded overflow-hidden">
                           <img
                             src={poster.enhancedUrl || poster.editedUrl || poster.originalUrl}

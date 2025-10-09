@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Paintbrush, Eraser, Trash2 } from 'lucide-react'
 
 interface InpaintCanvasProps {
-  imageUrl: string
   imageWidth: number
   imageHeight: number
   onMaskGenerated: (maskDataUrl: string) => void
 }
 
-export function InpaintCanvas({ imageUrl, imageWidth, imageHeight, onMaskGenerated }: InpaintCanvasProps) {
+export function InpaintCanvas({ imageWidth, imageHeight, onMaskGenerated }: InpaintCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [tool, setTool] = useState<'brush' | 'eraser'>('brush')

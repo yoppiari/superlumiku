@@ -69,10 +69,10 @@ export default function VideoGenerator() {
   const [duration, setDuration] = useState(5)
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [creditEstimate, setCreditEstimate] = useState(500)
+  const creditEstimate = 500
 
   // Polling state
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const [pollingInterval, setPollingInterval] = useState<number | null>(null)
 
   // Load projects on mount
   useEffect(() => {
@@ -197,7 +197,7 @@ export default function VideoGenerator() {
     try {
       setIsGenerating(true)
 
-      const res = await api.post('/api/apps/video-generator/generate', {
+      await api.post('/api/apps/video-generator/generate', {
         projectId: currentProject.id,
         modelId: model.id,
         prompt: prompt.trim(),
