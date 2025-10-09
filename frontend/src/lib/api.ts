@@ -15,7 +15,7 @@ const getApiBaseUrl = () => {
   // Check if running on localhost
   const hostname = window.location.hostname
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:3000'
+    return 'http://localhost:3001'
   }
 
   // Production: use empty string for relative URLs

@@ -10,6 +10,12 @@ import carouselMixRoutes from '../apps/carousel-mix/routes'
 import loopingFlowConfig from '../apps/looping-flow/plugin.config'
 import loopingFlowRoutes from '../apps/looping-flow/routes'
 
+import videoGeneratorConfig from '../apps/video-generator/plugin.config'
+import videoGeneratorRoutes from '../apps/video-generator/routes'
+
+import { posterEditorConfig } from '../apps/poster-editor/plugin.config'
+import posterEditorRoutes from '../apps/poster-editor/routes'
+
 /**
  * Load all plugins into registry
  */
@@ -18,6 +24,8 @@ export function loadPlugins() {
   pluginRegistry.register(videoMixerConfig, videoMixerRoutes)
   pluginRegistry.register(carouselMixConfig, carouselMixRoutes)
   pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
+  pluginRegistry.register(videoGeneratorConfig, videoGeneratorRoutes)
+  pluginRegistry.register(posterEditorConfig, posterEditorRoutes)
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)

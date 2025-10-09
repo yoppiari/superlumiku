@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Development
+  postgres:
+    image: postgres:16-alpine
+    container_name: lumiku-dev-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lumiku_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumiku_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-lumiku_development}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # Port berbeda dari production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lumiku_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis (for job queue) - Development
+  redis:
+    image: redis:7-alpine
+    container_name: lumiku-dev-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6380:6379"  # Port berbeda dari production
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Main Application - Development
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lumiku-dev-app
+    env_file:
+      - .env.development
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumiku_dev}:${POSTGRES_PASSWORD:-lumiku_dev_password}@postgres:5432/${POSTGRES_DB:-lumiku_development}?schema=public
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-lumiku_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumiku_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-lumiku_development}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: development
+    ports:
+      - "80:80"
+    volumes:
+      - uploads_dev_data:/app/backend/uploads
+      - outputs_dev_data:/app/backend/outputs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  uploads_dev_data:
+    driver: local
+  outputs_dev_data:
+    driver: local

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -498,4 +498,194 @@ model LoopingFlowAudioLayer {
 
   @@index([generationId])
   @@map("looping_flow_audio_layers")
+}
+
+// ========================================
+// Video Generator App Models
+// ========================================
+
+model VideoGeneratorProject {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  generations VideoGeneration[]
+
+  @@index([userId])
+  @@map("video_generator_projects")
+}
+
+model VideoGeneration {
+  id              String   @id @default(cuid())
+  projectId       String
+  userId          String
+
+  // Provider & Model Information
+  provider        String   // 'modelslab', 'edenai'
+  modelId         String   // 'veo3', 'kling-2.5', 'wan-2.2-t2v', etc
+  modelName       String   // Display name for UI
+
+  // Input Parameters
+  prompt          String
+  negativePrompt  String?
+
+  // Image Inputs (optional)
+  startImagePath  String?  // Path to uploaded start image (image-to-video)
+  endImagePath    String?  // Path to uploaded end image (video continuation)
+
+  // Generation Settings
+  resolution      String   @default("720p")  // '720p', '1080p', '4k'
+  duration        Int      @default(5)       // Duration in seconds
+  aspectRatio     String   @default("16:9")  // '16:9', '9:16', '1:1', '4:5'
+
+  // Advanced Settings (JSON)
+  advancedSettings String?  // JSON: provider-specific settings
+
+  // Pricing & Status
+  creditUsed      Int
+  status          String   @default("pending") // pending, processing, completed, failed
+
+  // Output
+  outputPath      String?  // Path to generated video
+  thumbnailPath   String?  // Thumbnail for preview
+  errorMessage    String?
+
+  // Provider Job Tracking
+  providerJobId   String?  // Job ID from provider API for status checking
+  providerResponse String? // Full provider response (JSON)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  completedAt     DateTime?
+
+  project VideoGeneratorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+  @@index([providerJobId])
+  @@map("video_generations")
+}
+
+// ========================================
+// Poster Editor App Models
+// ========================================
+
+model PosterEditorProject {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posters     PosterEdit[]
+
+  @@index([userId])
+  @@map("poster_editor_projects")
+}
+
+model PosterEdit {
+  id              String      @id @default(cuid())
+  userId          String
+  projectId       String
+  project         PosterEditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // File URLs
+  originalUrl     String      // Original upload
+  maskUrl         String?     // Generated mask for inpainting
+  editedUrl       String?     // After inpainting + text rendering
+  enhancedUrl     String?     // After super resolution
+
+  // Metadata
+  originalSize    String      // JSON: {width, height, fileSize, format}
+  enhancedSize    String?     // JSON: After upscaling
+
+  // OCR Data
+  ocrData         String?     // JSON: Detected text boxes with positions
+
+  // User Edits
+  userEdits       String?     // JSON: Text modifications, fonts, colors
+
+  // Enhancement Settings
+  enhanceSettings String?     // JSON: {scale, faceEnhance, model}
+
+  // Processing
+  status          String      @default("PENDING") // PENDING, UPLOADING, DETECTING_TEXT, GENERATING, ENHANCING, COMPLETED, FAILED
+  processingTime  Int?        // Total seconds
+  errorMessage    String?
+
+  // Credits
+  creditsUsed     Int         @default(0)
+  breakdown       String?     // JSON: {inpainting: 0, enhance: 0, resize: 0}
+
+  // Exports
+  exports         PosterExport[]
+
+  // Bridge to App 2 (Variation Generator)
+  sentToVariations Boolean    @default(false)
+  variationProjectId String?  @unique
+  variationProject VariationProject? @relation(fields: [variationProjectId], references: [id])
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([projectId])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("poster_edits")
+}
+
+model PosterExport {
+  id              String      @id @default(cuid())
+  posterEditId    String
+  posterEdit      PosterEdit  @relation(fields: [posterEditId], references: [id], onDelete: Cascade)
+
+  formatName      String      // "A4", "IG_POST", "custom", etc.
+  width           Int
+  height          Int
+  fileUrl         String
+  fileSize        Int         // bytes
+
+  resizeMethod    String      // "smart_crop", "fit", "fill", "stretch"
+  wasUpscaled     Boolean     @default(false)
+  upscaleRatio    Float?
+
+  createdAt       DateTime    @default(now())
+
+  @@index([posterEditId])
+  @@index([formatName])
+  @@map("poster_exports")
+}
+
+// Bridge to App 2 - Variation Generator
+model VariationProject {
+  id              String      @id @default(cuid())
+  userId          String
+
+  // Source
+  sourceType      String      @default("FROM_EDITOR") // FROM_EDITOR, DIRECT_UPLOAD
+  posterEditId    String?     @unique
+  posterEdit      PosterEdit?
+
+  // Or direct upload for App 2
+  uploadedUrl     String?
+
+  // Generation settings (for App 2)
+  settings        String?     // JSON: style presets, custom prompts, etc.
+
+  // Status
+  status          String      @default("pending")
+
+  // Results (App 2 will populate)
+  variationUrls   String?     // JSON array of generated variation URLs
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("variation_projects")
 }
