@@ -28,6 +28,17 @@ FROM oven/bun:1-alpine AS backend-builder
 
 WORKDIR /app/backend
 
+# Install build dependencies for canvas (requires Python and build tools)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev \
+    pixman-dev
+
 # Copy backend package files
 COPY backend/package.json backend/bun.lock* ./
 
@@ -45,14 +56,19 @@ RUN bun run prisma:generate
 # ============================================
 FROM oven/bun:1-alpine
 
-# Install system dependencies
+# Install system dependencies (including canvas runtime dependencies)
 RUN apk add --no-cache \
     nginx \
     ffmpeg \
     ffmpeg-libs \
     postgresql-client \
     curl \
-    bash
+    bash \
+    cairo \
+    jpeg \
+    pango \
+    giflib \
+    pixman
 
 WORKDIR /app
 
