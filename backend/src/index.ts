@@ -2,6 +2,7 @@ import app from './app'
 import { env } from './config/env'
 import prisma from './db/client'
 import { initStorage } from './lib/storage'
+import { initializeScheduler } from './jobs/scheduler'
 
 // Import workers
 import './workers/video-mixer.worker'
@@ -24,6 +25,9 @@ async function checkDatabase() {
 async function start() {
   await checkDatabase()
   await initStorage()
+
+  // Initialize cron jobs for subscription & quota management
+  initializeScheduler()
 
   // Use Bun's built-in server
   Bun.serve({
