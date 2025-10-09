@@ -157,12 +157,12 @@ export function EditorCanvas({ imageUrl, detectedTexts = [], onTextClick, inpain
           }}
         >
           {imageUrl ? (
-            <div className="relative">
+            <div className="relative" style={{ minWidth: '100px', minHeight: '100px' }}>
               <img
                 ref={imageRef}
                 src={imageUrl}
                 alt="Poster"
-                className="max-w-full max-h-full object-contain shadow-2xl"
+                className="block w-auto h-auto max-w-[90vw] max-h-[80vh] object-contain shadow-2xl"
                 draggable={false}
                 onLoad={handleImageLoad}
               />
