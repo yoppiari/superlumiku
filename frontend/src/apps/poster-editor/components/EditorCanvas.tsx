@@ -190,16 +190,12 @@ export function EditorCanvas({ imageUrl, detectedTexts = [], onTextClick, inpain
               {inpaintMode && imageDimensions.width > 0 && (
                 inpaintModeType === 'brush' && onMaskGenerated ? (
                   <InpaintCanvas
-                    imageUrl={imageUrl}
                     imageWidth={imageDimensions.width}
                     imageHeight={imageDimensions.height}
                     onMaskGenerated={onMaskGenerated}
                   />
                 ) : inpaintModeType === 'annotate' && onAnnotationsChange ? (
                   <AnnotateCanvas
-                    imageUrl={imageUrl}
-                    imageWidth={imageDimensions.width}
-                    imageHeight={imageDimensions.height}
                     annotations={annotations}
                     onAnnotationsChange={onAnnotationsChange}
                   />
