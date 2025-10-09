@@ -25,12 +25,19 @@ export default function Login() {
         ? { email, password }
         : { email, password, name }
 
+      console.log('🔵 Sending request to:', endpoint)
+      console.log('🔵 Payload:', { ...payload, password: '***' })
+
       const response = await api.post(endpoint, payload)
+      console.log('✅ Response:', response.data)
+
       const { user, token } = response.data
 
       setAuth(user, token)
       navigate('/dashboard')
     } catch (err: any) {
+      console.error('❌ Login error:', err)
+      console.error('❌ Error response:', err.response)
       setError(err.response?.data?.error || 'Authentication failed')
     } finally {
       setLoading(false)

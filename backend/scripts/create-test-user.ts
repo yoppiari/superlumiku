@@ -9,7 +9,7 @@ async function main() {
   try {
     // Check if user exists
     const existing = await prisma.user.findUnique({
-      where: { email: 'test@example.com' },
+      where: { email: 'test@lumiku.com' },
     })
 
     if (existing) {
@@ -26,7 +26,7 @@ async function main() {
 
       console.log(`   Credits: ${credits?.balance || 0}`)
       console.log('\n✅ You can login with:')
-      console.log('   Email: test@example.com')
+      console.log('   Email: test@lumiku.com')
       console.log('   Password: password123')
       return
     }
@@ -37,7 +37,7 @@ async function main() {
     // Create user with initial credits
     const user = await prisma.user.create({
       data: {
-        email: 'test@example.com',
+        email: 'test@lumiku.com',
         password,
         name: 'Test User',
         role: 'admin',
