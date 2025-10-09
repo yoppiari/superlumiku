@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -19,13 +19,20 @@ model User {
   storageQuota Int @default(1073741824)  // 1GB default (1024*1024*1024)
   storageUsed  Int @default(0)           // Current usage in bytes
 
+  // NEW: Account Type & Subscription
+  accountType      String   @default("payg")  // "subscription" | "payg"
+  subscriptionTier String   @default("free")  // "free" | "basic" | "pro" | "enterprise"
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  credits   Credit[]
-  sessions  Session[]
-  devices   Device[]
-  appUsages AppUsage[]
+  credits      Credit[]
+  sessions     Session[]
+  devices      Device[]
+  appUsages    AppUsage[]
+  subscription Subscription?    // NEW
+  quotaUsages  QuotaUsage[]     // NEW
+  modelUsages  ModelUsage[]     // NEW
 
   @@map("users")
 }
@@ -688,4 +695,188 @@ model VariationProject {
 
   @@index([userId, createdAt])
   @@map("variation_projects")
+}
+
+// ========================================
+// DUAL USER SYSTEM: Subscription & Model-Level Access
+// ========================================
+
+// Central registry untuk semua AI models di semua apps
+model AIModel {
+  id                String   @id @default(cuid())
+
+  // Model Identity
+  appId             String   // "video-generator", "poster-editor", etc
+  modelId           String   // "veo3", "kling-2.5", "wan2.2", etc
+  modelKey          String   @unique // "video-generator:veo3"
+
+  // Display Info
+  name              String   // "Google Veo 3"
+  description       String?
+  provider          String   // "modelslab", "edenai", "segmind"
+
+  // Access Control (CORE!)
+  tier              String   // "free", "basic", "pro", "enterprise"
+  enabled           Boolean  @default(true)
+  beta              Boolean  @default(false)
+
+  // Pricing for PAYG users
+  creditCost        Int      // Base credit cost
+  creditPerSecond   Float?   // For video: cost per second
+  creditPerPixel    Float?   // For image: cost per megapixel
+
+  // Quota for Subscription users
+  quotaCost         Int      @default(1)  // Heavy models = 2-5 quota
+
+  // Capabilities (JSON)
+  capabilities      String?  // JSON: {maxDuration, resolutions, aspectRatios}
+
+  // Stats
+  totalUsage        Int      @default(0)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  modelUsages       ModelUsage[]
+
+  @@unique([appId, modelId])
+  @@index([appId])
+  @@index([tier])
+  @@index([enabled])
+  @@map("ai_models")
+}
+
+model SubscriptionPlan {
+  id              String   @id @default(cuid())
+  planId          String   @unique  // "basic-monthly", "pro-yearly"
+
+  // Plan Info
+  tier            String   // "basic", "pro", "enterprise"
+  name            String   // "Pro Monthly"
+  description     String?
+
+  // Pricing
+  price           Float    // Rupiah
+  billingCycle    String   // "monthly", "yearly"
+
+  // Quotas
+  dailyQuota      Int      // 100 generates per day
+  monthlyQuota    Int?     // Optional monthly cap
+
+  // Model Access
+  // Models akan di-filter by tier, jadi tidak perlu list manual
+  // tier "pro" bisa akses: free, basic, pro models
+  maxModelTier    String   // "basic", "pro", "enterprise"
+
+  // Features (JSON)
+  features        String?  // JSON: {prioritySupport, customBranding, etc}
+
+  // Status
+  isActive        Boolean  @default(true)
+  displayOrder    Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions   Subscription[]
+
+  @@index([tier])
+  @@index([isActive])
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  planId          String
+
+  // Status
+  status          String   // "active", "cancelled", "expired", "grace_period", "suspended"
+
+  // Billing Period
+  startDate       DateTime
+  endDate         DateTime
+  billingCycle    String   // "monthly", "yearly"
+
+  // Auto-renewal
+  autoRenew       Boolean  @default(true)
+  nextBillingDate DateTime?
+
+  // Payment
+  lastPaymentId   String?
+
+  // Cancellation
+  cancelledAt     DateTime?
+  cancelReason    String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            SubscriptionPlan  @relation(fields: [planId], references: [id])
+
+  @@index([status])
+  @@index([endDate])
+  @@map("subscriptions")
+}
+
+model QuotaUsage {
+  id          String   @id @default(cuid())
+  userId      String
+
+  // Period Tracking
+  quotaType   String   // "daily", "monthly"
+  period      String   // "2025-01-15" for daily, "2025-01" for monthly
+
+  // Usage
+  usageCount  Int      @default(0)  // Total quota used in period
+  quotaLimit  Int      // From subscription plan
+
+  // Breakdown by model (JSON)
+  modelBreakdown String?  // JSON: {"veo3": 50, "kling": 30, "wan22": 20}
+
+  // Auto-reset
+  resetAt     DateTime
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period, quotaType])
+  @@index([userId, period])
+  @@index([resetAt])
+  @@map("quota_usages")
+}
+
+model ModelUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  appId       String   // "video-generator"
+  modelKey    String   // "video-generator:veo3"
+
+  // Usage Type
+  usageType   String   // "credit" (PAYG) | "quota" (Subscription)
+
+  // Cost/Quota
+  creditUsed  Int?     // For PAYG users
+  quotaUsed   Int?     // For Subscription users (usually 1, heavy models = 2-5)
+
+  // Action metadata
+  action      String   // "generate_video", "inpaint_poster", etc
+  metadata    String?  // JSON: {duration: 5, resolution: "720p"}
+
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model       AIModel @relation(fields: [modelKey], references: [modelKey], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([appId])
+  @@index([modelKey])
+  @@index([createdAt])
+  @@map("model_usages")
 }
