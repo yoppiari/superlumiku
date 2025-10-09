@@ -56,7 +56,7 @@ RUN bun run prisma:generate
 # ============================================
 FROM oven/bun:1-alpine
 
-# Install system dependencies (including canvas runtime dependencies)
+# Install system dependencies (including canvas runtime dependencies and network tools)
 RUN apk add --no-cache \
     nginx \
     ffmpeg \
@@ -68,7 +68,9 @@ RUN apk add --no-cache \
     jpeg \
     pango \
     giflib \
-    pixman
+    pixman \
+    bind-tools \
+    iputils
 
 WORKDIR /app
 

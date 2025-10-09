@@ -22,19 +22,60 @@ echo "✅ Environment variables validated"
 
 # Wait for PostgreSQL
 echo "⏳ Waiting for PostgreSQL..."
-until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; do
-    echo "   PostgreSQL is unavailable - sleeping"
+echo "   Connection details: $POSTGRES_USER@$POSTGRES_HOST:5432/$POSTGRES_DB"
+
+# Try to connect with timeout (max 60 seconds)
+RETRY_COUNT=0
+MAX_RETRIES=30
+
+until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>&1; do
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "❌ ERROR: Could not connect to PostgreSQL after $MAX_RETRIES attempts"
+        echo "   Host: $POSTGRES_HOST"
+        echo "   User: $POSTGRES_USER"
+        echo "   Database: $POSTGRES_DB"
+        echo "   Trying to resolve hostname..."
+        nslookup "$POSTGRES_HOST" || echo "   DNS lookup failed"
+        ping -c 1 "$POSTGRES_HOST" || echo "   Ping failed"
+        echo "⚠️  WARNING: Skipping PostgreSQL check and trying to continue..."
+        break
+    fi
+    echo "   PostgreSQL is unavailable - sleeping (attempt $RETRY_COUNT/$MAX_RETRIES)"
     sleep 2
 done
-echo "✅ PostgreSQL is ready"
+
+if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+    echo "✅ PostgreSQL is ready"
+fi
 
 # Wait for Redis
 echo "⏳ Waiting for Redis..."
-until timeout 1 bash -c "cat < /dev/null > /dev/tcp/${REDIS_HOST}/${REDIS_PORT}" 2>/dev/null; do
-    echo "   Redis is unavailable - sleeping"
+echo "   Connection details: $REDIS_HOST:${REDIS_PORT:-6379}"
+
+REDIS_PORT=${REDIS_PORT:-6379}
+RETRY_COUNT=0
+MAX_RETRIES=30
+
+until timeout 1 bash -c "cat < /dev/null > /dev/tcp/${REDIS_HOST}/${REDIS_PORT}" 2>&1; do
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "❌ ERROR: Could not connect to Redis after $MAX_RETRIES attempts"
+        echo "   Host: $REDIS_HOST"
+        echo "   Port: $REDIS_PORT"
+        echo "   Trying to resolve hostname..."
+        nslookup "$REDIS_HOST" || echo "   DNS lookup failed"
+        ping -c 1 "$REDIS_HOST" || echo "   Ping failed"
+        echo "⚠️  WARNING: Skipping Redis check and trying to continue..."
+        break
+    fi
+    echo "   Redis is unavailable - sleeping (attempt $RETRY_COUNT/$MAX_RETRIES)"
     sleep 2
 done
-echo "✅ Redis is ready"
+
+if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+    echo "✅ Redis is ready"
+fi
 
 # Check FFmpeg
 echo "🎬 Checking FFmpeg..."
