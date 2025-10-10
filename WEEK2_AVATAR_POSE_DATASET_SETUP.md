@@ -11,10 +11,10 @@ Week 2 focuses on preparing pose template datasets for the Avatar & Pose Generat
 
 1. **Download Fashion Dataset** (800 samples)
    - Source: `SaffalPoosh/deepFashion-with-masks` (Hugging Face)
-   - Downloaded: 800 fashion model poses
+   - Downloaded: 800 fashion model poses locally
    - Files: 1,601 files (800 images + 800 masks + metadata.json)
    - Gender distribution: 696 Women (87%), 104 Men (13%)
-   - Storage: `backend/storage/pose-dataset/fashion/`
+   - Compressed: 12.56 MB ZIP file
 
 2. **Create Seed Script**
    - File: `backend/scripts/seed-pose-templates.ts`
@@ -24,27 +24,37 @@ Week 2 focuses on preparing pose template datasets for the Avatar & Pose Generat
      - Automatic difficulty assignment
      - Tag generation
      - Statistics reporting
-   - Status: ✅ Committed to git
+   - Status: ✅ Committed to `development` branch
+
+3. **Setup Git Branch Policy**
+   - Created `.claude/BRANCH_POLICY.md`
+   - Default branch: `development` (deployed to dev.lumiku.com)
+   - Production branch: `main` (deployed to app.lumiku.com)
+
+4. **Deploy to Coolify**
+   - ✅ Pushed seed script to `development` branch
+   - ✅ Triggered Coolify deployment via API
+   - Deployment UUID: `uw0kw8c80kc0w4cw4c448kkw`
+   - Auto-deploy: Enabled
 
 ### 🔄 In Progress
 
-3. **Download Lifestyle Dataset** (300 samples)
-   - Source: `raulc0399/open_pose_controlnet` (Hugging Face)
-   - Status: Failed due to network issues
-   - Alternative: Will re-download on Coolify server
+5. **Wait for Coolify Deployment**
+   - Estimated time: 2-5 minutes
+   - Will pull latest code from `development` branch
+   - Seed script will be available at `/app/backend/scripts/seed-pose-templates.ts`
 
 ### 📋 Next Steps
 
-4. **Deploy to Coolify**
-   - Push changes to GitHub
-   - Coolify auto-deploy
-   - Create download scripts on server
+6. **Download Dataset on Coolify Server**
+   - Use Python script directly on server
+   - Download fashion dataset (800 samples)
+   - Optionally download lifestyle dataset (300 samples)
 
-5. **Seed Production Database**
-   - SSH to Coolify container
-   - Download datasets (fashion + lifestyle)
-   - Run seed script
-   - Verify seeded data
+7. **Seed Production Database**
+   - Run seed script: `bun run scripts/seed-pose-templates.ts --fashion-only`
+   - Verify seeded data with Prisma Studio
+   - Check pose_templates table statistics
 
 ## Deployment Instructions
 
