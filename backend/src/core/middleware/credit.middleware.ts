@@ -13,7 +13,30 @@ export const deductCredits = (amount: number, action: string, appId: string) => 
       return c.json({ error: 'Unauthorized' }, 401)
     }
 
-    // Check credit balance
+    // Check if user has enterprise unlimited access
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { userTags: true },
+    })
+
+    const tags = user?.userTags ? JSON.parse(user.userTags) : []
+    const hasEnterpriseUnlimited = tags.includes('enterprise_unlimited')
+
+    // Skip credit check for enterprise users on specific apps
+    const unlimitedApps = ['video-mixer', 'carousel-mix']
+    if (hasEnterpriseUnlimited && unlimitedApps.includes(appId)) {
+      // Store deduction info with 0 cost for enterprise users
+      c.set('creditDeduction', {
+        amount: 0,
+        action,
+        appId,
+        isEnterprise: true,
+      })
+      await next()
+      return
+    }
+
+    // Check credit balance for non-enterprise users
     const balance = await getCreditBalance(userId)
 
     if (balance < amount) {
@@ -46,6 +69,22 @@ export const recordCreditUsage = async (
   amount: number,
   metadata?: any
 ) => {
+  // Skip credit deduction if amount is 0 (enterprise users)
+  if (amount === 0) {
+    // Still log usage for analytics
+    await prisma.appUsage.create({
+      data: {
+        userId,
+        appId,
+        action,
+        creditUsed: 0,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+      },
+    })
+
+    return { newBalance: await getCreditBalance(userId), creditUsed: 0 }
+  }
+
   // Get current balance
   const currentBalance = await getCreditBalance(userId)
   const newBalance = currentBalance - amount
