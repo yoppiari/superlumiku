@@ -13,6 +13,7 @@ import statsRoutes from './routes/stats.routes'
 import subscriptionRoutes from './routes/subscription.routes'
 import quotaRoutes from './routes/quota.routes'
 import modelStatsRoutes from './routes/model-stats.routes'
+import poseTemplateRoutes from './routes/pose-template.routes'
 
 // Plugin System
 import { loadPlugins } from './plugins/loader'
@@ -51,6 +52,9 @@ app.route('/api/stats', statsRoutes)
 app.route('/api/subscription', subscriptionRoutes)
 app.route('/api/quota', quotaRoutes)
 app.route('/api/models', modelStatsRoutes)
+
+// Pose Template Routes
+app.route('/api/poses', poseTemplateRoutes)
 
 // Get all apps for dashboard (filtered by user access)
 app.get('/api/apps', authMiddleware, async (c) => {
