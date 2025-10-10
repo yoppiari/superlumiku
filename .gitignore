@@ -50,6 +50,10 @@ backend/outputs/
 uploads/
 outputs/
 
+# Pose Dataset (large files)
+backend/storage/pose-dataset/
+backend/storage/*.zip
+
 # Build
 *.tsbuildinfo
 
@@ -57,4 +61,4 @@ outputs/
 .cache/
 temp/
 tmp/
-nulENV_COPAS_COOLIFY_PRODUCTION.txt
+nul
