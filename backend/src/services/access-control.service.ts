@@ -66,10 +66,24 @@ export class AccessControlService {
     const { pluginRegistry } = await import('../plugins/registry')
     const allApps = pluginRegistry.getDashboardApps()
 
+    // Get user info to check for enterprise_unlimited tag
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { userTags: true }
+    })
+
+    const tags = user?.userTags ? JSON.parse(user.userTags) : []
+    const hasEnterpriseUnlimited = tags.includes('enterprise_unlimited')
+
     // For each app, check if user can access at least one model
     const accessibleApps = []
 
     for (const app of allApps) {
+      // Block poster-editor for enterprise_unlimited users
+      if (hasEnterpriseUnlimited && app.appId === 'poster-editor') {
+        continue // Skip this app
+      }
+
       const models = await modelRegistryService.getUserAccessibleModels(userId, app.appId)
 
       if (models.length > 0) {
