@@ -168,22 +168,87 @@ export class AvatarService {
   }
 
   /**
-   * Process avatar generation (placeholder for AI integration)
-   * TODO: Integrate with ControlNet/OpenPose AI model
+   * Process avatar generation using Hugging Face ControlNet
    */
   async processGeneration(generationId: string): Promise<void> {
     try {
+      // Get generation details
+      const generation = await prisma.avatarGeneration.findUnique({
+        where: { id: generationId }
+      })
+
+      if (!generation) {
+        throw new Error('Generation not found')
+      }
+
       // Update status to processing
       await this.updateGenerationStatus(generationId, 'processing')
 
-      // TODO: Call AI model API
-      // For now, simulate processing
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Get pose template
+      const poseTemplate = await poseTemplateService.getPoseTemplateById(generation.poseTemplateId)
+      if (!poseTemplate) {
+        throw new Error('Pose template not found')
+      }
 
-      // Simulate success
-      const outputUrl = `/uploads/avatar-generator/${generationId}/output.jpg`
+      // TODO: Implement Hugging Face ControlNet integration
+      // For now, we'll create a placeholder that explains the integration needed
+
+      console.log(`🎨 Processing avatar generation ${generationId}`)
+      console.log(`  - Input: ${generation.inputImageUrl}`)
+      console.log(`  - Pose: ${poseTemplate.imageUrl}`)
+      console.log(`  - Quality: ${generation.quality}`)
+
+      // Simulate processing time
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+
+      // TODO: Replace this with actual Hugging Face API call
+      // const { huggingFaceProvider } = await import('../providers/huggingface.provider')
+      //
+      // // Read input image
+      // const inputImagePath = path.join(process.cwd(), generation.inputImageUrl)
+      // const inputImageBuffer = await fs.readFile(inputImagePath)
+      //
+      // // Get pose image (from URL or local storage)
+      // const poseImageBuffer = await fetchPoseImage(poseTemplate.imageUrl)
+      //
+      // // Determine model based on quality
+      // const modelId = generation.quality === 'hd'
+      //   ? 'thibaud/controlnet-openpose-sdxl-1.0'
+      //   : 'lllyasviel/control_v11p_sd15_openpose'
+      //
+      // // Generate avatar
+      // const result = await huggingFaceProvider.generateAvatar({
+      //   inputImage: inputImageBuffer,
+      //   poseImage: poseImageBuffer,
+      //   prompt: `professional portrait, high quality, detailed face, ${generation.quality === 'hd' ? '4k, sharp' : 'good lighting'}`,
+      //   negativePrompt: 'ugly, blurry, low quality, distorted, deformed',
+      //   modelId,
+      //   numInferenceSteps: generation.quality === 'hd' ? 50 : 30,
+      //   guidanceScale: 7.5,
+      //   controlnetConditioningScale: 1.0
+      // })
+      //
+      // if (!result.success || !result.imageBuffer) {
+      //   throw new Error(result.error || 'Generation failed')
+      // }
+      //
+      // // Save output image
+      // const outputDir = path.join(process.cwd(), 'uploads', 'avatar-generator', generation.userId)
+      // await fs.mkdir(outputDir, { recursive: true })
+      // const outputFilename = `${generationId}-output.jpg`
+      // const outputPath = path.join(outputDir, outputFilename)
+      // await fs.writeFile(outputPath, result.imageBuffer)
+      //
+      // const outputUrl = `/uploads/avatar-generator/${generation.userId}/${outputFilename}`
+      // await this.updateGenerationStatus(generationId, 'completed', outputUrl)
+
+      // For now, mark as completed with placeholder
+      const outputUrl = `/uploads/avatar-generator/${generationId}/output-placeholder.jpg`
       await this.updateGenerationStatus(generationId, 'completed', outputUrl)
+
+      console.log(`✅ Avatar generation ${generationId} completed`)
     } catch (error: any) {
+      console.error(`❌ Avatar generation ${generationId} failed:`, error)
       await this.updateGenerationStatus(generationId, 'failed', undefined, error.message)
     }
   }

@@ -208,65 +208,72 @@ export const seedAIModels = async () => {
     },
 
     // ==========================================
-    // AVATAR GENERATOR MODELS
+    // AVATAR GENERATOR MODELS (Hugging Face)
     // ==========================================
     {
       appId: 'avatar-generator',
-      modelId: 'controlnet-sd',
-      modelKey: 'avatar-generator:controlnet-sd',
-      name: 'ControlNet SD (Free)',
-      description: 'Standard definition avatar generation with pose control',
-      provider: 'modelslab',
+      modelId: 'controlnet-openpose-sd15',
+      modelKey: 'avatar-generator:controlnet-openpose-sd15',
+      name: 'ControlNet OpenPose SD 1.5 (Free)',
+      description: 'Pose-guided avatar generation using Stable Diffusion 1.5',
+      provider: 'huggingface',
       tier: 'free',
+      creditCost: 3,
+      creditPerSecond: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        model: 'lllyasviel/control_v11p_sd15_openpose',
+        baseModel: 'runwayml/stable-diffusion-v1-5',
+        quality: 'sd',
+        resolution: '512x512',
+        poseControl: true,
+        processingTime: '~15-30s'
+      }),
+      enabled: true,
+      beta: true
+    },
+    {
+      appId: 'avatar-generator',
+      modelId: 'controlnet-openpose-sdxl',
+      modelKey: 'avatar-generator:controlnet-openpose-sdxl',
+      name: 'ControlNet OpenPose SDXL',
+      description: 'High quality pose-guided generation using Stable Diffusion XL',
+      provider: 'huggingface',
+      tier: 'basic',
       creditCost: 5,
       creditPerSecond: null,
       quotaCost: 1,
       capabilities: JSON.stringify({
-        quality: 'sd',
-        resolution: '512x512',
-        poseControl: true,
-        processingTime: '~10s'
-      }),
-      enabled: true,
-      beta: true
-    },
-    {
-      appId: 'avatar-generator',
-      modelId: 'controlnet-hd',
-      modelKey: 'avatar-generator:controlnet-hd',
-      name: 'ControlNet HD',
-      description: 'High definition avatar generation with enhanced quality',
-      provider: 'modelslab',
-      tier: 'basic',
-      creditCost: 7,
-      creditPerSecond: null,
-      quotaCost: 1,
-      capabilities: JSON.stringify({
+        model: 'thibaud/controlnet-openpose-sdxl-1.0',
+        baseModel: 'stabilityai/stable-diffusion-xl-base-1.0',
         quality: 'hd',
         resolution: '1024x1024',
         poseControl: true,
-        processingTime: '~15s'
+        processingTime: '~30-60s'
       }),
       enabled: true,
       beta: true
     },
     {
       appId: 'avatar-generator',
-      modelId: 'controlnet-ultra',
-      modelKey: 'avatar-generator:controlnet-ultra',
-      name: 'ControlNet Ultra Pro',
-      description: 'Ultra high quality with priority processing',
-      provider: 'modelslab',
+      modelId: 'controlnet-openpose-sdxl-ultra',
+      modelKey: 'avatar-generator:controlnet-openpose-sdxl-ultra',
+      name: 'ControlNet OpenPose SDXL Ultra',
+      description: 'Ultra high quality with xinsir SOTA model',
+      provider: 'huggingface',
       tier: 'pro',
-      creditCost: 10,
+      creditCost: 8,
       creditPerSecond: null,
       quotaCost: 2,
       capabilities: JSON.stringify({
+        model: 'xinsir/controlnet-openpose-sdxl-1.0',
+        baseModel: 'stabilityai/stable-diffusion-xl-base-1.0',
         quality: 'ultra',
         resolution: '1024x1024',
         poseControl: true,
         priorityQueue: true,
-        processingTime: '~8s'
+        processingTime: '~30-60s',
+        sota: true
       }),
       enabled: true,
       beta: true
