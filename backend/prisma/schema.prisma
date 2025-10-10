@@ -9,19 +9,19 @@ datasource db {
 
 // User Management
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  role      String   @default("user") // user, admin
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String
+  name     String?
+  role     String  @default("user") // user, admin
 
   // Storage quota (in bytes)
-  storageQuota Int @default(1073741824)  // 1GB default (1024*1024*1024)
-  storageUsed  Int @default(0)           // Current usage in bytes
+  storageQuota Int @default(1073741824) // 1GB default (1024*1024*1024)
+  storageUsed  Int @default(0) // Current usage in bytes
 
   // NEW: Account Type & Subscription
-  accountType      String   @default("payg")  // "subscription" | "payg"
-  subscriptionTier String   @default("free")  // "free" | "basic" | "pro" | "enterprise"
+  accountType      String @default("payg") // "subscription" | "payg"
+  subscriptionTier String @default("free") // "free" | "basic" | "pro" | "enterprise"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -30,9 +30,14 @@ model User {
   sessions     Session[]
   devices      Device[]
   appUsages    AppUsage[]
-  subscription Subscription?    // NEW
-  quotaUsages  QuotaUsage[]     // NEW
-  modelUsages  ModelUsage[]     // NEW
+  subscription Subscription? // NEW
+  quotaUsages  QuotaUsage[] // NEW
+  modelUsages  ModelUsage[] // NEW
+
+  // Avatar & Pose Generator Relations
+  brandKits BrandKit[]
+  avatars   Avatar[]
+  products  Product[]
 
   @@map("users")
 }
@@ -46,27 +51,27 @@ model Session {
 
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
 
 // Device Management
 model Device {
-  id            String   @id @default(cuid())
-  userId        String
-  deviceId      String   // Unique device identifier (browser fingerprint)
-  deviceName    String   // e.g., "Chrome on Windows"
-  deviceType    String   // desktop, mobile, tablet
-  browser       String?
-  os            String?
-  ipAddress     String?
-  userAgent     String?
-  lastActive    DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  deviceId   String // Unique device identifier (browser fingerprint)
+  deviceName String // e.g., "Chrome on Windows"
+  deviceType String // desktop, mobile, tablet
+  browser    String?
+  os         String?
+  ipAddress  String?
+  userAgent  String?
+  lastActive DateTime @default(now())
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, deviceId])
   @@index([userId])
@@ -75,23 +80,23 @@ model Device {
 
 // Credit System
 model Credit {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   userId      String
-  amount      Int      // Positive for addition, negative for deduction
-  balance     Int      // Running balance after this transaction
-  type        String   // purchase, bonus, usage, refund
+  amount      Int // Positive for addition, negative for deduction
+  balance     Int // Running balance after this transaction
+  type        String // purchase, bonus, usage, refund
   description String?
 
   // Reference to what used the credits
   referenceId   String?
-  referenceType String?  // video_mix_project, carousel_generation, etc.
+  referenceType String? // video_mix_project, carousel_generation, etc.
 
   // Payment reference (for purchases)
   paymentId String?
 
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("credits")
@@ -99,37 +104,37 @@ model Credit {
 
 // Payment Transactions (Duitku)
 model Payment {
-  id              String   @id @default(cuid())
+  id              String @id @default(cuid())
   userId          String
-  merchantOrderId String   @unique
-  reference       String   @unique // Duitku reference
+  merchantOrderId String @unique
+  reference       String @unique // Duitku reference
 
-  amount          Float
-  creditAmount    Int      // Credits purchased
+  amount       Float
+  creditAmount Int // Credits purchased
 
-  status          String   // pending, success, failed, expired
-  paymentMethod   String?
-  paymentUrl      String?
+  status        String // pending, success, failed, expired
+  paymentMethod String?
+  paymentUrl    String?
 
   // Duitku specific
-  duitkuData      String?  // JSON string of Duitku response
+  duitkuData String? // JSON string of Duitku response
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("payments")
 }
 
 // Tool Registry (optional - could be code-based)
 model ToolConfig {
-  id          String   @id @default(cuid())
-  toolId      String   @unique
-  name        String
-  enabled     Boolean  @default(true)
-  config      String   // JSON config
+  id      String  @id @default(cuid())
+  toolId  String  @unique
+  name    String
+  enabled Boolean @default(true)
+  config  String // JSON config
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("tool_configs")
 }
@@ -141,29 +146,29 @@ model ToolConfig {
 // App Registry (Optional - mainly for stats tracking)
 // Note: Plugins are registered in-memory via plugin system
 model App {
-  id                    String   @id @default(cuid())
-  appId                 String   @unique // 'project-manager', 'invoice-generator'
-  name                  String
-  description           String?
-  icon                  String   // Lucide icon name
-  enabled               Boolean  @default(true)
-  beta                  Boolean  @default(false)
-  comingSoon            Boolean  @default(false)
-  creditCostBase        Int      @default(1)
-  requiresSubscription  Boolean  @default(false)
-  minSubscriptionTier   String?  // 'basic', 'pro', 'enterprise'
-  version               String   @default("1.0.0")
+  id                   String  @id @default(cuid())
+  appId                String  @unique // 'project-manager', 'invoice-generator'
+  name                 String
+  description          String?
+  icon                 String // Lucide icon name
+  enabled              Boolean @default(true)
+  beta                 Boolean @default(false)
+  comingSoon           Boolean @default(false)
+  creditCostBase       Int     @default(1)
+  requiresSubscription Boolean @default(false)
+  minSubscriptionTier  String? // 'basic', 'pro', 'enterprise'
+  version              String  @default("1.0.0")
 
   // Stats
-  totalUsage            Int      @default(0)
-  activeUsers           Int      @default(0)
+  totalUsage  Int @default(0)
+  activeUsers Int @default(0)
 
   // Dashboard
-  dashboardOrder        Int      @default(0)
-  dashboardColor        String   @default("blue")
+  dashboardOrder Int    @default(0)
+  dashboardColor String @default("blue")
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([enabled])
   @@index([dashboardOrder])
@@ -172,14 +177,14 @@ model App {
 
 // App Usage Tracking
 model AppUsage {
-  id          String   @id @default(cuid())
-  userId      String
-  appId       String   // Plugin appId (not FK - plugins are in-memory)
-  action      String   // 'create_project', 'generate_invoice'
-  creditUsed  Int
-  metadata    String?  // JSON string
+  id         String  @id @default(cuid())
+  userId     String
+  appId      String // Plugin appId (not FK - plugins are in-memory)
+  action     String // 'create_project', 'generate_invoice'
+  creditUsed Int
+  metadata   String? // JSON string
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -210,35 +215,35 @@ model VideoMixerProject {
 }
 
 model VideoMixerGroup {
-  id          String   @id @default(cuid())
-  projectId   String
-  name        String
-  order       Int      @default(0) // Order of group in sequence
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  order     Int      @default(0) // Order of group in sequence
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  project     VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  videos      VideoMixerVideo[]
+  project VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  videos  VideoMixerVideo[]
 
   @@index([projectId])
   @@map("video_mixer_groups")
 }
 
 model VideoMixerVideo {
-  id          String   @id @default(cuid())
-  projectId   String
-  groupId     String?  // Optional: video can belong to a group
-  fileName    String
-  filePath    String   // Path to uploaded video file
-  fileSize    Int      // File size in bytes
-  duration    Float    // Duration in seconds
-  mimeType    String
-  order       Int      @default(0) // Order within group or project
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  projectId String
+  groupId   String? // Optional: video can belong to a group
+  fileName  String
+  filePath  String // Path to uploaded video file
+  fileSize  Int // File size in bytes
+  duration  Float // Duration in seconds
+  mimeType  String
+  order     Int      @default(0) // Order within group or project
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  project     VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  group       VideoMixerGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  project VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  group   VideoMixerGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@index([projectId])
   @@index([groupId])
@@ -246,47 +251,47 @@ model VideoMixerVideo {
 }
 
 model VideoMixerGeneration {
-  id                String   @id @default(cuid())
+  id                String  @id @default(cuid())
   projectId         String
   userId            String
-  totalVideos       Int      // Number of videos to generate
-  settings          String   // JSON: { shuffle, fixedStart, groupShuffle, speed }
-  creditUsed        Int      // Total credits used
-  status            String   @default("pending") // pending, processing, completed, failed
-  outputPaths       String?  // JSON array of generated video paths
-  estimatedDuration Float?   // Estimated duration of each video
+  totalVideos       Int // Number of videos to generate
+  settings          String // JSON: { shuffle, fixedStart, groupShuffle, speed }
+  creditUsed        Int // Total credits used
+  status            String  @default("pending") // pending, processing, completed, failed
+  outputPaths       String? // JSON array of generated video paths
+  estimatedDuration Float? // Estimated duration of each video
 
   // Mixing Options (Anti-Fingerprinting)
-  enableOrderMixing        Boolean @default(true)
-  enableDifferentStart     Boolean @default(false)
-  fixedStartVideoId        String?
-  enableGroupMixing        Boolean @default(false)
-  groupMixingMode          String  @default("sequential") // sequential, random
-  enableSpeedVariations    Boolean @default(false)
-  speedMin                 Float   @default(0.5)
-  speedMax                 Float   @default(2.0)
+  enableOrderMixing     Boolean @default(true)
+  enableDifferentStart  Boolean @default(false)
+  fixedStartVideoId     String?
+  enableGroupMixing     Boolean @default(false)
+  groupMixingMode       String  @default("sequential") // sequential, random
+  enableSpeedVariations Boolean @default(false)
+  speedMin              Float   @default(0.5)
+  speedMax              Float   @default(2.0)
 
   // Quality Settings
-  metadataSource    String  @default("capcut")       // capcut, tiktok, instagram, youtube
-  videoBitrate      String  @default("medium")       // low, medium, high
-  videoResolution   String  @default("720p")         // 480p, 720p, 1080p, 4k
-  frameRate         Int     @default(30)             // 24, 30, 60
-  aspectRatio       String  @default("16:9")         // 9:16, 16:9, 1:1, 4:5
+  metadataSource  String @default("capcut") // capcut, tiktok, instagram, youtube
+  videoBitrate    String @default("medium") // low, medium, high
+  videoResolution String @default("720p") // 480p, 720p, 1080p, 4k
+  frameRate       Int    @default(30) // 24, 30, 60
+  aspectRatio     String @default("16:9") // 9:16, 16:9, 1:1, 4:5
 
   // Duration Settings
-  durationType      String  @default("original")     // original, fixed
-  fixedDuration     Int?                             // seconds
+  durationType      String  @default("original") // original, fixed
+  fixedDuration     Int? // seconds
   smartDistribution Boolean @default(false)
   distributionMode  String  @default("proportional") // proportional, equal, weighted
 
   // Audio Options
-  audioOption       String  @default("keep")         // keep, mute
+  audioOption String @default("keep") // keep, mute
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  completedAt       DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
 
-  project     VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([userId])
@@ -299,13 +304,13 @@ model VideoMixerGeneration {
 // ========================================
 
 model CarouselProject {
-  id              String   @id @default(cuid())
-  userId          String
-  name            String
-  description     String?
-  defaultNumSlides Int     @default(4) // Default carousel length (2-8)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  userId           String
+  name             String
+  description      String?
+  defaultNumSlides Int      @default(4) // Default carousel length (2-8)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   slides           CarouselSlide[]
   texts            CarouselText[]
@@ -322,12 +327,12 @@ model CarouselSlide {
   slidePosition Int      @default(1) // Which position in carousel (1, 2, 3, ..., N)
   fileName      String
   filePath      String
-  fileType      String   // 'image' or 'video'
-  fileSize      Int      // bytes
-  width         Int?     // Image width in pixels
-  height        Int?     // Image height in pixels
-  thumbnail     String?  // Thumbnail path for preview
-  order         Int      // Display order within same position (for UI sorting)
+  fileType      String // 'image' or 'video'
+  fileSize      Int // bytes
+  width         Int? // Image width in pixels
+  height        Int? // Image height in pixels
+  thumbnail     String? // Thumbnail path for preview
+  order         Int // Display order within same position (for UI sorting)
   createdAt     DateTime @default(now())
 
   project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -341,8 +346,8 @@ model CarouselText {
   id            String   @id @default(cuid())
   projectId     String
   slidePosition Int      @default(1) // Which position in carousel (1, 2, 3, ..., N)
-  content       String   // Only text content - styling moved to CarouselPositionSettings
-  order         Int      // Display order within same position (for UI sorting)
+  content       String // Only text content - styling moved to CarouselPositionSettings
+  order         Int // Display order within same position (for UI sorting)
   createdAt     DateTime @default(now())
 
   project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -354,33 +359,33 @@ model CarouselText {
 
 // Position-level text styling settings (shared across all text variations in a position)
 model CarouselPositionSettings {
-  id            String   @id @default(cuid())
+  id            String @id @default(cuid())
   projectId     String
-  slidePosition Int      // Position number (1, 2, 3, ..., N)
+  slidePosition Int // Position number (1, 2, 3, ..., N)
 
   // Text Style Settings (shared across all text variations in this position)
-  fontFamily       String   @default("Inter")
-  fontSize         Int      @default(32)          // Deprecated - kept for backward compatibility
-  fontSizePercent  Float    @default(4.5)         // Font size as % of image height (NEW)
-  fontColor        String   @default("#FFFFFF")
-  fontWeight       Int      @default(700)
-  backgroundColor  String   @default("rgba(0, 0, 0, 0.5)")
+  fontFamily      String @default("Inter")
+  fontSize        Int    @default(32) // Deprecated - kept for backward compatibility
+  fontSizePercent Float  @default(4.5) // Font size as % of image height (NEW)
+  fontColor       String @default("#FFFFFF")
+  fontWeight      Int    @default(700)
+  backgroundColor String @default("rgba(0, 0, 0, 0.5)")
 
   // Text Position Settings
-  textPosition  String   @default("center")     // preset: center, top-left, top-center, etc.
-  textAlignment String   @default("center")     // left, center, right, justify
-  positionX     Int      @default(50)           // X position percentage (0-100)
-  positionY     Int      @default(50)           // Y position percentage (0-100)
+  textPosition  String @default("center") // preset: center, top-left, top-center, etc.
+  textAlignment String @default("center") // left, center, right, justify
+  positionX     Int    @default(50) // X position percentage (0-100)
+  positionY     Int    @default(50) // Y position percentage (0-100)
 
   // Advanced Styling (JSON)
-  textShadow    String?  // JSON: { offsetX, offsetY, blur, color }
-  textOutline   String?  // JSON: { width, color }
-  paddingData   String?  // JSON: { top, right, bottom, left }
+  textShadow  String? // JSON: { offsetX, offsetY, blur, color }
+  textOutline String? // JSON: { width, color }
+  paddingData String? // JSON: { top, right, bottom, left }
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  project       CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, slidePosition])
   @@index([projectId])
@@ -388,25 +393,25 @@ model CarouselPositionSettings {
 }
 
 model CarouselGeneration {
-  id                    String    @id @default(cuid())
-  projectId             String
-  userId                String
-  status                String    @default("pending") // pending, processing, completed, failed
-  numSlides             Int       // 2, 4, 6, or 8
-  numSetsGenerated      Int       // How many carousel sets were generated
-  creditUsed            Int
+  id               String @id @default(cuid())
+  projectId        String
+  userId           String
+  status           String @default("pending") // pending, processing, completed, failed
+  numSlides        Int // 2, 4, 6, or 8
+  numSetsGenerated Int // How many carousel sets were generated
+  creditUsed       Int
 
   // Text Variation Settings
-  textVariationAlgo     String?   @default("sequential") // random, sequential, weighted
-  textVariationSettings String?   // JSON string with algorithm-specific settings
+  textVariationAlgo     String? @default("sequential") // random, sequential, weighted
+  textVariationSettings String? // JSON string with algorithm-specific settings
 
   // Output
-  outputPath            String?   // Path to ZIP file
-  outputPaths           String?   // JSON array of individual file paths
-  errorMessage          String?
+  outputPath   String? // Path to ZIP file
+  outputPaths  String? // JSON array of individual file paths
+  errorMessage String?
 
-  createdAt             DateTime  @default(now())
-  completedAt           DateTime?
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
 
   project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -436,48 +441,48 @@ model LoopingFlowProject {
 }
 
 model LoopingFlowVideo {
-  id          String   @id @default(cuid())
-  projectId   String
-  fileName    String
-  filePath    String   // Path to uploaded video file
-  fileSize    Int      // File size in bytes
-  duration    Float    // Duration in seconds
-  mimeType    String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  projectId String
+  fileName  String
+  filePath  String // Path to uploaded video file
+  fileSize  Int // File size in bytes
+  duration  Float // Duration in seconds
+  mimeType  String
+  createdAt DateTime @default(now())
 
-  project     LoopingFlowProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project LoopingFlowProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@map("looping_flow_videos")
 }
 
 model LoopingFlowGeneration {
-  id              String   @id @default(cuid())
-  projectId       String
-  userId          String
-  videoId         String   // Reference to source video
-  targetDuration  Int      // Target duration in seconds
-  creditUsed      Int      // Total credits used
-  status          String   @default("pending") // pending, processing, completed, failed
-  outputPath      String?  // Path to generated looped video
-  errorMessage    String?
-  createdAt       DateTime @default(now())
-  completedAt     DateTime?
+  id             String    @id @default(cuid())
+  projectId      String
+  userId         String
+  videoId        String // Reference to source video
+  targetDuration Int // Target duration in seconds
+  creditUsed     Int // Total credits used
+  status         String    @default("pending") // pending, processing, completed, failed
+  outputPath     String? // Path to generated looped video
+  errorMessage   String?
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
 
   // Package 1: Perfect Seamless Loop
-  loopStyle          String  @default("crossfade") // simple, crossfade, boomerang
-  crossfadeDuration  Float   @default(1.0)         // 0.5 - 2.0 seconds
-  audioCrossfade     Boolean @default(true)
-  videoCrossfade     Boolean @default(true)
+  loopStyle         String  @default("crossfade") // simple, crossfade, boomerang
+  crossfadeDuration Float   @default(1.0) // 0.5 - 2.0 seconds
+  audioCrossfade    Boolean @default(true)
+  videoCrossfade    Boolean @default(true)
 
   // Package 2: Multi-Layer Audio
-  audioLayers     String?  // JSON array of audio layer configs
-  masterVolume    Float    @default(100)
-  audioFadeIn     Float    @default(2.0)
-  audioFadeOut    Float    @default(2.0)
-  muteOriginal    Boolean  @default(false)
+  audioLayers  String? // JSON array of audio layer configs
+  masterVolume Float   @default(100)
+  audioFadeIn  Float   @default(2.0)
+  audioFadeOut Float   @default(2.0)
+  muteOriginal Boolean @default(false)
 
-  project         LoopingFlowProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project         LoopingFlowProject      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   audioLayerFiles LoopingFlowAudioLayer[]
 
   @@index([projectId])
@@ -487,21 +492,21 @@ model LoopingFlowGeneration {
 }
 
 model LoopingFlowAudioLayer {
-  id              String   @id @default(cuid())
-  generationId    String
-  generation      LoopingFlowGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  id           String                @id @default(cuid())
+  generationId String
+  generation   LoopingFlowGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
 
-  layerIndex      Int      // 0, 1, 2, 3
-  fileName        String
-  filePath        String
-  fileSize        Int
-  duration        Float
-  volume          Float    @default(100)
-  muted           Boolean  @default(false)
-  fadeIn          Float    @default(0)
-  fadeOut         Float    @default(0)
+  layerIndex Int // 0, 1, 2, 3
+  fileName   String
+  filePath   String
+  fileSize   Int
+  duration   Float
+  volume     Float   @default(100)
+  muted      Boolean @default(false)
+  fadeIn     Float   @default(0)
+  fadeOut    Float   @default(0)
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([generationId])
   @@map("looping_flow_audio_layers")
@@ -526,47 +531,47 @@ model VideoGeneratorProject {
 }
 
 model VideoGeneration {
-  id              String   @id @default(cuid())
-  projectId       String
-  userId          String
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
 
   // Provider & Model Information
-  provider        String   // 'modelslab', 'edenai'
-  modelId         String   // 'veo3', 'kling-2.5', 'wan-2.2-t2v', etc
-  modelName       String   // Display name for UI
+  provider  String // 'modelslab', 'edenai'
+  modelId   String // 'veo3', 'kling-2.5', 'wan-2.2-t2v', etc
+  modelName String // Display name for UI
 
   // Input Parameters
-  prompt          String
-  negativePrompt  String?
+  prompt         String
+  negativePrompt String?
 
   // Image Inputs (optional)
-  startImagePath  String?  // Path to uploaded start image (image-to-video)
-  endImagePath    String?  // Path to uploaded end image (video continuation)
+  startImagePath String? // Path to uploaded start image (image-to-video)
+  endImagePath   String? // Path to uploaded end image (video continuation)
 
   // Generation Settings
-  resolution      String   @default("720p")  // '720p', '1080p', '4k'
-  duration        Int      @default(5)       // Duration in seconds
-  aspectRatio     String   @default("16:9")  // '16:9', '9:16', '1:1', '4:5'
+  resolution  String @default("720p") // '720p', '1080p', '4k'
+  duration    Int    @default(5) // Duration in seconds
+  aspectRatio String @default("16:9") // '16:9', '9:16', '1:1', '4:5'
 
   // Advanced Settings (JSON)
-  advancedSettings String?  // JSON: provider-specific settings
+  advancedSettings String? // JSON: provider-specific settings
 
   // Pricing & Status
-  creditUsed      Int
-  status          String   @default("pending") // pending, processing, completed, failed
+  creditUsed Int
+  status     String @default("pending") // pending, processing, completed, failed
 
   // Output
-  outputPath      String?  // Path to generated video
-  thumbnailPath   String?  // Thumbnail for preview
-  errorMessage    String?
+  outputPath    String? // Path to generated video
+  thumbnailPath String? // Thumbnail for preview
+  errorMessage  String?
 
   // Provider Job Tracking
-  providerJobId   String?  // Job ID from provider API for status checking
+  providerJobId    String? // Job ID from provider API for status checking
   providerResponse String? // Full provider response (JSON)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  completedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
 
   project VideoGeneratorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -589,56 +594,56 @@ model PosterEditorProject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  posters     PosterEdit[]
+  posters PosterEdit[]
 
   @@index([userId])
   @@map("poster_editor_projects")
 }
 
 model PosterEdit {
-  id              String      @id @default(cuid())
-  userId          String
-  projectId       String
-  project         PosterEditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String              @id @default(cuid())
+  userId    String
+  projectId String
+  project   PosterEditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // File URLs
-  originalUrl     String      // Original upload
-  maskUrl         String?     // Generated mask for inpainting
-  editedUrl       String?     // After inpainting + text rendering
-  enhancedUrl     String?     // After super resolution
+  originalUrl String // Original upload
+  maskUrl     String? // Generated mask for inpainting
+  editedUrl   String? // After inpainting + text rendering
+  enhancedUrl String? // After super resolution
 
   // Metadata
-  originalSize    String      // JSON: {width, height, fileSize, format}
-  enhancedSize    String?     // JSON: After upscaling
+  originalSize String // JSON: {width, height, fileSize, format}
+  enhancedSize String? // JSON: After upscaling
 
   // OCR Data
-  ocrData         String?     // JSON: Detected text boxes with positions
+  ocrData String? // JSON: Detected text boxes with positions
 
   // User Edits
-  userEdits       String?     // JSON: Text modifications, fonts, colors
+  userEdits String? // JSON: Text modifications, fonts, colors
 
   // Enhancement Settings
-  enhanceSettings String?     // JSON: {scale, faceEnhance, model}
+  enhanceSettings String? // JSON: {scale, faceEnhance, model}
 
   // Processing
-  status          String      @default("PENDING") // PENDING, UPLOADING, DETECTING_TEXT, GENERATING, ENHANCING, COMPLETED, FAILED
-  processingTime  Int?        // Total seconds
-  errorMessage    String?
+  status         String  @default("PENDING") // PENDING, UPLOADING, DETECTING_TEXT, GENERATING, ENHANCING, COMPLETED, FAILED
+  processingTime Int? // Total seconds
+  errorMessage   String?
 
   // Credits
-  creditsUsed     Int         @default(0)
-  breakdown       String?     // JSON: {inpainting: 0, enhance: 0, resize: 0}
+  creditsUsed Int     @default(0)
+  breakdown   String? // JSON: {inpainting: 0, enhance: 0, resize: 0}
 
   // Exports
-  exports         PosterExport[]
+  exports PosterExport[]
 
   // Bridge to App 2 (Variation Generator)
-  sentToVariations Boolean    @default(false)
-  variationProjectId String?  @unique
-  variationProject VariationProject? @relation(fields: [variationProjectId], references: [id])
+  sentToVariations   Boolean           @default(false)
+  variationProjectId String?           @unique
+  variationProject   VariationProject? @relation(fields: [variationProjectId], references: [id])
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([projectId])
   @@index([userId, createdAt])
@@ -647,21 +652,21 @@ model PosterEdit {
 }
 
 model PosterExport {
-  id              String      @id @default(cuid())
-  posterEditId    String
-  posterEdit      PosterEdit  @relation(fields: [posterEditId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  posterEditId String
+  posterEdit   PosterEdit @relation(fields: [posterEditId], references: [id], onDelete: Cascade)
 
-  formatName      String      // "A4", "IG_POST", "custom", etc.
-  width           Int
-  height          Int
-  fileUrl         String
-  fileSize        Int         // bytes
+  formatName String // "A4", "IG_POST", "custom", etc.
+  width      Int
+  height     Int
+  fileUrl    String
+  fileSize   Int // bytes
 
-  resizeMethod    String      // "smart_crop", "fit", "fill", "stretch"
-  wasUpscaled     Boolean     @default(false)
-  upscaleRatio    Float?
+  resizeMethod String // "smart_crop", "fit", "fill", "stretch"
+  wasUpscaled  Boolean @default(false)
+  upscaleRatio Float?
 
-  createdAt       DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@index([posterEditId])
   @@index([formatName])
@@ -670,28 +675,28 @@ model PosterExport {
 
 // Bridge to App 2 - Variation Generator
 model VariationProject {
-  id              String      @id @default(cuid())
-  userId          String
+  id     String @id @default(cuid())
+  userId String
 
   // Source
-  sourceType      String      @default("FROM_EDITOR") // FROM_EDITOR, DIRECT_UPLOAD
-  posterEditId    String?     @unique
-  posterEdit      PosterEdit?
+  sourceType   String      @default("FROM_EDITOR") // FROM_EDITOR, DIRECT_UPLOAD
+  posterEditId String?     @unique
+  posterEdit   PosterEdit?
 
   // Or direct upload for App 2
-  uploadedUrl     String?
+  uploadedUrl String?
 
   // Generation settings (for App 2)
-  settings        String?     // JSON: style presets, custom prompts, etc.
+  settings String? // JSON: style presets, custom prompts, etc.
 
   // Status
-  status          String      @default("pending")
+  status String @default("pending")
 
   // Results (App 2 will populate)
-  variationUrls   String?     // JSON array of generated variation URLs
+  variationUrls String? // JSON array of generated variation URLs
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("variation_projects")
@@ -703,42 +708,42 @@ model VariationProject {
 
 // Central registry untuk semua AI models di semua apps
 model AIModel {
-  id                String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Model Identity
-  appId             String   // "video-generator", "poster-editor", etc
-  modelId           String   // "veo3", "kling-2.5", "wan2.2", etc
-  modelKey          String   @unique // "video-generator:veo3"
+  appId    String // "video-generator", "poster-editor", etc
+  modelId  String // "veo3", "kling-2.5", "wan2.2", etc
+  modelKey String @unique // "video-generator:veo3"
 
   // Display Info
-  name              String   // "Google Veo 3"
-  description       String?
-  provider          String   // "modelslab", "edenai", "segmind"
+  name        String // "Google Veo 3"
+  description String?
+  provider    String // "modelslab", "edenai", "segmind"
 
   // Access Control (CORE!)
-  tier              String   // "free", "basic", "pro", "enterprise"
-  enabled           Boolean  @default(true)
-  beta              Boolean  @default(false)
+  tier    String // "free", "basic", "pro", "enterprise"
+  enabled Boolean @default(true)
+  beta    Boolean @default(false)
 
   // Pricing for PAYG users
-  creditCost        Int      // Base credit cost
-  creditPerSecond   Float?   // For video: cost per second
-  creditPerPixel    Float?   // For image: cost per megapixel
+  creditCost      Int // Base credit cost
+  creditPerSecond Float? // For video: cost per second
+  creditPerPixel  Float? // For image: cost per megapixel
 
   // Quota for Subscription users
-  quotaCost         Int      @default(1)  // Heavy models = 2-5 quota
+  quotaCost Int @default(1) // Heavy models = 2-5 quota
 
   // Capabilities (JSON)
-  capabilities      String?  // JSON: {maxDuration, resolutions, aspectRatios}
+  capabilities String? // JSON: {maxDuration, resolutions, aspectRatios}
 
   // Stats
-  totalUsage        Int      @default(0)
+  totalUsage Int @default(0)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  modelUsages       ModelUsage[]
+  modelUsages ModelUsage[]
 
   @@unique([appId, modelId])
   @@index([appId])
@@ -748,38 +753,38 @@ model AIModel {
 }
 
 model SubscriptionPlan {
-  id              String   @id @default(cuid())
-  planId          String   @unique  // "basic-monthly", "pro-yearly"
+  id     String @id @default(cuid())
+  planId String @unique // "basic-monthly", "pro-yearly"
 
   // Plan Info
-  tier            String   // "basic", "pro", "enterprise"
-  name            String   // "Pro Monthly"
-  description     String?
+  tier        String // "basic", "pro", "enterprise"
+  name        String // "Pro Monthly"
+  description String?
 
   // Pricing
-  price           Float    // Rupiah
-  billingCycle    String   // "monthly", "yearly"
+  price        Float // Rupiah
+  billingCycle String // "monthly", "yearly"
 
   // Quotas
-  dailyQuota      Int      // 100 generates per day
-  monthlyQuota    Int?     // Optional monthly cap
+  dailyQuota   Int // 100 generates per day
+  monthlyQuota Int? // Optional monthly cap
 
   // Model Access
   // Models akan di-filter by tier, jadi tidak perlu list manual
   // tier "pro" bisa akses: free, basic, pro models
-  maxModelTier    String   // "basic", "pro", "enterprise"
+  maxModelTier String // "basic", "pro", "enterprise"
 
   // Features (JSON)
-  features        String?  // JSON: {prioritySupport, customBranding, etc}
+  features String? // JSON: {prioritySupport, customBranding, etc}
 
   // Status
-  isActive        Boolean  @default(true)
-  displayOrder    Int      @default(0)
+  isActive     Boolean @default(true)
+  displayOrder Int     @default(0)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  subscriptions   Subscription[]
+  subscriptions Subscription[]
 
   @@index([tier])
   @@index([isActive])
@@ -787,35 +792,35 @@ model SubscriptionPlan {
 }
 
 model Subscription {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  planId          String
+  id     String @id @default(cuid())
+  userId String @unique
+  planId String
 
   // Status
-  status          String   // "active", "cancelled", "expired", "grace_period", "suspended"
+  status String // "active", "cancelled", "expired", "grace_period", "suspended"
 
   // Billing Period
-  startDate       DateTime
-  endDate         DateTime
-  billingCycle    String   // "monthly", "yearly"
+  startDate    DateTime
+  endDate      DateTime
+  billingCycle String // "monthly", "yearly"
 
   // Auto-renewal
-  autoRenew       Boolean  @default(true)
+  autoRenew       Boolean   @default(true)
   nextBillingDate DateTime?
 
   // Payment
-  lastPaymentId   String?
+  lastPaymentId String?
 
   // Cancellation
-  cancelledAt     DateTime?
-  cancelReason    String?
+  cancelledAt  DateTime?
+  cancelReason String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan            SubscriptionPlan  @relation(fields: [planId], references: [id])
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
 
   @@index([status])
   @@index([endDate])
@@ -823,27 +828,27 @@ model Subscription {
 }
 
 model QuotaUsage {
-  id          String   @id @default(cuid())
-  userId      String
+  id     String @id @default(cuid())
+  userId String
 
   // Period Tracking
-  quotaType   String   // "daily", "monthly"
-  period      String   // "2025-01-15" for daily, "2025-01" for monthly
+  quotaType String // "daily", "monthly"
+  period    String // "2025-01-15" for daily, "2025-01" for monthly
 
   // Usage
-  usageCount  Int      @default(0)  // Total quota used in period
-  quotaLimit  Int      // From subscription plan
+  usageCount Int @default(0) // Total quota used in period
+  quotaLimit Int // From subscription plan
 
   // Breakdown by model (JSON)
-  modelBreakdown String?  // JSON: {"veo3": 50, "kling": 30, "wan22": 20}
+  modelBreakdown String? // JSON: {"veo3": 50, "kling": 30, "wan22": 20}
 
   // Auto-reset
-  resetAt     DateTime
+  resetAt DateTime
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, period, quotaType])
   @@index([userId, period])
@@ -852,31 +857,332 @@ model QuotaUsage {
 }
 
 model ModelUsage {
-  id          String   @id @default(cuid())
-  userId      String
-  appId       String   // "video-generator"
-  modelKey    String   // "video-generator:veo3"
+  id       String @id @default(cuid())
+  userId   String
+  appId    String // "video-generator"
+  modelKey String // "video-generator:veo3"
 
   // Usage Type
-  usageType   String   // "credit" (PAYG) | "quota" (Subscription)
+  usageType String // "credit" (PAYG) | "quota" (Subscription)
 
   // Cost/Quota
-  creditUsed  Int?     // For PAYG users
-  quotaUsed   Int?     // For Subscription users (usually 1, heavy models = 2-5)
+  creditUsed Int? // For PAYG users
+  quotaUsed  Int? // For Subscription users (usually 1, heavy models = 2-5)
 
   // Action metadata
-  action      String   // "generate_video", "inpaint_poster", etc
-  metadata    String?  // JSON: {duration: 5, resolution: "720p"}
+  action   String // "generate_video", "inpaint_poster", etc
+  metadata String? // JSON: {duration: 5, resolution: "720p"}
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   // Relations
-  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  model       AIModel @relation(fields: [modelKey], references: [modelKey], onDelete: Cascade)
+  user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model AIModel @relation(fields: [modelKey], references: [modelKey], onDelete: Cascade)
 
   @@index([userId])
   @@index([appId])
   @@index([modelKey])
   @@index([createdAt])
   @@map("model_usages")
+}
+
+// ========================================
+// AVATAR & POSE GENERATOR SYSTEM
+// ========================================
+
+// ========================================
+// BRAND KIT SYSTEM
+// ========================================
+
+model BrandKit {
+  id     String @id @default(cuid())
+  userId String
+
+  // Multi-brand support
+  brandName String // "Skincare Aura", "Fashion Elite", "Kids World"
+  category  String? // "skincare", "fashion", "kids", etc
+
+  // Brand Assets
+  logoUrl String?
+  colors  String // JSON: ["#FF5733", "#33FF57"]
+  fonts   String // JSON: [{family: "Inter", weights: [400,700]}]
+
+  // Brand Voice (for future AI copywriting)
+  tone    String? // "casual", "formal", "playful"
+  tagline String?
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatars  Avatar[]
+  products Product[]
+
+  @@index([userId])
+  @@map("brand_kits")
+}
+
+// ========================================
+// AVATAR SYSTEM
+// ========================================
+
+model Avatar {
+  id         String @id @default(cuid())
+  userId     String
+  brandKitId String
+
+  name         String // "Skincare Model - Aura"
+  baseImageUrl String // Original avatar image
+  thumbnailUrl String?
+
+  // Avatar characteristics (for better pose matching)
+  gender    String? // "male", "female", "unisex"
+  ageRange  String? // "young", "adult", "mature"
+  style     String? // "casual", "formal", "sporty"
+  ethnicity String? // "asian", "caucasian", "mixed", etc
+
+  // Generation settings (if AI-generated)
+  generationPrompt String?
+  faceEmbedding    String? // For consistent face across poses (future)
+
+  // Source
+  sourceType String // "upload", "ai_generated"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandKit       BrandKit        @relation(fields: [brandKitId], references: [id], onDelete: Cascade)
+  generatedPoses GeneratedPose[]
+
+  @@index([userId])
+  @@index([brandKitId])
+  @@map("avatars")
+}
+
+// ========================================
+// PRODUCT SYSTEM
+// ========================================
+
+model Product {
+  id         String @id @default(cuid())
+  userId     String
+  brandKitId String
+
+  name        String
+  category    String // "skincare", "fashion-top", "accessory", etc
+  subcategory String? // "serum", "moisturizer", "shirt", "shoes"
+
+  // Product assets
+  originalUrl    String // Original upload
+  transparentUrl String? // After background removal (SAM)
+  thumbnailUrl   String?
+
+  // Product metadata (for better placement in poses)
+  productType   String // "bottle", "tube", "box", "clothing", "accessory"
+  placement     String // "hand-held", "worn", "displayed", "table"
+  dominantColor String? // For smart background matching
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandKit       BrandKit        @relation(fields: [brandKitId], references: [id], onDelete: Cascade)
+  generatedPoses GeneratedPose[]
+
+  @@index([userId])
+  @@index([brandKitId])
+  @@index([category])
+  @@map("products")
+}
+
+// ========================================
+// POSE TEMPLATE LIBRARY
+// ========================================
+
+model PoseTemplate {
+  id String @id @default(cuid())
+
+  // Categorization
+  category    String // "fashion-standing", "skincare-application", etc
+  subcategory String? // "casual", "formal", "action"
+
+  // Pose data (OpenPose format - 18 keypoints)
+  keypointsJson String // JSON: [{x, y, confidence}, ...]
+  previewUrl    String // Small preview image
+
+  // Metadata
+  difficulty  String // "simple", "medium", "complex"
+  tags        String // JSON: ["standing", "front-facing", "arms-crossed"]
+  description String?
+
+  // Quality tracking
+  usageCount      Int   @default(0)
+  successRate     Float @default(0.95) // Track generation success
+  avgQualityScore Float @default(0.85)
+
+  // Filtering
+  gender           String? // "male", "female", "unisex"
+  productPlacement String? // "hand-left", "hand-right", "worn", "both-hands"
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  generatedPoses GeneratedPose[]
+
+  @@index([category, isActive])
+  @@index([successRate])
+  @@map("pose_templates")
+}
+
+// ========================================
+// POSE GENERATION
+// ========================================
+
+model PoseGenerationProject {
+  id         String @id @default(cuid())
+  userId     String
+  brandKitId String
+
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  generations PoseGeneration[]
+
+  @@index([userId])
+  @@map("pose_generation_projects")
+}
+
+model PoseGeneration {
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
+  avatarId  String
+  productId String
+
+  // Generation settings
+  totalPoses       Int // Target number of poses
+  poseDistribution String // JSON: {"standing": 50, "walking": 30, "sitting": 20}
+
+  // AI settings
+  provider String // "huggingface", "fal", "replicate"
+  modelId  String // "control_v11p_sd15_openpose"
+
+  // Prompt engineering
+  basePrompt     String // From brand kit + product
+  negativePrompt String?
+
+  // Status
+  status   String @default("pending") // pending, processing, completed, failed
+  progress Int    @default(0) // 0-100
+
+  // Results
+  successfulPoses Int @default(0)
+  failedPoses     Int @default(0)
+
+  // Credits
+  creditUsed Int @default(0)
+
+  // Output
+  outputFolder String? // Path to generated poses
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  project        PoseGenerationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  generatedPoses GeneratedPose[]
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+  @@map("pose_generations")
+}
+
+model GeneratedPose {
+  id             String @id @default(cuid())
+  generationId   String
+  userId         String
+  avatarId       String
+  productId      String
+  poseTemplateId String
+
+  // Generation params
+  prompt          String
+  negativePrompt  String?
+  controlnetImage String? // Pose skeleton image used
+
+  // Result
+  outputUrl    String
+  thumbnailUrl String?
+
+  // Quality metrics
+  success        Boolean @default(true)
+  qualityScore   Float? // 0-1 (AI quality assessment)
+  generationTime Int // seconds
+
+  // AI metadata
+  provider      String // "huggingface", "fal", etc
+  providerJobId String?
+  seed          Int? // For reproducibility
+
+  // Usage tracking
+  exported      Boolean @default(false)
+  exportCount   Int     @default(0)
+  usedInPosters Int     @default(0)
+
+  // User feedback (optional)
+  userRating Int? // 1-5 stars
+
+  createdAt DateTime @default(now())
+
+  generation   PoseGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  avatar       Avatar         @relation(fields: [avatarId], references: [id])
+  product      Product        @relation(fields: [productId], references: [id])
+  poseTemplate PoseTemplate   @relation(fields: [poseTemplateId], references: [id])
+
+  @@index([generationId])
+  @@index([userId, createdAt])
+  @@index([poseTemplateId, success]) // For tracking template success rates
+  @@map("generated_poses")
+}
+
+// ========================================
+// ANALYTICS (Internal - Track User Productivity)
+// ========================================
+
+model DesignMetrics {
+  id         String @id @default(cuid())
+  userId     String
+  brandKitId String
+  designType String // "avatar", "pose", "poster"
+
+  // Usage stats
+  timesCreated    Int    @default(0)
+  timesExported   Int    @default(0)
+  formatBreakdown String // JSON: {"ig_post": 50, "fb_cover": 30}
+
+  // Time tracking
+  avgCreationTime Int // seconds
+  totalTimeSaved  Int // vs traditional methods (estimated)
+
+  // Cost tracking
+  estimatedSavings Float // Rupiah saved vs photoshoot
+
+  // Period
+  period String // "2025-10" for monthly aggregation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, brandKitId, designType, period])
+  @@index([userId, period])
+  @@map("design_metrics")
 }
