@@ -205,6 +205,71 @@ export const seedAIModels = async () => {
       }),
       enabled: true,
       beta: false
+    },
+
+    // ==========================================
+    // AVATAR GENERATOR MODELS
+    // ==========================================
+    {
+      appId: 'avatar-generator',
+      modelId: 'controlnet-sd',
+      modelKey: 'avatar-generator:controlnet-sd',
+      name: 'ControlNet SD (Free)',
+      description: 'Standard definition avatar generation with pose control',
+      provider: 'modelslab',
+      tier: 'free',
+      creditCost: 5,
+      creditPerSecond: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        quality: 'sd',
+        resolution: '512x512',
+        poseControl: true,
+        processingTime: '~10s'
+      }),
+      enabled: true,
+      beta: true
+    },
+    {
+      appId: 'avatar-generator',
+      modelId: 'controlnet-hd',
+      modelKey: 'avatar-generator:controlnet-hd',
+      name: 'ControlNet HD',
+      description: 'High definition avatar generation with enhanced quality',
+      provider: 'modelslab',
+      tier: 'basic',
+      creditCost: 7,
+      creditPerSecond: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        quality: 'hd',
+        resolution: '1024x1024',
+        poseControl: true,
+        processingTime: '~15s'
+      }),
+      enabled: true,
+      beta: true
+    },
+    {
+      appId: 'avatar-generator',
+      modelId: 'controlnet-ultra',
+      modelKey: 'avatar-generator:controlnet-ultra',
+      name: 'ControlNet Ultra Pro',
+      description: 'Ultra high quality with priority processing',
+      provider: 'modelslab',
+      tier: 'pro',
+      creditCost: 10,
+      creditPerSecond: null,
+      quotaCost: 2,
+      capabilities: JSON.stringify({
+        quality: 'ultra',
+        resolution: '1024x1024',
+        poseControl: true,
+        priorityQueue: true,
+        processingTime: '~8s'
+      }),
+      enabled: true,
+      beta: true
     }
   ]
 
