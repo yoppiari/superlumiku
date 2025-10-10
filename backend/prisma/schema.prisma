@@ -20,8 +20,9 @@ model User {
   storageUsed  Int @default(0) // Current usage in bytes
 
   // NEW: Account Type & Subscription
-  accountType      String @default("payg") // "subscription" | "payg"
-  subscriptionTier String @default("free") // "free" | "basic" | "pro" | "enterprise"
+  accountType      String  @default("payg") // "subscription" | "payg"
+  subscriptionTier String  @default("free") // "free" | "basic" | "pro" | "enterprise"
+  userTags         String? // JSON array: ["enterprise_unlimited", "beta_tester"]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
