@@ -277,6 +277,34 @@ export const seedAIModels = async () => {
       }),
       enabled: true,
       beta: true
+    },
+    {
+      appId: 'avatar-generator',
+      modelId: 'sd35-controlnet-canny',
+      modelKey: 'avatar-generator:sd35-controlnet-canny',
+      name: 'SD 3.5 ControlNet Canny (Coming Soon)',
+      description: 'Edge-guided generation with SD 3.5 Large - Pose support coming soon',
+      provider: 'huggingface',
+      tier: 'enterprise',
+      creditCost: 12,
+      creditPerSecond: null,
+      quotaCost: 3,
+      capabilities: JSON.stringify({
+        model: 'stabilityai/stable-diffusion-3.5-controlnets',
+        controlnetType: 'canny',
+        baseModel: 'stabilityai/stable-diffusion-3.5-large',
+        quality: 'premium',
+        resolution: '1024x1024',
+        poseControl: false,
+        edgeControl: true,
+        comingSoon: true,
+        processingTime: '~60-90s',
+        recommendedSteps: 60,
+        recommendedStrength: 0.75,
+        note: 'OpenPose ControlNet for SD 3.5 not yet released by Stability AI'
+      }),
+      enabled: false,
+      beta: true
     }
   ]
 

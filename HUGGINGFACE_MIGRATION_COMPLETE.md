@@ -102,6 +102,44 @@ Changed from ModelsLab to Hugging Face ControlNet models:
 
 ---
 
+### Model 4: SD 3.5 ControlNet Canny (Enterprise - Coming Soon)
+```json
+{
+  "modelKey": "avatar-generator:sd35-controlnet-canny",
+  "name": "SD 3.5 ControlNet Canny (Coming Soon)",
+  "provider": "huggingface",
+  "huggingface_model": "stabilityai/stable-diffusion-3.5-controlnets",
+  "base_model": "stabilityai/stable-diffusion-3.5-large",
+  "tier": "enterprise",
+  "creditCost": 12,
+  "resolution": "1024x1024",
+  "quality": "premium",
+  "processingTime": "~60-90s",
+  "enabled": false,
+  "comingSoon": true
+}
+```
+
+**Features**:
+- Latest Stable Diffusion 3.5 Large (8B parameters)
+- Edge-guided generation with Canny ControlNet
+- Premium quality with 60+ inference steps
+- **Note**: OpenPose ControlNet for SD 3.5 not yet released by Stability AI
+- **Current limitation**: Only supports Canny, Depth, and Blur ControlNets
+
+**Licensing**:
+- Free for non-commercial use
+- Free for commercial use under $1M annual revenue
+- Requires contacting Stability AI for enterprises >$1M revenue
+
+**When Available**:
+This model is added as "coming soon" and disabled (`enabled: false`). It will be activated once:
+1. Stability AI releases OpenPose ControlNet for SD 3.5
+2. Pose-guided avatar generation support is confirmed
+3. Integration testing is completed
+
+---
+
 ## 🔧 Technical Implementation
 
 ### 1. Hugging Face Provider Service
@@ -451,6 +489,9 @@ curl https://dev.lumiku.com/api/apps/avatar-generator/generations/<generation_id
 ### Alternative Models (Future)
 - **Flux ControlNet**: https://huggingface.co/raulc0399/flux_dev_openpose_controlnet
 - **SD 3.5 ControlNets**: https://huggingface.co/stabilityai/stable-diffusion-3.5-controlnets
+  - **Note**: Added as `sd35-controlnet-canny` but disabled (no OpenPose support yet)
+  - Currently supports: Canny, Depth, Blur only
+  - Will be enabled when OpenPose ControlNet is released by Stability AI
 
 ---
 

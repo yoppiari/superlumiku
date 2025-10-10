@@ -118,10 +118,46 @@ FROM ai_models
 WHERE "appId" = 'avatar-generator'
 ORDER BY "creditCost" ASC;
 
+-- Model 4: SD 3.5 ControlNet Canny (Coming Soon - Disabled)
+INSERT INTO ai_models (
+  "appId", "modelId", "modelKey", "name", "description", "provider",
+  "tier", "creditCost", "creditPerSecond", "quotaCost", "capabilities",
+  "enabled", "beta", "createdAt", "updatedAt"
+)
+VALUES (
+  'avatar-generator',
+  'sd35-controlnet-canny',
+  'avatar-generator:sd35-controlnet-canny',
+  'SD 3.5 ControlNet Canny (Coming Soon)',
+  'Edge-guided generation with SD 3.5 Large - Pose support coming soon',
+  'huggingface',
+  'enterprise',
+  12,
+  NULL,
+  3,
+  '{"model":"stabilityai/stable-diffusion-3.5-controlnets","controlnetType":"canny","baseModel":"stabilityai/stable-diffusion-3.5-large","quality":"premium","resolution":"1024x1024","poseControl":false,"edgeControl":true,"comingSoon":true,"processingTime":"~60-90s","recommendedSteps":60,"recommendedStrength":0.75,"note":"OpenPose ControlNet for SD 3.5 not yet released by Stability AI"}',
+  false,
+  true,
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+)
+ON CONFLICT ("modelKey") DO UPDATE SET
+  "name" = EXCLUDED."name",
+  "description" = EXCLUDED."description",
+  "provider" = EXCLUDED."provider",
+  "tier" = EXCLUDED."tier",
+  "creditCost" = EXCLUDED."creditCost",
+  "quotaCost" = EXCLUDED."quotaCost",
+  "capabilities" = EXCLUDED."capabilities",
+  "enabled" = EXCLUDED."enabled",
+  "beta" = EXCLUDED."beta",
+  "updatedAt" = CURRENT_TIMESTAMP;
+
 -- Summary
 SELECT
   COUNT(*) as total_models,
   COUNT(CASE WHEN "enabled" = true THEN 1 END) as enabled_models,
+  COUNT(CASE WHEN "enabled" = false THEN 1 END) as coming_soon_models,
   string_agg("tier", ', ' ORDER BY "creditCost") as tiers
 FROM ai_models
 WHERE "appId" = 'avatar-generator';
