@@ -164,7 +164,7 @@ export default function AvatarCreator() {
     setGenerating(true)
 
     try {
-      const response = await api.post('/api/apps/avatar-creator/avatars/generate', {
+      await api.post('/api/apps/avatar-creator/avatars/generate', {
         prompt: aiFormData.prompt,
         name: aiFormData.name,
         gender: aiFormData.gender,
