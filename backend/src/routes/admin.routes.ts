@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import prisma from '../db/client'
+import bcrypt from 'bcryptjs'
 
 const app = new Hono()
 
@@ -74,6 +75,67 @@ app.post('/seed-models', async (c) => {
     })
   } catch (error: any) {
     console.error('❌ Seed error:', error)
+    return c.json({
+      success: false,
+      error: error.message
+    }, 500)
+  }
+})
+
+/**
+ * POST /api/admin/update-enterprise-passwords
+ * Update passwords for 4 enterprise users
+ */
+app.post('/update-enterprise-passwords', async (c) => {
+  try {
+    console.log('🔐 Updating enterprise user passwords...')
+
+    const userUpdates = [
+      { email: 'ardianfaisal.id@gmail.com', newPassword: 'Ardian2025' },
+      { email: 'iqbal.elvo@gmail.com', newPassword: 'Iqbal2025' },
+      { email: 'galuh.inteko@gmail.com', newPassword: 'Galuh2025' },
+      { email: 'dilla.inteko@gmail.com', newPassword: 'Dilla2025' }
+    ]
+
+    const results = []
+
+    for (const update of userUpdates) {
+      const hashedPassword = await bcrypt.hash(update.newPassword, 10)
+
+      const user = await prisma.user.update({
+        where: { email: update.email },
+        data: { password: hashedPassword },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          credits: true
+        }
+      })
+
+      results.push({
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        credits: user.credits,
+        passwordUpdated: true
+      })
+
+      console.log(`✅ Updated password for: ${user.email}`)
+    }
+
+    return c.json({
+      success: true,
+      message: 'Enterprise user passwords updated successfully',
+      users: results,
+      credentials: userUpdates.map(u => ({
+        email: u.email,
+        password: u.newPassword
+      }))
+    })
+  } catch (error: any) {
+    console.error('❌ Password update error:', error)
     return c.json({
       success: false,
       error: error.message
