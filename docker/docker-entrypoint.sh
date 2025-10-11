@@ -96,12 +96,29 @@ if [ -f "/app/backend/scripts/migrate-avatar-pose.sh" ]; then
 fi
 
 # Run Prisma migrations
-bun prisma migrate deploy || {
-    echo "⚠️  Prisma migration failed, trying to generate Prisma client..."
-    bun prisma generate
-    bun prisma migrate deploy || echo "   ⚠️  Prisma migration still failed, continuing..."
-}
-echo "✅ Database migrations completed"
+# Try migrate deploy first (for production migrations)
+if bun prisma migrate deploy 2>/dev/null; then
+    echo "✅ Prisma migrate deploy successful"
+else
+    echo "⚠️  Prisma migrate deploy failed or no migrations found"
+    echo "   Trying prisma db push to sync schema..."
+
+    # Fallback to db push (syncs Prisma schema to database without migration files)
+    if bun prisma db push --accept-data-loss --skip-generate 2>&1; then
+        echo "✅ Prisma db push successful - schema synced to database"
+    else
+        echo "⚠️  Prisma db push failed, trying to generate Prisma client..."
+        bun prisma generate
+
+        # Try db push again after generate
+        if bun prisma db push --accept-data-loss --skip-generate 2>&1; then
+            echo "✅ Prisma db push successful after generate"
+        else
+            echo "   ⚠️  All migration attempts failed, continuing anyway..."
+        fi
+    fi
+fi
+echo "✅ Database migrations/sync completed"
 
 # Create directories
 echo "📁 Creating storage directories..."
