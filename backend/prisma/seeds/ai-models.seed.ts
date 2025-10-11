@@ -205,6 +205,106 @@ export const seedAIModels = async () => {
       }),
       enabled: true,
       beta: false
+    },
+
+    // ==========================================
+    // AVATAR GENERATOR MODELS (Hugging Face)
+    // ==========================================
+    {
+      appId: 'avatar-generator',
+      modelId: 'controlnet-openpose-sd15',
+      modelKey: 'avatar-generator:controlnet-openpose-sd15',
+      name: 'ControlNet OpenPose SD 1.5 (Free)',
+      description: 'Pose-guided avatar generation using Stable Diffusion 1.5',
+      provider: 'huggingface',
+      tier: 'free',
+      creditCost: 3,
+      creditPerSecond: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        model: 'lllyasviel/control_v11p_sd15_openpose',
+        baseModel: 'runwayml/stable-diffusion-v1-5',
+        quality: 'sd',
+        resolution: '512x512',
+        poseControl: true,
+        processingTime: '~15-30s'
+      }),
+      enabled: true,
+      beta: true
+    },
+    {
+      appId: 'avatar-generator',
+      modelId: 'controlnet-openpose-sdxl',
+      modelKey: 'avatar-generator:controlnet-openpose-sdxl',
+      name: 'ControlNet OpenPose SDXL',
+      description: 'High quality pose-guided generation using Stable Diffusion XL',
+      provider: 'huggingface',
+      tier: 'basic',
+      creditCost: 5,
+      creditPerSecond: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        model: 'thibaud/controlnet-openpose-sdxl-1.0',
+        baseModel: 'stabilityai/stable-diffusion-xl-base-1.0',
+        quality: 'hd',
+        resolution: '1024x1024',
+        poseControl: true,
+        processingTime: '~30-60s'
+      }),
+      enabled: true,
+      beta: true
+    },
+    {
+      appId: 'avatar-generator',
+      modelId: 'controlnet-openpose-sdxl-ultra',
+      modelKey: 'avatar-generator:controlnet-openpose-sdxl-ultra',
+      name: 'ControlNet OpenPose SDXL Ultra',
+      description: 'Ultra high quality with xinsir SOTA model',
+      provider: 'huggingface',
+      tier: 'pro',
+      creditCost: 8,
+      creditPerSecond: null,
+      quotaCost: 2,
+      capabilities: JSON.stringify({
+        model: 'xinsir/controlnet-openpose-sdxl-1.0',
+        baseModel: 'stabilityai/stable-diffusion-xl-base-1.0',
+        quality: 'ultra',
+        resolution: '1024x1024',
+        poseControl: true,
+        priorityQueue: true,
+        processingTime: '~30-60s',
+        sota: true
+      }),
+      enabled: true,
+      beta: true
+    },
+    {
+      appId: 'avatar-generator',
+      modelId: 'sd35-controlnet-canny',
+      modelKey: 'avatar-generator:sd35-controlnet-canny',
+      name: 'SD 3.5 ControlNet Canny (Coming Soon)',
+      description: 'Edge-guided generation with SD 3.5 Large - Pose support coming soon',
+      provider: 'huggingface',
+      tier: 'enterprise',
+      creditCost: 12,
+      creditPerSecond: null,
+      quotaCost: 3,
+      capabilities: JSON.stringify({
+        model: 'stabilityai/stable-diffusion-3.5-controlnets',
+        controlnetType: 'canny',
+        baseModel: 'stabilityai/stable-diffusion-3.5-large',
+        quality: 'premium',
+        resolution: '1024x1024',
+        poseControl: false,
+        edgeControl: true,
+        comingSoon: true,
+        processingTime: '~60-90s',
+        recommendedSteps: 60,
+        recommendedStrength: 0.75,
+        note: 'OpenPose ControlNet for SD 3.5 not yet released by Stability AI'
+      }),
+      enabled: false,
+      beta: true
     }
   ]
 

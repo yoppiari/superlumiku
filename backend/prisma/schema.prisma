@@ -888,7 +888,40 @@ model ModelUsage {
 }
 
 // ========================================
-// AVATAR & POSE GENERATOR SYSTEM
+// AVATAR GENERATOR APP (Simple Quick Avatar with Poses)
+// ========================================
+
+// Simple avatar generation with pose selection
+model AvatarGeneration {
+  id String @id @default(cuid())
+  userId String
+  poseTemplateId String
+
+  // Input/Output
+  inputImageUrl String
+  outputImageUrl String?
+
+  // Settings
+  quality String @default("sd") // "sd", "hd"
+
+  // Status
+  status String @default("pending") // pending, processing, completed, failed
+  errorMessage String?
+
+  // Credits
+  creditUsed Int @default(5)
+
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("avatar_generations")
+}
+
+// ========================================
+// AVATAR & POSE GENERATOR SYSTEM (Full System)
 // ========================================
 
 // ========================================

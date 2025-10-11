@@ -16,6 +16,9 @@ import videoGeneratorRoutes from '../apps/video-generator/routes'
 import { posterEditorConfig } from '../apps/poster-editor/plugin.config'
 import posterEditorRoutes from '../apps/poster-editor/routes'
 
+import avatarGeneratorConfig from '../apps/avatar-generator/plugin.config'
+import avatarGeneratorRoutes from '../apps/avatar-generator/routes'
+
 /**
  * Load all plugins into registry
  */
@@ -26,6 +29,7 @@ export function loadPlugins() {
   pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
   pluginRegistry.register(videoGeneratorConfig, videoGeneratorRoutes)
   pluginRegistry.register(posterEditorConfig, posterEditorRoutes)
+  pluginRegistry.register(avatarGeneratorConfig, avatarGeneratorRoutes)
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)

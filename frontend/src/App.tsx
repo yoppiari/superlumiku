@@ -12,6 +12,7 @@ import CarouselMix from './apps/CarouselMix'
 import LoopingFlow from './apps/LoopingFlow'
 import VideoGenerator from './apps/VideoGenerator'
 import { PosterEditor } from './apps/PosterEditor'
+import AvatarGenerator from './apps/AvatarGenerator'
 import { setupSSOListeners, extractSSOFromURL } from './lib/sso'
 import { useAuthStore } from './stores/authStore'
 
@@ -50,6 +51,7 @@ function AppContent() {
       <Route path="/apps/video-generator" element={<VideoGenerator />} />
       <Route path="/apps/video-generator/:projectId" element={<VideoGenerator />} />
       <Route path="/apps/poster-editor" element={<PosterEditor />} />
+      <Route path="/apps/avatar-generator" element={<AvatarGenerator />} />
     </Routes>
   )
 }

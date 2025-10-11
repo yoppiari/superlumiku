@@ -60,7 +60,18 @@
       "Bash(start \"\" \"COOLIFY_ENV_CORRECTED.txt\")",
       "Bash(start \"\" \"DUITKU_CONFIGURATION_GUIDE.md\")",
       "Bash(start \"\" \"SETUP_DATABASE_REDIS_COOLIFY.md\")",
-      "Bash(start \"\" \"FINAL_ENV_FOR_COOLIFY.txt\")"
+      "Bash(start \"\" \"FINAL_ENV_FOR_COOLIFY.txt\")",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(pip install:*)",
+      "Bash(node:*)",
+      "Read(//c/**)",
+      "Bash(git pull:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(bunx prisma:*)",
+      "Bash(scp:*)",
+      "Bash(git reset:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []
