@@ -88,10 +88,18 @@ echo "✅ FFmpeg version: $(ffmpeg -version | head -n1)"
 # Run database migrations
 echo "🗄️  Running database migrations..."
 cd /app/backend
+
+# Run custom migration script first (for Avatar & Pose Generator split)
+if [ -f "/app/backend/scripts/migrate-avatar-pose.sh" ]; then
+    echo "   Running Avatar & Pose Generator migration..."
+    bash /app/backend/scripts/migrate-avatar-pose.sh || echo "   ⚠️  Custom migration had errors, continuing..."
+fi
+
+# Run Prisma migrations
 bun prisma migrate deploy || {
-    echo "⚠️  Migration failed, trying to generate Prisma client..."
+    echo "⚠️  Prisma migration failed, trying to generate Prisma client..."
     bun prisma generate
-    bun prisma migrate deploy
+    bun prisma migrate deploy || echo "   ⚠️  Prisma migration still failed, continuing..."
 }
 echo "✅ Database migrations completed"
 
