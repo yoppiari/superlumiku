@@ -86,7 +86,11 @@ export class AccessControlService {
 
       const models = await modelRegistryService.getUserAccessibleModels(userId, app.appId)
 
-      if (models.length > 0) {
+      // Apps without AI models (like avatar-creator, pose-generator) should still be accessible
+      // Only filter out apps that explicitly require models but have none available
+      const requiresModels = !['avatar-creator', 'pose-generator'].includes(app.appId)
+
+      if (!requiresModels || models.length > 0) {
         accessibleApps.push({
           ...app,
           availableModels: models.length
