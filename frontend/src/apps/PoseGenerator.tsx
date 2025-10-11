@@ -62,6 +62,23 @@ export default function PoseGenerator() {
   const [quality, setQuality] = useState<'sd' | 'hd'>('sd')
   const [categoryFilter, setCategoryFilter] = useState<string>('')
 
+  // Fashion Enhancement
+  const [enableFashion, setEnableFashion] = useState(false)
+  const [hijabStyle, setHijabStyle] = useState('modern')
+  const [hijabColor, setHijabColor] = useState('#000000')
+  const [accessories, setAccessories] = useState<string[]>([])
+  const [customOutfit, setCustomOutfit] = useState('')
+
+  // Background
+  const [enableBackground, setEnableBackground] = useState(false)
+  const [backgroundType, setBackgroundType] = useState<'auto' | 'scene' | 'custom'>('scene')
+  const [backgroundScene, setBackgroundScene] = useState('studio')
+  const [customBackground, setCustomBackground] = useState('')
+
+  // Profession Theme
+  const [enableProfession, setEnableProfession] = useState(false)
+  const [professionTheme, setProfessionTheme] = useState('doctor')
+
   // Loading states
   const [loading, setLoading] = useState(true)
   const [loadingPoses, setLoadingPoses] = useState(true)
@@ -150,11 +167,48 @@ export default function PoseGenerator() {
     setGenerating(true)
 
     try {
-      const res = await api.post('/api/apps/pose-generator/generate', {
+      // Build request payload
+      const payload: any = {
         avatarId: selectedAvatar,
         selectedPoseIds: selectedPoses,
         quality
-      })
+      }
+
+      // Add fashion settings if enabled
+      if (enableFashion) {
+        payload.fashionSettings = {}
+        if (hijabStyle) {
+          payload.fashionSettings.hijab = {
+            style: hijabStyle,
+            color: hijabColor
+          }
+        }
+        if (accessories.length > 0) {
+          payload.fashionSettings.accessories = accessories
+        }
+        if (customOutfit) {
+          payload.fashionSettings.outfit = customOutfit
+        }
+      }
+
+      // Add background settings if enabled
+      if (enableBackground) {
+        payload.backgroundSettings = {
+          type: backgroundType,
+        }
+        if (backgroundType === 'scene') {
+          payload.backgroundSettings.scene = backgroundScene
+        } else if (backgroundType === 'custom') {
+          payload.backgroundSettings.customPrompt = customBackground
+        }
+      }
+
+      // Add profession theme if enabled
+      if (enableProfession) {
+        payload.professionTheme = professionTheme
+      }
+
+      const res = await api.post('/api/apps/pose-generator/generate', payload)
 
       alert('Generation started! Check the results tab.')
       setCurrentStep(4)
@@ -430,6 +484,223 @@ export default function PoseGenerator() {
                 </div>
               </div>
 
+              {/* Fashion Enhancement */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableFashion}
+                      onChange={(e) => setEnableFashion(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Fashion Enhancement (Hijab & Accessories)</span>
+                  </label>
+                </div>
+
+                {enableFashion && (
+                  <div className="space-y-3 pl-6 border-l-2 border-purple-200 ml-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Hijab Style */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Hijab Style</label>
+                        <select
+                          value={hijabStyle}
+                          onChange={(e) => setHijabStyle(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                        >
+                          <option value="modern">Modern Hijab</option>
+                          <option value="pashmina">Pashmina</option>
+                          <option value="turban">Turban Style</option>
+                          <option value="square">Square Hijab</option>
+                          <option value="instant">Instant Hijab</option>
+                          <option value="sport">Sport Hijab</option>
+                        </select>
+                      </div>
+
+                      {/* Hijab Color */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Hijab Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={hijabColor}
+                            onChange={(e) => setHijabColor(e.target.value)}
+                            className="w-12 h-9 rounded border border-slate-300"
+                          />
+                          <input
+                            type="text"
+                            value={hijabColor}
+                            onChange={(e) => setHijabColor(e.target.value)}
+                            className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Accessories */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-2">Accessories</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['jewelry', 'bag', 'watch', 'sunglasses'].map(acc => (
+                          <label key={acc} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={accessories.includes(acc)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setAccessories([...accessories, acc])
+                                } else {
+                                  setAccessories(accessories.filter(a => a !== acc))
+                                }
+                              }}
+                              className="w-3.5 h-3.5"
+                            />
+                            <span className="text-xs capitalize">{acc}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Outfit */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Custom Outfit (Optional)</label>
+                      <input
+                        type="text"
+                        value={customOutfit}
+                        onChange={(e) => setCustomOutfit(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                        placeholder="e.g., formal business suit, casual dress"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Background Replacement */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableBackground}
+                      onChange={(e) => setEnableBackground(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Background Replacement</span>
+                  </label>
+                </div>
+
+                {enableBackground && (
+                  <div className="space-y-3 pl-6 border-l-2 border-blue-200 ml-2">
+                    {/* Background Type */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-2">Background Type</label>
+                      <div className="flex gap-2">
+                        {[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'scene', label: 'Scene' },
+                          { value: 'custom', label: 'Custom' }
+                        ].map(type => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => setBackgroundType(type.value as any)}
+                            className={`flex-1 py-2 px-3 text-xs rounded-lg border-2 font-medium transition-colors ${
+                              backgroundType === type.value
+                                ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                : 'bg-white border-slate-300 text-slate-700'
+                            }`}
+                          >
+                            {type.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Scene Selection */}
+                    {backgroundType === 'scene' && (
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Scene</label>
+                        <select
+                          value={backgroundScene}
+                          onChange={(e) => setBackgroundScene(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                        >
+                          <option value="studio">Studio White</option>
+                          <option value="outdoor">Outdoor Garden</option>
+                          <option value="office">Modern Office</option>
+                          <option value="cafe">Cozy Cafe</option>
+                          <option value="beach">Beach Sunset</option>
+                          <option value="forest">Forest Nature</option>
+                          <option value="urban">Urban Street</option>
+                          <option value="garden">Garden</option>
+                          <option value="home">Home Setting</option>
+                          <option value="luxury">Luxury Interior</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Custom Background */}
+                    {backgroundType === 'custom' && (
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Describe Background</label>
+                        <textarea
+                          value={customBackground}
+                          onChange={(e) => setCustomBackground(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none"
+                          placeholder="Describe the background you want..."
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Profession Theme */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableProfession}
+                      onChange={(e) => setEnableProfession(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Profession Theme</span>
+                  </label>
+                </div>
+
+                {enableProfession && (
+                  <div className="pl-6 border-l-2 border-green-200 ml-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Profession</label>
+                    <select
+                      value={professionTheme}
+                      onChange={(e) => setProfessionTheme(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
+                    >
+                      <option value="doctor">Doctor</option>
+                      <option value="pilot">Pilot</option>
+                      <option value="chef">Chef</option>
+                      <option value="teacher">Teacher</option>
+                      <option value="nurse">Nurse</option>
+                      <option value="engineer">Engineer</option>
+                      <option value="lawyer">Lawyer</option>
+                      <option value="scientist">Scientist</option>
+                      <option value="firefighter">Firefighter</option>
+                      <option value="police">Police Officer</option>
+                      <option value="architect">Architect</option>
+                      <option value="photographer">Photographer</option>
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Adds profession-specific clothing, props, and background
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Summary */}
               <div className="bg-slate-50 rounded-lg p-4">
                 <h3 className="font-medium text-slate-900 mb-2">Generation Summary</h3>
@@ -437,7 +708,10 @@ export default function PoseGenerator() {
                   <li>• Avatar: Selected</li>
                   <li>• Poses: {selectedPoses.length} selected</li>
                   <li>• Quality: {quality.toUpperCase()}</li>
-                  <li>• Estimated time: ~{selectedPoses.length * 3} seconds</li>
+                  {enableFashion && <li>• Fashion Enhancement: {hijabStyle} hijab + {accessories.length} accessories</li>}
+                  {enableBackground && <li>• Background: {backgroundType === 'scene' ? backgroundScene : backgroundType}</li>}
+                  {enableProfession && <li>• Profession Theme: {professionTheme}</li>}
+                  <li>• Estimated time: ~{selectedPoses.length * (3 + (enableFashion ? 2 : 0) + (enableBackground ? 2 : 0) + (enableProfession ? 3 : 0))} seconds</li>
                 </ul>
               </div>
             </div>
