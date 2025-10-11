@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.5",
+    "@huggingface/inference": "^4.11.1",
     "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^5.7.1",
     "@types/multer": "^2.0.0",

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { avatarService } from './services/avatar.service'
+import { avatarAIService } from './services/avatar-ai.service'
 import { avatarCreatorConfig } from './plugin.config'
 import { z } from 'zod'
 import path from 'path'
@@ -24,6 +25,16 @@ const updateAvatarSchema = z.object({
   ageRange: z.enum(['young', 'adult', 'mature']).optional(),
   style: z.enum(['casual', 'formal', 'sporty']).optional(),
   ethnicity: z.string().optional(),
+})
+
+const generateAvatarSchema = z.object({
+  prompt: z.string().min(10).max(500),
+  name: z.string().min(1).max(100),
+  gender: z.enum(['male', 'female', 'unisex']).optional(),
+  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
+  style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
+  ethnicity: z.string().optional(),
+  count: z.number().min(1).max(5).optional(), // Generate multiple variations
 })
 
 // ========================================
@@ -190,6 +201,80 @@ routes.delete('/avatars/:id', authMiddleware, async (c) => {
   } catch (error: any) {
     console.error('Error deleting avatar:', error)
     return c.json({ error: error.message }, 400)
+  }
+})
+
+// ========================================
+// GENERATE AVATAR FROM TEXT (Phase 2: AI)
+// 20 credits per avatar (TODO: Add credit deduction)
+// ========================================
+routes.post('/avatars/generate', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const body = await c.req.json()
+
+    // Validate
+    const validated = generateAvatarSchema.parse(body)
+
+    console.log('Generating AI avatar for user:', userId)
+
+    // Generate avatar(s)
+    if (validated.count && validated.count > 1) {
+      // Generate multiple variations
+      const avatars = await avatarAIService.generateVariations({
+        userId,
+        basePrompt: validated.prompt,
+        name: validated.name,
+        count: validated.count,
+        gender: validated.gender,
+        ageRange: validated.ageRange,
+        style: validated.style,
+      })
+
+      // TODO: Record credit usage
+      // const totalCredits = avatarCreatorConfig.credits.generateAvatarAI * validated.count
+
+      return c.json({
+        success: true,
+        avatars,
+        message: `Generated ${avatars.length} avatar variations`,
+        // creditUsed: totalCredits,
+      }, 201)
+    } else {
+      // Generate single avatar
+      const avatar = await avatarAIService.generateFromText({
+        userId,
+        prompt: validated.prompt,
+        name: validated.name,
+        gender: validated.gender,
+        ageRange: validated.ageRange,
+        style: validated.style,
+        ethnicity: validated.ethnicity,
+      })
+
+      // TODO: Record credit usage
+      // const { newBalance, creditUsed } = await recordCreditUsage(
+      //   userId,
+      //   'avatar-creator',
+      //   'generate_avatar_ai',
+      //   avatarCreatorConfig.credits.generateAvatarAI,
+      //   { avatarId: avatar.id }
+      // )
+
+      return c.json({
+        success: true,
+        avatar,
+        message: 'Avatar generated successfully',
+        // creditUsed,
+        // creditBalance: newBalance,
+      }, 201)
+    }
+  } catch (error: any) {
+    console.error('Error generating avatar:', error)
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation error', details: error.errors }, 400)
+    }
+    return c.json({ error: error.message }, 500)
   }
 })
 
