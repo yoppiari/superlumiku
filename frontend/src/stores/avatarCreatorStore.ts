@@ -82,7 +82,7 @@ interface AvatarCreatorState {
 // ===== Store =====
 
 export const useAvatarCreatorStore = create<AvatarCreatorState>()(
-  immer((set, get) => ({
+  immer((set) => ({
     // Initial State
     projects: [],
     currentProject: null,

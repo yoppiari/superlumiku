@@ -79,7 +79,8 @@
       "Bash(start \"\" \"FRONTEND_DEPLOYMENT_COMPLETE.md\")",
       "Bash(start \"\" \"AVATAR_CREATOR_PROJECT_SYSTEM_PLAN.md\")",
       "Bash(start \"\" \"AVATAR_CREATOR_IMPLEMENTATION_COMPLETE.md\")",
-      "Bash(start \"\" \"DEPLOYMENT_GUIDE_AVATAR_PROJECTS.md\")"
+      "Bash(start \"\" \"DEPLOYMENT_GUIDE_AVATAR_PROJECTS.md\")",
+      "Bash(start \"\" \"C:\\Users\\yoppi\\Downloads\\Lumiku App\\FINAL_DEPLOYMENT_REPORT_AVATAR_PROJECTS.md\")"
     ],
     "deny": [],
     "ask": []
