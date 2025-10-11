@@ -24,7 +24,7 @@ export const avatarGeneratorConfig: PluginConfig = {
     allowedRoles: ['user', 'admin'],
   },
   features: {
-    enabled: true,
+    enabled: false,                 // DISABLED - Replaced by Avatar Creator + Pose Generator
     beta: true,                     // Mark as beta during development
     comingSoon: false,
   },
