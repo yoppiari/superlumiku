@@ -14,6 +14,7 @@ export class AvatarAIService {
    */
   async generateFromText(params: {
     userId: string
+    projectId: string
     prompt: string
     name: string
     gender?: string
@@ -74,6 +75,7 @@ export class AvatarAIService {
       const avatar = await prisma.avatar.create({
         data: {
           userId: params.userId,
+          projectId: params.projectId,
           name: params.name,
           baseImageUrl,
           thumbnailUrl,
@@ -199,6 +201,7 @@ export class AvatarAIService {
    */
   async generateVariations(params: {
     userId: string
+    projectId: string
     basePrompt: string
     name: string
     count: number
@@ -212,6 +215,7 @@ export class AvatarAIService {
       try {
         const avatar = await this.generateFromText({
           userId: params.userId,
+          projectId: params.projectId,
           prompt: params.basePrompt,
           name: `${params.name} - Variation ${i + 1}`,
           gender: params.gender,

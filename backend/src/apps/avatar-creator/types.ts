@@ -1,6 +1,29 @@
+// Avatar Project Types
+export interface AvatarProject {
+  id: string
+  userId: string
+  name: string
+  description: string | null
+  createdAt: Date
+  updatedAt: Date
+  avatars?: Avatar[]
+}
+
+export interface CreateProjectRequest {
+  name: string
+  description?: string
+}
+
+export interface UpdateProjectRequest {
+  name?: string
+  description?: string
+}
+
+// Avatar Types
 export interface Avatar {
   id: string
   userId: string
+  projectId: string // NEW
   brandKitId: string | null
   name: string
   baseImageUrl: string

@@ -55,6 +55,7 @@ function AppContent() {
       <Route path="/apps/poster-editor" element={<PosterEditor />} />
       <Route path="/apps/avatar-generator" element={<AvatarGenerator />} />
       <Route path="/apps/avatar-creator" element={<AvatarCreator />} />
+      <Route path="/apps/avatar-creator/:projectId" element={<AvatarCreator />} />
       <Route path="/apps/pose-generator" element={<PoseGenerator />} />
     </Routes>
   )

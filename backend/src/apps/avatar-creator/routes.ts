@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { avatarService } from './services/avatar.service'
 import { avatarAIService } from './services/avatar-ai.service'
+import { avatarProjectService } from './services/avatar-project.service'
 import { avatarCreatorConfig } from './plugin.config'
 import { z } from 'zod'
 import path from 'path'
@@ -10,7 +11,20 @@ import { existsSync } from 'fs'
 
 const routes = new Hono()
 
-// Validation schemas
+// ========================================
+// VALIDATION SCHEMAS
+// ========================================
+
+const createProjectSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+})
+
+const updateProjectSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
+})
+
 const createAvatarSchema = z.object({
   name: z.string().min(1).max(100),
   gender: z.enum(['male', 'female', 'unisex']).optional(),
@@ -34,33 +48,145 @@ const generateAvatarSchema = z.object({
   ageRange: z.enum(['young', 'adult', 'mature']).optional(),
   style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
   ethnicity: z.string().optional(),
-  count: z.number().min(1).max(5).optional(), // Generate multiple variations
+  count: z.number().min(1).max(5).optional(),
 })
 
 // ========================================
-// GET ALL AVATARS (Free)
+// PROJECT ROUTES
 // ========================================
-routes.get('/avatars', authMiddleware, async (c) => {
+
+// GET ALL PROJECTS
+routes.get('/projects', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
-    const avatars = await avatarService.getUserAvatars(userId)
+    const projects = await avatarProjectService.getUserProjects(userId)
 
     return c.json({
       success: true,
-      avatars,
+      projects,
     })
   } catch (error: any) {
-    console.error('Error fetching avatars:', error)
+    console.error('Error fetching projects:', error)
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// CREATE PROJECT
+routes.post('/projects', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const body = await c.req.json()
+
+    const validated = createProjectSchema.parse(body)
+
+    const project = await avatarProjectService.createProject(userId, validated)
+
+    return c.json({
+      success: true,
+      project,
+      message: 'Project created successfully',
+    }, 201)
+  } catch (error: any) {
+    console.error('Error creating project:', error)
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation error', details: error.errors }, 400)
+    }
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// GET PROJECT BY ID
+routes.get('/projects/:id', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('id')
+
+    const project = await avatarProjectService.getProject(projectId, userId)
+
+    if (!project) {
+      return c.json({ error: 'Project not found' }, 404)
+    }
+
+    return c.json({
+      success: true,
+      project,
+    })
+  } catch (error: any) {
+    console.error('Error fetching project:', error)
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// UPDATE PROJECT
+routes.put('/projects/:id', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('id')
+    const body = await c.req.json()
+
+    const validated = updateProjectSchema.parse(body)
+
+    const project = await avatarProjectService.updateProject(projectId, userId, validated)
+
+    return c.json({
+      success: true,
+      project,
+      message: 'Project updated successfully',
+    })
+  } catch (error: any) {
+    console.error('Error updating project:', error)
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation error', details: error.errors }, 400)
+    }
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// DELETE PROJECT
+routes.delete('/projects/:id', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('id')
+
+    await avatarProjectService.deleteProject(projectId, userId)
+
+    return c.json({
+      success: true,
+      message: 'Project deleted successfully',
+    })
+  } catch (error: any) {
+    console.error('Error deleting project:', error)
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// GET PROJECT STATS
+routes.get('/projects/:id/stats', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('id')
+
+    const stats = await avatarService.getProjectStats(projectId, userId)
+
+    return c.json({
+      success: true,
+      stats,
+    })
+  } catch (error: any) {
+    console.error('Error fetching project stats:', error)
     return c.json({ error: error.message }, 400)
   }
 })
 
 // ========================================
-// CREATE AVATAR (10 credits - commented out for now)
+// AVATAR ROUTES (PROJECT-SCOPED)
 // ========================================
-routes.post('/avatars', authMiddleware, async (c) => {
+
+// UPLOAD AVATAR TO PROJECT
+routes.post('/projects/:projectId/avatars', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
 
     // Get form data
     const formData = await c.req.formData()
@@ -106,23 +232,12 @@ routes.post('/avatars', authMiddleware, async (c) => {
     const relativePath = `/uploads/avatar-creator/${userId}/${filename}`
 
     // Create avatar in database
-    const avatar = await avatarService.createAvatar(userId, validated, relativePath)
-
-    // TODO: Record credit usage when credit system is ready
-    // const { newBalance, creditUsed } = await recordCreditUsage(
-    //   userId,
-    //   'avatar-creator',
-    //   'create_avatar',
-    //   avatarCreatorConfig.credits.createAvatar,
-    //   { avatarId: avatar.id }
-    // )
+    const avatar = await avatarService.createAvatar(userId, projectId, validated, relativePath)
 
     return c.json({
       success: true,
       avatar,
       message: 'Avatar created successfully',
-      // creditUsed,
-      // creditBalance: newBalance,
     }, 201)
   } catch (error: any) {
     console.error('Error creating avatar:', error)
@@ -133,9 +248,70 @@ routes.post('/avatars', authMiddleware, async (c) => {
   }
 })
 
+// GENERATE AI AVATAR IN PROJECT
+routes.post('/projects/:projectId/avatars/generate', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
+    const body = await c.req.json()
+
+    // Validate
+    const validated = generateAvatarSchema.parse(body)
+
+    console.log('Generating AI avatar for user:', userId, 'project:', projectId)
+
+    // Generate avatar(s)
+    if (validated.count && validated.count > 1) {
+      // Generate multiple variations
+      const avatars = await avatarAIService.generateVariations({
+        userId,
+        projectId,
+        basePrompt: validated.prompt,
+        name: validated.name,
+        count: validated.count,
+        gender: validated.gender,
+        ageRange: validated.ageRange,
+        style: validated.style,
+      })
+
+      return c.json({
+        success: true,
+        avatars,
+        message: `Generated ${avatars.length} avatar variations`,
+      }, 201)
+    } else {
+      // Generate single avatar
+      const avatar = await avatarAIService.generateFromText({
+        userId,
+        projectId,
+        prompt: validated.prompt,
+        name: validated.name,
+        gender: validated.gender,
+        ageRange: validated.ageRange,
+        style: validated.style,
+        ethnicity: validated.ethnicity,
+      })
+
+      return c.json({
+        success: true,
+        avatar,
+        message: 'Avatar generated successfully',
+      }, 201)
+    }
+  } catch (error: any) {
+    console.error('Error generating avatar:', error)
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation error', details: error.errors }, 400)
+    }
+    return c.json({ error: error.message }, 500)
+  }
+})
+
 // ========================================
-// GET AVATAR BY ID (Free)
+// AVATAR ROUTES (INDIVIDUAL - Keep for backward compatibility)
 // ========================================
+
+// GET AVATAR BY ID
 routes.get('/avatars/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
@@ -157,9 +333,7 @@ routes.get('/avatars/:id', authMiddleware, async (c) => {
   }
 })
 
-// ========================================
-// UPDATE AVATAR (Free)
-// ========================================
+// UPDATE AVATAR
 routes.put('/avatars/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
@@ -184,9 +358,7 @@ routes.put('/avatars/:id', authMiddleware, async (c) => {
   }
 })
 
-// ========================================
-// DELETE AVATAR (Free)
-// ========================================
+// DELETE AVATAR
 routes.delete('/avatars/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
@@ -205,82 +377,26 @@ routes.delete('/avatars/:id', authMiddleware, async (c) => {
 })
 
 // ========================================
-// GENERATE AVATAR FROM TEXT (Phase 2: AI)
-// 20 credits per avatar (TODO: Add credit deduction)
+// LEGACY ROUTES (Deprecated - kept for backward compatibility)
 // ========================================
-routes.post('/avatars/generate', authMiddleware, async (c) => {
+
+// GET ALL AVATARS (all projects)
+routes.get('/avatars', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
-    const body = await c.req.json()
+    const avatars = await avatarService.getUserAvatars(userId)
 
-    // Validate
-    const validated = generateAvatarSchema.parse(body)
-
-    console.log('Generating AI avatar for user:', userId)
-
-    // Generate avatar(s)
-    if (validated.count && validated.count > 1) {
-      // Generate multiple variations
-      const avatars = await avatarAIService.generateVariations({
-        userId,
-        basePrompt: validated.prompt,
-        name: validated.name,
-        count: validated.count,
-        gender: validated.gender,
-        ageRange: validated.ageRange,
-        style: validated.style,
-      })
-
-      // TODO: Record credit usage
-      // const totalCredits = avatarCreatorConfig.credits.generateAvatarAI * validated.count
-
-      return c.json({
-        success: true,
-        avatars,
-        message: `Generated ${avatars.length} avatar variations`,
-        // creditUsed: totalCredits,
-      }, 201)
-    } else {
-      // Generate single avatar
-      const avatar = await avatarAIService.generateFromText({
-        userId,
-        prompt: validated.prompt,
-        name: validated.name,
-        gender: validated.gender,
-        ageRange: validated.ageRange,
-        style: validated.style,
-        ethnicity: validated.ethnicity,
-      })
-
-      // TODO: Record credit usage
-      // const { newBalance, creditUsed } = await recordCreditUsage(
-      //   userId,
-      //   'avatar-creator',
-      //   'generate_avatar_ai',
-      //   avatarCreatorConfig.credits.generateAvatarAI,
-      //   { avatarId: avatar.id }
-      // )
-
-      return c.json({
-        success: true,
-        avatar,
-        message: 'Avatar generated successfully',
-        // creditUsed,
-        // creditBalance: newBalance,
-      }, 201)
-    }
+    return c.json({
+      success: true,
+      avatars,
+    })
   } catch (error: any) {
-    console.error('Error generating avatar:', error)
-    if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
-    }
-    return c.json({ error: error.message }, 500)
+    console.error('Error fetching avatars:', error)
+    return c.json({ error: error.message }, 400)
   }
 })
 
-// ========================================
-// GET STATS (Free)
-// ========================================
+// GET STATS (all projects)
 routes.get('/stats', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')

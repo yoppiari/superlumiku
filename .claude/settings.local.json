@@ -71,7 +71,15 @@
       "Bash(bunx prisma:*)",
       "Bash(scp:*)",
       "Bash(git reset:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(start \"\" \"IMPLEMENTASI_AI_COOLIFY_SEKARANG.md\")",
+      "Bash(start \"\" \"COOLIFY_AI_ENV_COMPLETE.txt\")",
+      "Bash(start \"\" \"DEPLOYMENT_SUCCESS_AI_SYSTEM.md\")",
+      "Bash(start \"\" \"QUICK_TEST_GUIDE.md\")",
+      "Bash(start \"\" \"FRONTEND_DEPLOYMENT_COMPLETE.md\")",
+      "Bash(start \"\" \"AVATAR_CREATOR_PROJECT_SYSTEM_PLAN.md\")",
+      "Bash(start \"\" \"AVATAR_CREATOR_IMPLEMENTATION_COMPLETE.md\")",
+      "Bash(start \"\" \"DEPLOYMENT_GUIDE_AVATAR_PROJECTS.md\")"
     ],
     "deny": [],
     "ask": []

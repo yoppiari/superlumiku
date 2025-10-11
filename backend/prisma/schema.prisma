@@ -962,10 +962,27 @@ model BrandKit {
 // AVATAR SYSTEM
 // ========================================
 
+// Avatar Project: Container for avatars (similar to CarouselProject)
+model AvatarProject {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  avatars Avatar[]
+
+  @@index([userId])
+  @@map("avatar_projects")
+}
+
 model Avatar {
-  id         String @id @default(cuid())
+  id         String  @id @default(cuid())
   userId     String
-  brandKitId String?  // Optional: for advanced users
+  projectId  String  // NEW: Link to AvatarProject
+  brandKitId String? // Optional: for advanced users
 
   name         String // "My Avatar", "Fashion Model", etc
   baseImageUrl String // Original avatar image
@@ -991,10 +1008,12 @@ model Avatar {
   updatedAt DateTime @updatedAt
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        AvatarProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   brandKit       BrandKit?       @relation(fields: [brandKitId], references: [id], onDelete: SetNull)
   generatedPoses GeneratedPose[]
 
   @@index([userId])
+  @@index([projectId])
   @@index([brandKitId])
   @@map("avatars")
 }

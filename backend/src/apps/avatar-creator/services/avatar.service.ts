@@ -10,6 +10,7 @@ export class AvatarService {
    */
   async createAvatar(
     userId: string,
+    projectId: string,
     data: CreateAvatarRequest,
     imagePath: string
   ): Promise<Avatar> {
@@ -22,6 +23,7 @@ export class AvatarService {
     const avatar = await prisma.avatar.create({
       data: {
         userId,
+        projectId,
         name: data.name,
         baseImageUrl: imagePath,
         thumbnailUrl: imagePath, // Use original for now
@@ -38,11 +40,23 @@ export class AvatarService {
   }
 
   /**
-   * Get all avatars for user
+   * Get all avatars for user (all projects)
    */
   async getUserAvatars(userId: string): Promise<Avatar[]> {
     const avatars = await prisma.avatar.findMany({
       where: { userId },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return avatars as Avatar[]
+  }
+
+  /**
+   * Get avatars in specific project
+   */
+  async getProjectAvatars(projectId: string, userId: string): Promise<Avatar[]> {
+    const avatars = await prisma.avatar.findMany({
+      where: { projectId, userId },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -135,11 +149,37 @@ export class AvatarService {
   }
 
   /**
-   * Get avatar statistics
+   * Get avatar statistics for user (all projects)
    */
   async getStats(userId: string): Promise<AvatarStats> {
     const avatars = await prisma.avatar.findMany({
       where: { userId },
+    })
+
+    const totalAvatars = avatars.length
+    const recentUploads = avatars.filter(a => {
+      const dayAgo = new Date()
+      dayAgo.setDate(dayAgo.getDate() - 7)
+      return a.createdAt > dayAgo
+    }).length
+
+    const totalUsage = avatars.reduce((sum, a) => sum + a.usageCount, 0)
+    const averageUsage = totalAvatars > 0 ? totalUsage / totalAvatars : 0
+
+    return {
+      totalAvatars,
+      recentUploads,
+      totalUsage,
+      averageUsage: Math.round(averageUsage * 10) / 10,
+    }
+  }
+
+  /**
+   * Get avatar statistics for specific project
+   */
+  async getProjectStats(projectId: string, userId: string): Promise<AvatarStats> {
+    const avatars = await prisma.avatar.findMany({
+      where: { projectId, userId },
     })
 
     const totalAvatars = avatars.length
