@@ -14,6 +14,7 @@ import subscriptionRoutes from './routes/subscription.routes'
 import quotaRoutes from './routes/quota.routes'
 import modelStatsRoutes from './routes/model-stats.routes'
 import poseTemplateRoutes from './routes/pose-template.routes'
+import adminRoutes from './routes/admin.routes'
 
 // Plugin System
 import { loadPlugins } from './plugins/loader'
@@ -55,6 +56,9 @@ app.route('/api/models', modelStatsRoutes)
 
 // Pose Template Routes
 app.route('/api/poses', poseTemplateRoutes)
+
+// Admin Routes (no auth for seeding)
+app.route('/api/admin', adminRoutes)
 
 // Get all apps for dashboard (filtered by user access)
 app.get('/api/apps', authMiddleware, async (c) => {
