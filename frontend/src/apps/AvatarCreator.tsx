@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import api from '../lib/api'
-import { ArrowLeft, Upload, UserCircle, Trash2, Edit2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Upload, UserCircle, Trash2, Loader2 } from 'lucide-react'
 
 interface Avatar {
   id: string
