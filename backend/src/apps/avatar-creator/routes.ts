@@ -192,10 +192,16 @@ routes.post('/projects/:projectId/avatars', authMiddleware, async (c) => {
     const formData = await c.req.formData()
     const imageFile = formData.get('image') as File | null
     const name = formData.get('name') as string
-    const gender = formData.get('gender') as string | undefined
-    const ageRange = formData.get('ageRange') as string | undefined
-    const style = formData.get('style') as string | undefined
-    const ethnicity = formData.get('ethnicity') as string | undefined
+    // Convert empty strings to undefined for optional enum fields
+    const genderRaw = formData.get('gender') as string | null
+    const ageRangeRaw = formData.get('ageRange') as string | null
+    const styleRaw = formData.get('style') as string | null
+    const ethnicityRaw = formData.get('ethnicity') as string | null
+
+    const gender = genderRaw && genderRaw.trim() !== '' ? genderRaw : undefined
+    const ageRange = ageRangeRaw && ageRangeRaw.trim() !== '' ? ageRangeRaw : undefined
+    const style = styleRaw && styleRaw.trim() !== '' ? styleRaw : undefined
+    const ethnicity = ethnicityRaw && ethnicityRaw.trim() !== '' ? ethnicityRaw : undefined
 
     if (!imageFile) {
       return c.json({ error: 'Image file is required' }, 400)
