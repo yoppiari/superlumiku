@@ -147,17 +147,68 @@ fi
 # Verify critical tables exist
 echo ""
 echo "🔍 Verifying critical tables..."
+CRITICAL_TABLES=("users" "avatars" "avatar_projects" "avatar_usage_history" "sessions" "credits")
+MISSING_TABLES=()
+
 if command -v psql &> /dev/null; then
-    echo "   Checking avatar_projects table..."
-    if psql "$DATABASE_URL" -c "\dt avatar_projects" 2>&1 | grep -q "avatar_projects"; then
-        echo "✅ avatar_projects table EXISTS"
+    for table in "${CRITICAL_TABLES[@]}"; do
+        echo "   Checking $table table..."
+        if psql "$DATABASE_URL" -c "\dt $table" 2>&1 | grep -q "$table"; then
+            echo "   ✅ $table EXISTS"
+        else
+            echo "   ❌ WARNING: $table NOT FOUND!"
+            MISSING_TABLES+=("$table")
+        fi
+    done
+
+    if [ ${#MISSING_TABLES[@]} -gt 0 ]; then
+        echo ""
+        echo "❌ CRITICAL: ${#MISSING_TABLES[@]} tables are missing!"
+        echo "   Missing tables: ${MISSING_TABLES[*]}"
+        echo ""
+        echo "🔧 ATTEMPTING EMERGENCY FIX: Running force-sync-schema script..."
+
+        if [ -f "/app/backend/scripts/force-sync-schema.ts" ]; then
+            cd /app/backend
+            if bun run scripts/force-sync-schema.ts 2>&1; then
+                echo "✅ Emergency schema sync successful!"
+
+                # Verify again
+                echo "   Re-verifying tables..."
+                ALL_FIXED=true
+                for table in "${MISSING_TABLES[@]}"; do
+                    if ! psql "$DATABASE_URL" -c "\dt $table" 2>&1 | grep -q "$table"; then
+                        echo "   ❌ $table still missing"
+                        ALL_FIXED=false
+                    else
+                        echo "   ✅ $table now exists"
+                    fi
+                done
+
+                if [ "$ALL_FIXED" = true ]; then
+                    echo "✅ All missing tables have been created!"
+                else
+                    echo "⚠️  Some tables still missing after emergency fix"
+                    echo "   Application may not work correctly"
+                fi
+            else
+                echo "❌ Emergency schema sync failed"
+                echo "⚠️  Application may not work correctly"
+            fi
+        else
+            echo "❌ force-sync-schema.ts not found"
+            echo "⚠️  Cannot perform emergency fix"
+        fi
     else
-        echo "❌ WARNING: avatar_projects table NOT FOUND!"
-        echo "   Listing all tables:"
-        psql "$DATABASE_URL" -c "\dt" 2>&1 | head -n 20
+        echo "✅ All critical tables exist!"
     fi
+
+    echo ""
+    echo "📊 Database Tables Summary:"
+    psql "$DATABASE_URL" -c "\dt" 2>&1 | grep -E "(avatar|user|session|credit)" | head -n 15
 else
     echo "   psql not available, skipping table verification"
+    echo "⚠️  WARNING: Cannot verify database schema"
 fi
 
 echo "✅ Database migrations/sync completed"

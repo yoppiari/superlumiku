@@ -41,6 +41,71 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+// Database schema health check
+app.get('/health/database', async (c) => {
+  try {
+    const prisma = (await import('./db/client')).default
+
+    // Check critical tables
+    const criticalTables = [
+      'users',
+      'avatars',
+      'avatar_projects',
+      'avatar_usage_history',
+      'sessions',
+      'credits',
+    ]
+
+    const results: Record<string, boolean> = {}
+    const missingTables: string[] = []
+
+    for (const table of criticalTables) {
+      try {
+        const result = await prisma.$queryRaw<any[]>`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = ${table}
+          ) as exists
+        `
+        const exists = result[0]?.exists || false
+        results[table] = exists
+
+        if (!exists) {
+          missingTables.push(table)
+        }
+      } catch (error) {
+        results[table] = false
+        missingTables.push(table)
+      }
+    }
+
+    const allHealthy = missingTables.length === 0
+
+    return c.json({
+      status: allHealthy ? 'healthy' : 'degraded',
+      database: {
+        connected: true,
+        tables: results,
+        missingTables,
+        totalTables: criticalTables.length,
+        healthyTables: criticalTables.length - missingTables.length,
+      },
+      timestamp: new Date().toISOString(),
+    }, allHealthy ? 200 : 503)
+
+  } catch (error: any) {
+    return c.json({
+      status: 'unhealthy',
+      database: {
+        connected: false,
+        error: error.message,
+      },
+      timestamp: new Date().toISOString(),
+    }, 503)
+  }
+})
+
 // Core API Routes
 app.route('/api/auth', authRoutes)
 app.route('/api/credits', creditsRoutes)
