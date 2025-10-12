@@ -48,7 +48,29 @@ const generateAvatarSchema = z.object({
   ageRange: z.enum(['young', 'adult', 'mature']).optional(),
   style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
   ethnicity: z.string().optional(),
+  bodyType: z.enum(['half_body', 'full_body']).optional(),
   count: z.number().min(1).max(5).optional(),
+})
+
+const generatePreviewSchema = z.object({
+  prompt: z.string().min(10).max(500),
+  gender: z.enum(['male', 'female', 'unisex']).optional(),
+  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
+  style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
+  ethnicity: z.string().optional(),
+  bodyType: z.enum(['half_body', 'full_body']).optional(),
+})
+
+const savePreviewSchema = z.object({
+  name: z.string().min(1).max(100),
+  imageBase64: z.string().min(100), // Base64 encoded image
+  thumbnailBase64: z.string().min(100), // Base64 encoded thumbnail
+  gender: z.enum(['male', 'female', 'unisex']).optional(),
+  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
+  style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
+  ethnicity: z.string().optional(),
+  bodyType: z.enum(['half_body', 'full_body']).optional(),
+  generationPrompt: z.string(), // The enhanced prompt that was used
 })
 
 // ========================================
@@ -313,6 +335,86 @@ routes.post('/projects/:projectId/avatars/generate', authMiddleware, async (c) =
   }
 })
 
+// GENERATE AVATAR PREVIEW (NEW - TWO-PHASE FLOW)
+routes.post('/projects/:projectId/avatars/generate-preview', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
+    const body = await c.req.json()
+
+    // Validate
+    const validated = generatePreviewSchema.parse(body)
+
+    console.log('Generating avatar preview for user:', userId, 'project:', projectId)
+
+    // Generate preview (no DB save, no credit deduction yet)
+    const preview = await avatarAIService.generatePreview({
+      prompt: validated.prompt,
+      gender: validated.gender,
+      ageRange: validated.ageRange,
+      style: validated.style,
+      ethnicity: validated.ethnicity,
+      bodyType: validated.bodyType,
+    })
+
+    return c.json({
+      success: true,
+      preview,
+      message: 'Preview generated successfully. Review and save if you like it.',
+    }, 200)
+  } catch (error: any) {
+    console.error('Error generating preview:', error)
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation error', details: error.errors }, 400)
+    }
+    return c.json({ error: error.message }, 500)
+  }
+})
+
+// SAVE AVATAR PREVIEW (NEW - TWO-PHASE FLOW)
+routes.post('/projects/:projectId/avatars/save-preview', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
+    const body = await c.req.json()
+
+    // Validate
+    const validated = savePreviewSchema.parse(body)
+
+    console.log('Saving avatar preview for user:', userId, 'project:', projectId)
+
+    // TODO: Check user credits here before saving
+    // TODO: Deduct credits after successful save
+
+    // Save preview to DB and storage
+    const avatar = await avatarAIService.savePreview({
+      userId,
+      projectId,
+      name: validated.name,
+      imageBase64: validated.imageBase64,
+      thumbnailBase64: validated.thumbnailBase64,
+      gender: validated.gender,
+      ageRange: validated.ageRange,
+      style: validated.style,
+      ethnicity: validated.ethnicity,
+      bodyType: validated.bodyType,
+      generationPrompt: validated.generationPrompt,
+    })
+
+    return c.json({
+      success: true,
+      avatar,
+      message: 'Avatar saved successfully',
+    }, 201)
+  } catch (error: any) {
+    console.error('Error saving preview:', error)
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation error', details: error.errors }, 400)
+    }
+    return c.json({ error: error.message }, 500)
+  }
+})
+
 // ========================================
 // AVATAR ROUTES (INDIVIDUAL - Keep for backward compatibility)
 // ========================================
@@ -378,6 +480,26 @@ routes.delete('/avatars/:id', authMiddleware, async (c) => {
     })
   } catch (error: any) {
     console.error('Error deleting avatar:', error)
+    return c.json({ error: error.message }, 400)
+  }
+})
+
+// GET AVATAR USAGE HISTORY
+routes.get('/avatars/:id/usage-history', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const avatarId = c.req.param('id')
+
+    const history = await avatarService.getAvatarUsageHistory(avatarId, userId)
+    const summary = await avatarService.getAvatarUsageSummary(avatarId, userId)
+
+    return c.json({
+      success: true,
+      history,
+      summary,
+    })
+  } catch (error: any) {
+    console.error('Error fetching avatar usage history:', error)
     return c.json({ error: error.message }, 400)
   }
 })

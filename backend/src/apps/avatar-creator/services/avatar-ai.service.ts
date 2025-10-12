@@ -10,7 +10,135 @@ import prisma from '../../../db/client'
  */
 export class AvatarAIService {
   /**
-   * Generate avatar from text prompt using SDXL
+   * Generate avatar PREVIEW (no DB save)
+   * Returns temporary image data as base64 for user to review before saving
+   */
+  async generatePreview(params: {
+    prompt: string
+    gender?: string
+    ageRange?: string
+    style?: string
+    ethnicity?: string
+    bodyType?: string
+  }): Promise<{ imageBase64: string, thumbnailBase64: string, enhancedPrompt: string }> {
+    try {
+      // 1. Build enhanced prompt
+      const enhancedPrompt = this.buildAvatarPrompt(params)
+
+      console.log('Generating avatar preview with FLUX + Realism LoRA:', enhancedPrompt)
+
+      // 2. Generate image with FLUX + Realism LoRA using retry wrapper
+      const imageBuffer = await hfClient.withRetry(async () => {
+        return await hfClient.fluxTextToImage({
+          prompt: enhancedPrompt,
+          negativePrompt: this.getNegativePrompt(),
+          width: 1024,
+          height: 1024,
+          numInferenceSteps: 30,
+          guidanceScale: 3.5,
+          useLoRA: true,
+          loraScale: 0.9,
+        })
+      })
+
+      // 3. Generate thumbnail (but don't save yet)
+      const thumbnailBuffer = await sharp(imageBuffer)
+        .resize(300, 300, {
+          fit: 'cover',
+          position: 'center'
+        })
+        .jpeg({ quality: 85 })
+        .toBuffer()
+
+      console.log('✓ Avatar preview generated successfully')
+
+      // Return as base64 for frontend preview
+      return {
+        imageBase64: imageBuffer.toString('base64'),
+        thumbnailBase64: thumbnailBuffer.toString('base64'),
+        enhancedPrompt
+      }
+    } catch (error: any) {
+      console.error('Avatar preview generation failed:', error)
+      throw new Error(`Failed to generate avatar preview: ${error.message}`)
+    }
+  }
+
+  /**
+   * Save preview to database and storage
+   * Called after user confirms they like the preview
+   */
+  async savePreview(params: {
+    userId: string
+    projectId: string
+    name: string
+    imageBase64: string
+    thumbnailBase64: string
+    gender?: string
+    ageRange?: string
+    style?: string
+    ethnicity?: string
+    bodyType?: string
+    generationPrompt: string
+  }): Promise<{ id: string, imageUrl: string, thumbnailUrl: string }> {
+    try {
+      // 1. Convert base64 back to Buffer
+      const imageBuffer = Buffer.from(params.imageBase64, 'base64')
+      const thumbnailBuffer = Buffer.from(params.thumbnailBase64, 'base64')
+
+      // 2. Save to storage
+      const avatarDir = path.join(process.cwd(), 'uploads', 'avatars', params.userId)
+      await fs.mkdir(avatarDir, { recursive: true })
+
+      const timestamp = Date.now()
+      const baseFilename = `avatar_${timestamp}.jpg`
+      const thumbnailFilename = `avatar_${timestamp}_thumb.jpg`
+
+      const basePath = path.join(avatarDir, baseFilename)
+      const thumbnailPath = path.join(avatarDir, thumbnailFilename)
+
+      await fs.writeFile(basePath, imageBuffer)
+      await fs.writeFile(thumbnailPath, thumbnailBuffer)
+
+      const baseImageUrl = `/uploads/avatars/${params.userId}/${baseFilename}`
+      const thumbnailUrl = `/uploads/avatars/${params.userId}/${thumbnailFilename}`
+
+      // 3. Create database record
+      const avatar = await prisma.avatar.create({
+        data: {
+          userId: params.userId,
+          projectId: params.projectId,
+          name: params.name,
+          baseImageUrl,
+          thumbnailUrl,
+          gender: params.gender || null,
+          ageRange: params.ageRange || null,
+          style: params.style || null,
+          ethnicity: params.ethnicity || null,
+          bodyType: params.bodyType || null,
+          sourceType: 'ai_generated',
+          generationPrompt: params.generationPrompt,
+          faceEmbedding: null,
+          usageCount: 0,
+        }
+      })
+
+      console.log('✓ Avatar saved successfully:', avatar.id)
+
+      return {
+        id: avatar.id,
+        imageUrl: baseImageUrl,
+        thumbnailUrl
+      }
+    } catch (error: any) {
+      console.error('Avatar save failed:', error)
+      throw new Error(`Failed to save avatar: ${error.message}`)
+    }
+  }
+
+  /**
+   * Generate avatar from text prompt using FLUX
+   * @deprecated Use generatePreview + savePreview for new two-phase flow
    */
   async generateFromText(params: {
     userId: string
@@ -26,17 +154,19 @@ export class AvatarAIService {
       // 1. Build enhanced prompt
       const enhancedPrompt = this.buildAvatarPrompt(params)
 
-      console.log('Generating avatar with prompt:', enhancedPrompt)
+      console.log('Generating avatar with FLUX + Realism LoRA:', enhancedPrompt)
 
-      // 2. Generate image with SDXL using retry wrapper
+      // 2. Generate image with FLUX + Realism LoRA using retry wrapper
       const imageBuffer = await hfClient.withRetry(async () => {
-        return await hfClient.textToImage({
+        return await hfClient.fluxTextToImage({
           prompt: enhancedPrompt,
           negativePrompt: this.getNegativePrompt(),
           width: 1024,
           height: 1024,
-          numInferenceSteps: 50,
-          guidanceScale: 7.5,
+          numInferenceSteps: 30, // FLUX is faster, 30 steps is enough
+          guidanceScale: 3.5, // FLUX works better with lower guidance
+          useLoRA: true, // Enable Realism LoRA
+          loraScale: 0.9, // LoRA strength (0.8-1.0 recommended)
         })
       })
 
@@ -112,11 +242,18 @@ export class AvatarAIService {
     ageRange?: string
     style?: string
     ethnicity?: string
+    bodyType?: string
   }): string {
-    const parts: string[] = [
-      'professional portrait photo',
-      params.prompt
-    ]
+    const parts: string[] = []
+
+    // Add body type framing
+    if (params.bodyType === 'full_body') {
+      parts.push('full body portrait photo')
+    } else {
+      parts.push('professional portrait photo') // Default: half body/headshot
+    }
+
+    parts.push(params.prompt)
 
     // Add gender
     if (params.gender && params.gender !== 'unisex') {
@@ -320,7 +457,7 @@ export class AvatarAIService {
    * Estimate generation time
    */
   estimateGenerationTime(count: number = 1): number {
-    return count * 15 // 15 seconds per avatar (SDXL)
+    return count * 25 // 25 seconds per avatar (FLUX + LoRA)
   }
 
   /**

@@ -991,8 +991,9 @@ model Avatar {
   // Avatar characteristics (for better pose matching)
   gender    String? // "male", "female", "unisex"
   ageRange  String? // "young", "adult", "mature"
-  style     String? // "casual", "formal", "sporty"
+  style     String? // "casual", "formal", "sporty", "professional", "traditional"
   ethnicity String? // "asian", "caucasian", "mixed", etc
+  bodyType  String? // "half_body", "full_body" - NEW for avatar generation
 
   // Generation settings (if AI-generated)
   generationPrompt String?
@@ -1002,15 +1003,17 @@ model Avatar {
   sourceType String // "upload", "ai_generated"
 
   // Stats
-  usageCount Int @default(0) // How many times used in pose generation
+  usageCount Int       @default(0) // How many times used in pose generation
+  lastUsedAt DateTime? // Last time this avatar was used
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project        AvatarProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  brandKit       BrandKit?       @relation(fields: [brandKitId], references: [id], onDelete: SetNull)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        AvatarProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  brandKit       BrandKit?            @relation(fields: [brandKitId], references: [id], onDelete: SetNull)
   generatedPoses GeneratedPose[]
+  usageHistory   AvatarUsageHistory[]
 
   @@index([userId])
   @@index([projectId])
@@ -1222,6 +1225,37 @@ model GeneratedPose {
   @@index([userId, createdAt])
   @@index([poseTemplateId, success]) // For tracking template success rates
   @@map("generated_poses")
+}
+
+// ========================================
+// AVATAR USAGE HISTORY
+// ========================================
+
+model AvatarUsageHistory {
+  id       String @id @default(cuid())
+  avatarId String
+  userId   String
+
+  // Where was the avatar used
+  appId     String // "pose-generator", "poster-editor", etc.
+  appName   String // Display name of the app
+  action    String // "generate_pose", "create_poster", etc.
+
+  // Optional reference to the generated content
+  referenceId   String? // ID of the pose/poster/etc.
+  referenceType String? // "generated_pose", "poster_edit", etc.
+
+  metadata String? // JSON: additional context
+
+  createdAt DateTime @default(now())
+
+  avatar Avatar @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+
+  @@index([avatarId])
+  @@index([userId])
+  @@index([appId])
+  @@index([createdAt])
+  @@map("avatar_usage_history")
 }
 
 // ========================================

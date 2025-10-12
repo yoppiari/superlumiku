@@ -117,6 +117,79 @@ export class HuggingFaceClient {
   }
 
   /**
+   * Generate ultra-realistic avatar using FLUX + Realism LoRA
+   * Used for high-quality portrait generation
+   */
+  async fluxTextToImage(params: {
+    prompt: string
+    negativePrompt?: string
+    width?: number
+    height?: number
+    numInferenceSteps?: number
+    guidanceScale?: number
+    seed?: number
+    useLoRA?: boolean
+    loraScale?: number
+  }): Promise<Buffer> {
+    const modelId = process.env.FLUX_MODEL || 'black-forest-labs/FLUX.1-dev'
+    const loraModel = process.env.FLUX_LORA_MODEL || 'XLabs-AI/flux-RealismLora'
+
+    try {
+      // FLUX with LoRA support via direct API call
+      const requestBody: any = {
+        inputs: params.prompt,
+        parameters: {
+          negative_prompt: params.negativePrompt || 'ugly, blurry, low quality, distorted, deformed, bad anatomy',
+          width: params.width || 1024,
+          height: params.height || 1024,
+          num_inference_steps: params.numInferenceSteps || 30,
+          guidance_scale: params.guidanceScale || 3.5, // FLUX works better with lower guidance
+        }
+      }
+
+      // Add LoRA if requested
+      if (params.useLoRA !== false) { // Default true
+        requestBody.parameters.lora = loraModel
+        requestBody.parameters.lora_scale = params.loraScale || 0.9 // LoRA strength
+      }
+
+      const response = await axios.post(
+        `https://api-inference.huggingface.co/models/${modelId}`,
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          responseType: 'arraybuffer',
+          timeout: 180000 // 3 minutes for FLUX (slower than SDXL)
+        }
+      )
+
+      return Buffer.from(response.data)
+    } catch (error: any) {
+      // Handle model loading error (cold start)
+      if (error.response?.data?.error?.includes('loading') ||
+          error.response?.data?.error?.includes('currently loading')) {
+        throw new Error('MODEL_LOADING')
+      }
+
+      // Handle rate limit
+      if (error.response?.status === 429) {
+        throw new Error('RATE_LIMIT_EXCEEDED')
+      }
+
+      // Handle timeout
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('GENERATION_TIMEOUT')
+      }
+
+      console.error('FLUX generation error:', error.response?.data || error.message)
+      throw error
+    }
+  }
+
+  /**
    * Inpaint image (add elements like hijab, accessories)
    * Used for Phase 3: Fashion Enhancement
    */
