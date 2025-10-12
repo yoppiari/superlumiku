@@ -155,12 +155,12 @@ async function verifyAvatarProjectsTable(): Promise<boolean> {
 }
 
 async function createTableDirectly(): Promise<boolean> {
-  console.log('\n5️⃣ FALLBACK: Creating table directly via SQL...')
+  console.log('\n5️⃣ FALLBACK: Creating tables directly via SQL...')
 
   try {
     await prisma.$connect()
 
-    // Create table
+    // Create avatar_projects table
     await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS "avatar_projects" (
         "id" TEXT PRIMARY KEY,
@@ -171,16 +171,49 @@ async function createTableDirectly(): Promise<boolean> {
         "updatedAt" TIMESTAMP(3) NOT NULL
       )
     `
+    console.log('✅ avatar_projects table created')
 
-    console.log('✅ Table created')
-
-    // Create index
     await prisma.$executeRaw`
       CREATE INDEX IF NOT EXISTS "avatar_projects_userId_idx"
       ON "avatar_projects"("userId")
     `
+    console.log('✅ avatar_projects index created')
 
-    console.log('✅ Index created')
+    // Create avatar_usage_history table
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "avatar_usage_history" (
+        "id" TEXT PRIMARY KEY,
+        "avatarId" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "appId" TEXT NOT NULL,
+        "appName" TEXT NOT NULL,
+        "action" TEXT NOT NULL,
+        "referenceId" TEXT,
+        "referenceType" TEXT,
+        "metadata" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+    console.log('✅ avatar_usage_history table created')
+
+    // Create indexes for avatar_usage_history
+    await prisma.$executeRaw`
+      CREATE INDEX IF NOT EXISTS "avatar_usage_history_avatarId_idx"
+      ON "avatar_usage_history"("avatarId")
+    `
+    await prisma.$executeRaw`
+      CREATE INDEX IF NOT EXISTS "avatar_usage_history_userId_idx"
+      ON "avatar_usage_history"("userId")
+    `
+    await prisma.$executeRaw`
+      CREATE INDEX IF NOT EXISTS "avatar_usage_history_appId_idx"
+      ON "avatar_usage_history"("appId")
+    `
+    await prisma.$executeRaw`
+      CREATE INDEX IF NOT EXISTS "avatar_usage_history_createdAt_idx"
+      ON "avatar_usage_history"("createdAt")
+    `
+    console.log('✅ avatar_usage_history indexes created')
 
     return true
 
