@@ -89,35 +89,77 @@ echo "✅ FFmpeg version: $(ffmpeg -version | head -n1)"
 echo "🗄️  Running database migrations..."
 cd /app/backend
 
+# Debug: Show current directory and DATABASE_URL
+echo "📍 Current directory: $(pwd)"
+echo "📊 DATABASE_URL: ${DATABASE_URL:0:50}..."
+
 # Run custom migration script first (for Avatar & Pose Generator split)
 if [ -f "/app/backend/scripts/migrate-avatar-pose.sh" ]; then
     echo "   Running Avatar & Pose Generator migration..."
     bash /app/backend/scripts/migrate-avatar-pose.sh || echo "   ⚠️  Custom migration had errors, continuing..."
 fi
 
+# Generate Prisma Client FIRST (mandatory!)
+echo "🔧 Step 1: Generating Prisma Client..."
+bun prisma generate 2>&1 | tail -n 5
+echo "✅ Prisma Client generated"
+
 # Run Prisma migrations
 # Try migrate deploy first (for production migrations)
-if bun prisma migrate deploy 2>/dev/null; then
+echo "🔧 Step 2: Trying prisma migrate deploy..."
+if bun prisma migrate deploy 2>&1 | tee /tmp/migrate-deploy.log; then
     echo "✅ Prisma migrate deploy successful"
 else
     echo "⚠️  Prisma migrate deploy failed or no migrations found"
-    echo "   Trying prisma db push to sync schema..."
+    echo "   Error output:"
+    cat /tmp/migrate-deploy.log | tail -n 10
+
+    echo ""
+    echo "🔧 Step 3: Trying prisma db push (FORCE SYNC)..."
 
     # Fallback to db push (syncs Prisma schema to database without migration files)
-    if bun prisma db push --accept-data-loss --skip-generate 2>&1; then
+    # FORCE this to succeed with explicit error handling
+    bun prisma db push --accept-data-loss --skip-generate --force-reset 2>&1 | tee /tmp/db-push.log
+    DB_PUSH_EXIT=$?
+
+    if [ $DB_PUSH_EXIT -eq 0 ]; then
         echo "✅ Prisma db push successful - schema synced to database"
     else
-        echo "⚠️  Prisma db push failed, trying to generate Prisma client..."
-        bun prisma generate
+        echo "⚠️  Prisma db push had issues (exit code: $DB_PUSH_EXIT)"
+        echo "   Full output:"
+        cat /tmp/db-push.log
 
-        # Try db push again after generate
-        if bun prisma db push --accept-data-loss --skip-generate 2>&1; then
-            echo "✅ Prisma db push successful after generate"
+        echo ""
+        echo "🔧 Step 4: Trying WITHOUT --force-reset..."
+        if bun prisma db push --accept-data-loss --skip-generate 2>&1 | tee /tmp/db-push-retry.log; then
+            echo "✅ Prisma db push successful on retry"
         else
-            echo "   ⚠️  All migration attempts failed, continuing anyway..."
+            echo "❌ All migration attempts failed!"
+            echo "   Last error output:"
+            cat /tmp/db-push-retry.log
+            echo ""
+            echo "⚠️  WARNING: Database schema might not be in sync!"
+            echo "   Manual intervention may be required."
         fi
     fi
 fi
+
+# Verify critical tables exist
+echo ""
+echo "🔍 Verifying critical tables..."
+if command -v psql &> /dev/null; then
+    echo "   Checking avatar_projects table..."
+    if psql "$DATABASE_URL" -c "\dt avatar_projects" 2>&1 | grep -q "avatar_projects"; then
+        echo "✅ avatar_projects table EXISTS"
+    else
+        echo "❌ WARNING: avatar_projects table NOT FOUND!"
+        echo "   Listing all tables:"
+        psql "$DATABASE_URL" -c "\dt" 2>&1 | head -n 20
+    fi
+else
+    echo "   psql not available, skipping table verification"
+fi
+
 echo "✅ Database migrations/sync completed"
 
 # Create directories
