@@ -36,9 +36,38 @@ app.use('*', corsMiddleware)
 // Serve static files from uploads directory
 app.use('/uploads/*', serveStatic({ root: './' }))
 
-// Health check
+// Health check - Basic (fast)
 app.get('/health', (c) => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString() })
+  return c.json({
+    status: 'ok',
+    service: 'lumiku-backend',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+  })
+})
+
+// Health check - Database connection (detailed)
+app.get('/api/health', async (c) => {
+  try {
+    const prisma = (await import('./db/client')).default
+    await prisma.$queryRaw`SELECT 1 as test`
+
+    return c.json({
+      status: 'healthy',
+      service: 'lumiku-backend',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+    })
+  } catch (error: any) {
+    return c.json({
+      status: 'unhealthy',
+      service: 'lumiku-backend',
+      database: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    }, 503)
+  }
 })
 
 // Database schema health check

@@ -109,11 +109,48 @@ routes.post('/projects', authMiddleware, async (c) => {
       message: 'Project created successfully',
     }, 201)
   } catch (error: any) {
-    console.error('Error creating project:', error)
+    // Enhanced error logging with context
+    console.error('Error creating project:', {
+      userId: c.get('userId'),
+      error: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    })
+
+    // Zod validation errors
     if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
+      return c.json({
+        error: 'Validation error',
+        details: error.errors,
+      }, 400)
     }
-    return c.json({ error: error.message }, 400)
+
+    // Prisma/Database connection errors (P1xxx codes)
+    if (error.code && typeof error.code === 'string' && error.code.startsWith('P1')) {
+      return c.json({
+        error: 'Database connection error',
+        message: 'Cannot connect to database. Please try again later.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      }, 503)
+    }
+
+    // Prisma constraint errors (P2xxx codes)
+    if (error.code && typeof error.code === 'string' && error.code.startsWith('P2')) {
+      const errorMessages: Record<string, string> = {
+        P2002: 'A project with this name already exists',
+        P2003: 'Invalid reference',
+        P2025: 'Record not found',
+      }
+      return c.json({
+        error: errorMessages[error.code] || 'Database error',
+        code: error.code,
+      }, 400)
+    }
+
+    // Generic error
+    return c.json({
+      error: error.message || 'Failed to create project',
+    }, 400)
   }
 })
 
