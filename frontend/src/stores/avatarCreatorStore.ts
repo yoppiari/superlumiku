@@ -26,8 +26,30 @@ export interface Avatar {
   style: string | null
   ethnicity: string | null
   usageCount: number
+  lastUsedAt: string | null
   sourceType: string
   createdAt: string
+  updatedAt: string
+}
+
+export interface AvatarUsageHistory {
+  id: string
+  avatarId: string
+  userId: string
+  appId: string
+  appName: string
+  action: string
+  referenceId: string | null
+  referenceType: string | null
+  metadata: string | null
+  createdAt: string
+}
+
+export interface AvatarUsageSummary {
+  appId: string
+  appName: string
+  count: number
+  lastUsed: string
 }
 
 export interface AvatarStats {
