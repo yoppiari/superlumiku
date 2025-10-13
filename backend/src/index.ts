@@ -8,7 +8,6 @@ import { initializeScheduler } from './jobs/scheduler'
 import './workers/video-mixer.worker'
 import './workers/carousel-mix.worker'
 import './workers/looping-flow.worker'
-import './apps/video-generator/workers/video-gen.worker'
 
 // Test database connection
 async function checkDatabase() {

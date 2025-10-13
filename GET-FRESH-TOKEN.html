@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Fresh Token</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            margin: 20px 0;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .code {
+            background: #1e1e1e;
+            color: #4CAF50;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 15px 0;
+            font-size: 16px;
+            text-align: center;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .token-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+        .big-number {
+            font-size: 48px;
+            color: #667eea;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Token Anda EXPIRED!</h1>
+
+        <div class="warning">
+            <h3 style="margin-top: 0;">⚠️ Token yang Anda copy sudah tidak valid!</h3>
+            <p>Response dari server: <code>"Unauthorized - Invalid token"</code></p>
+            <p>Ini berarti Anda perlu <strong>LOGIN ULANG</strong> untuk mendapatkan token baru.</p>
+        </div>
+
+        <div class="big-number">↓</div>
+
+        <div class="step">
+            <h2 style="color: #667eea; margin-top: 0;">🔄 Solusi: Login Ulang</h2>
+            <p><strong>Langkah 1:</strong> Buka dev.lumiku.com di tab baru</p>
+            <p><strong>Langkah 2:</strong> LOGOUT dulu (jika masih login)</p>
+            <p><strong>Langkah 3:</strong> LOGIN lagi dengan email & password</p>
+            <p><strong>Langkah 4:</strong> Setelah berhasil login, tekan F12</p>
+            <p><strong>Langkah 5:</strong> Di Console, ketik:</p>
+            <div class="code">localStorage.getItem('token')</div>
+            <p><strong>Langkah 6:</strong> Copy token BARU yang muncul</p>
+            <p><strong>Langkah 7:</strong> Paste di bawah ini dan klik Test</p>
+        </div>
+
+        <a href="https://dev.lumiku.com" target="_blank" class="btn">
+            🌐 Buka dev.lumiku.com (Tab Baru)
+        </a>
+
+        <div class="success">
+            <h3 style="margin-top: 0;">✅ Sudah Login Ulang? Paste Token Baru:</h3>
+            <input type="text" class="token-input" id="newToken" placeholder="Paste token baru di sini...">
+            <button class="btn" onclick="testNewToken()">🧪 Test Token Baru</button>
+            <div id="result"></div>
+        </div>
+
+        <div class="step">
+            <h3 style="color: #667eea;">💡 Tips Penting:</h3>
+            <p>✅ Pastikan benar-benar <strong>LOGOUT</strong> dulu sebelum login lagi</p>
+            <p>✅ Setelah login, langsung copy token - jangan tunggu lama</p>
+            <p>✅ Token baru akan valid selama beberapa jam</p>
+        </div>
+    </div>
+
+    <script>
+        async function testNewToken() {
+            const token = document.getElementById('newToken').value.trim();
+            const resultDiv = document.getElementById('result');
+
+            if (!token) {
+                resultDiv.innerHTML = '<p style="color: red;">❌ Token kosong! Paste token dulu.</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<p style="color: blue;">🔄 Testing token...</p>';
+
+            try {
+                const response = await fetch('https://dev.lumiku.com/api/apps/avatar-creator/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Test Production Fix',
+                        description: 'Testing after fresh login'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div style="background: #d4edda; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                            <h3 style="color: #155724; margin-top: 0;">✅ SUCCESS! Project Created!</h3>
+                            <p><strong>Project ID:</strong> ${data.project?.id || 'N/A'}</p>
+                            <p><strong>Name:</strong> ${data.project?.name || 'N/A'}</p>
+                            <p><strong>Message:</strong> ${data.message || 'Success'}</p>
+                            <pre style="background: #fff; padding: 10px; border-radius: 5px; overflow: auto;">${JSON.stringify(data, null, 2)}</pre>
+                            <h2 style="text-align: center; color: #155724;">🎉 MASALAHNYA SUDAH FIX! 🎉</h2>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                            <h3 style="color: #721c24; margin-top: 0;">❌ Masih Error</h3>
+                            <p><strong>Status:</strong> ${response.status}</p>
+                            <p><strong>Error:</strong> ${data.error || 'Unknown'}</p>
+                            <pre style="background: #fff; padding: 10px; border-radius: 5px; overflow: auto;">${JSON.stringify(data, null, 2)}</pre>
+                            ${response.status === 401 ? '<p><strong>⚠️ Token masih invalid! Pastikan sudah logout dan login ulang!</strong></p>' : ''}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <h3 style="color: #721c24; margin-top: 0;">❌ Network Error</h3>
+                        <p>${error.message}</p>
+                        <p><strong>Solusi:</strong> Buka test page ini dari web server, atau gunakan curl command.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-focus on token input
+        window.onload = () => {
+            document.getElementById('newToken').focus();
+        };
+    </script>
+</body>
+</html>

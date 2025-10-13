@@ -1,0 +1,77 @@
+# ===================================================
+# COOLIFY TERMINAL COMMANDS - COPY PASTE SATU PER SATU
+# ===================================================
+
+# Step 1: Find correct directory location
+pwd
+ls -la
+
+# Step 2: List all directories to find backend
+ls -la /app
+ls -la /app/backend 2>/dev/null || ls -la /
+
+# Step 3: Check if Prisma is available
+which bun
+bun --version
+
+# Step 4: Navigate to backend directory (TRY THESE IN ORDER)
+# Try option 1:
+cd /app/backend && pwd
+
+# If that fails, try option 2:
+cd backend && pwd
+
+# If that fails, try option 3:
+cd /app && pwd && ls -la
+
+# Step 5: Once you're in the right directory, check Prisma schema
+cat prisma/schema.prisma | grep -A 10 "model AvatarProject"
+
+# Step 6: Check DATABASE_URL environment variable
+echo $DATABASE_URL
+
+# Step 7: Run Prisma DB Push (THIS IS THE FIX!)
+bun prisma db push --skip-generate --accept-data-loss
+
+# Step 8: Verify table was created
+echo "Checking if table exists..."
+
+# Step 9: If you have psql available:
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM avatar_projects;"
+
+# OR if psql not available, just verify Prisma generated:
+ls -la node_modules/.prisma/client
+
+# ===================================================
+# EXPECTED OUTPUTS:
+# ===================================================
+
+# After "bun prisma db push":
+# ✔ Generated Prisma Client
+# Database synchronized with schema
+#
+# After "SELECT COUNT(*)":
+#  count
+# -------
+#      0
+# (1 row)
+#
+# This means TABLE EXISTS! Fix successful!
+
+# ===================================================
+# IF ERRORS OCCUR:
+# ===================================================
+
+# Error: "bun: command not found"
+# Solution: Try with npx instead:
+npx prisma db push --skip-generate --accept-data-loss
+
+# Error: "DATABASE_URL not found"
+# Solution: Check environment variables:
+env | grep DATABASE
+
+# Error: "Can't reach database"
+# Solution: Check postgres connection:
+env | grep POSTGRES
+
+# ===================================================
