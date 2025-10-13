@@ -4,7 +4,8 @@ import { useAvatarCreatorStore } from '../stores/avatarCreatorStore'
 import { useAuthStore } from '../stores/authStore'
 import ProfileDropdown from '../components/ProfileDropdown'
 import CreateProjectModal from '../components/CreateProjectModal'
-import { UserCircle, Plus, ArrowLeft, Coins, Trash2, Loader2, Upload, Sparkles } from 'lucide-react'
+import UsageHistoryModal from '../components/UsageHistoryModal'
+import { UserCircle, Plus, ArrowLeft, Coins, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar } from 'lucide-react'
 
 export default function AvatarCreator() {
   const navigate = useNavigate()
@@ -30,6 +31,8 @@ export default function AvatarCreator() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null)
 
   // Load projects on mount
   useEffect(() => {
@@ -178,8 +181,8 @@ export default function AvatarCreator() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {currentProject.avatars.map((avatar) => (
-                  <div key={avatar.id} className="bg-slate-50 rounded-lg overflow-hidden border border-slate-200 hover:border-purple-300 transition-colors">
-                    <div className="aspect-square bg-white">
+                  <div key={avatar.id} className="bg-white rounded-lg overflow-hidden border border-slate-200 hover:border-purple-300 transition-all shadow-sm hover:shadow-md">
+                    <div className="aspect-square bg-slate-50">
                       <img
                         src={avatar.thumbnailUrl || avatar.baseImageUrl}
                         alt={avatar.name}
@@ -187,32 +190,78 @@ export default function AvatarCreator() {
                       />
                     </div>
                     <div className="p-4">
-                      <h3 className="font-semibold text-slate-900 mb-1">{avatar.name}</h3>
-                      <div className="flex flex-wrap gap-2 mb-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold text-slate-900 flex-1">{avatar.name}</h3>
+                        {avatar.sourceType === 'ai_generated' && (
+                          <span title="AI Generated">
+                            <Sparkles className="w-4 h-4 text-purple-500 flex-shrink-0 ml-2" />
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Attributes */}
+                      <div className="flex flex-wrap gap-1.5 mb-3">
                         {avatar.gender && (
-                          <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
                             {avatar.gender}
                           </span>
                         )}
                         {avatar.ageRange && (
-                          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
                             {avatar.ageRange}
                           </span>
                         )}
+                        {avatar.style && (
+                          <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                            {avatar.style}
+                          </span>
+                        )}
+                        {avatar.ethnicity && (
+                          <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                            {avatar.ethnicity}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between text-sm text-slate-600 mb-3">
-                        <span>Used {avatar.usageCount} times</span>
+
+                      {/* Timestamps */}
+                      <div className="space-y-1.5 mb-3 text-xs text-slate-600">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>Created {new Date(avatar.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+                        {avatar.lastUsedAt && (
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>Used {new Date(avatar.lastUsedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{avatar.usageCount} time{avatar.usageCount !== 1 ? 's' : ''} used</span>
+                          <button
+                            onClick={() => {
+                              setSelectedAvatarId(avatar.id)
+                              setShowHistoryModal(true)
+                            }}
+                            className="p-1 hover:bg-slate-100 rounded transition-colors"
+                            title="View usage history"
+                          >
+                            <History className="w-3.5 h-3.5 text-slate-500" />
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Actions */}
                       <div className="flex gap-2">
                         <button
                           onClick={() => navigate('/apps/pose-generator', { state: { avatarId: avatar.id } })}
-                          className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                          className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
                         >
                           Generate Poses
                         </button>
                         <button
                           onClick={() => handleDeleteAvatar(avatar.id, avatar.name)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete avatar"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -242,6 +291,17 @@ export default function AvatarCreator() {
             onClose={() => setShowGenerateModal(false)}
             onGenerate={generateAvatar}
             isGenerating={isGenerating}
+          />
+        )}
+
+        {/* Usage History Modal */}
+        {showHistoryModal && selectedAvatarId && (
+          <UsageHistoryModal
+            avatarId={selectedAvatarId}
+            onClose={() => {
+              setShowHistoryModal(false)
+              setSelectedAvatarId(null)
+            }}
           />
         )}
       </div>
