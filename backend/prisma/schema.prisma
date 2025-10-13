@@ -691,3 +691,148 @@ model ModelUsage {
   @@index([createdAt])
   @@map("model_usages")
 }
+
+// ========================================
+// Avatar Creator App Models
+// ========================================
+
+model AvatarProject {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  avatars Avatar[]
+
+  @@index([userId])
+  @@map("avatar_projects")
+}
+
+model Avatar {
+  id       String  @id @default(cuid())
+  userId   String
+  projectId String
+
+  // Basic Info
+  name         String
+  baseImageUrl String
+  thumbnailUrl String?
+
+  // Persona (untuk prompt generation di apps lain)
+  personaName        String?
+  personaAge         Int?
+  personaPersonality String? @db.Text // JSON: ["friendly", "professional"]
+  personaBackground  String? @db.Text // Latar belakang
+
+  // Visual Attributes
+  gender    String?
+  ageRange  String?
+  ethnicity String?
+  bodyType  String?
+  hairStyle String?
+  hairColor String?
+  eyeColor  String?
+  skinTone  String?
+  style     String?
+
+  // Generation Info
+  sourceType       String // uploaded, text_to_image, from_preset, from_reference
+  generationPrompt String? @db.Text
+  seedUsed         Int?
+
+  // Tracking
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project      AvatarProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  usageHistory AvatarUsageHistory[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@map("avatars")
+}
+
+model AvatarPreset {
+  id              String  @id @default(cuid())
+  name            String
+  previewImageUrl String
+  category        String // business, casual, traditional, creative
+  personaTemplate String  @db.Text // JSON
+  visualAttributes String @db.Text // JSON
+  generationPrompt String @db.Text
+  isPublic        Boolean @default(true)
+  usageCount      Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@map("avatar_presets")
+}
+
+model PersonaExample {
+  id       String  @id @default(cuid())
+  name     String
+  category String // business, creative, lifestyle, healthcare
+
+  // Persona fields
+  personaName        String
+  personaAge         Int
+  personaPersonality String  @db.Text // JSON array
+  personaBackground  String  @db.Text
+
+  // Visual suggestions (optional)
+  suggestedAttributes String? @db.Text // JSON
+
+  displayOrder Int     @default(0)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([category])
+  @@map("persona_examples")
+}
+
+model AvatarUsageHistory {
+  id            String  @id @default(cuid())
+  avatarId      String
+  userId        String
+  appId         String
+  appName       String
+  action        String
+  referenceId   String?
+  referenceType String?
+  metadata      String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  avatar Avatar @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+
+  @@index([avatarId])
+  @@index([userId])
+  @@index([appId])
+  @@map("avatar_usage_history")
+}
+
+model AvatarGeneration {
+  id        String   @id @default(cuid())
+  userId    String
+  avatarId  String? // null until completed
+  projectId String
+  status    String   @default("pending") // pending, processing, completed, failed
+  prompt    String   @db.Text
+  options   String?  @db.Text // JSON
+  errorMessage String? @db.Text
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@map("avatar_generations")
+}

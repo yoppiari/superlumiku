@@ -10,6 +10,9 @@ import carouselMixRoutes from '../apps/carousel-mix/routes'
 import loopingFlowConfig from '../apps/looping-flow/plugin.config'
 import loopingFlowRoutes from '../apps/looping-flow/routes'
 
+import avatarCreatorConfig from '../apps/avatar-creator/plugin.config'
+import avatarCreatorRoutes from '../apps/avatar-creator/routes'
+
 /**
  * Load all plugins into registry
  */
@@ -18,6 +21,7 @@ export function loadPlugins() {
   pluginRegistry.register(videoMixerConfig, videoMixerRoutes)
   pluginRegistry.register(carouselMixConfig, carouselMixRoutes)
   pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
+  pluginRegistry.register(avatarCreatorConfig, avatarCreatorRoutes)
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)
