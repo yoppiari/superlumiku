@@ -99,7 +99,12 @@ routes.post('/projects', authMiddleware, async (c) => {
     const userId = c.get('userId')
     const body = await c.req.json()
 
-    const validated = createProjectSchema.parse(body)
+    // HOTFIX: Remove undefined values before validation (frontend cache bug workaround)
+    const cleanedBody = Object.fromEntries(
+      Object.entries(body).filter(([_, v]) => v !== undefined)
+    )
+
+    const validated = createProjectSchema.parse(cleanedBody)
 
     const project = await avatarProjectService.createProject(userId, validated)
 
