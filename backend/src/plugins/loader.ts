@@ -16,8 +16,12 @@ import videoGeneratorRoutes from '../apps/video-generator/routes'
 import { posterEditorConfig } from '../apps/poster-editor/plugin.config'
 import posterEditorRoutes from '../apps/poster-editor/routes'
 
-import avatarGeneratorConfig from '../apps/avatar-generator/plugin.config'
-import avatarGeneratorRoutes from '../apps/avatar-generator/routes'
+// NEW: Avatar & Pose Generator (Split Apps) - Replaced old avatar-generator
+import avatarCreatorConfig from '../apps/avatar-creator/plugin.config'
+import avatarCreatorRoutes from '../apps/avatar-creator/routes'
+
+import poseGeneratorConfig from '../apps/pose-generator/plugin.config'
+import poseGeneratorRoutes from '../apps/pose-generator/routes'
 
 /**
  * Load all plugins into registry
@@ -29,7 +33,10 @@ export function loadPlugins() {
   pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
   pluginRegistry.register(videoGeneratorConfig, videoGeneratorRoutes)
   pluginRegistry.register(posterEditorConfig, posterEditorRoutes)
-  pluginRegistry.register(avatarGeneratorConfig, avatarGeneratorRoutes)
+
+  // Avatar & Pose Generator (Split into 2 separate apps)
+  pluginRegistry.register(avatarCreatorConfig, avatarCreatorRoutes)
+  pluginRegistry.register(poseGeneratorConfig, poseGeneratorRoutes)
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)

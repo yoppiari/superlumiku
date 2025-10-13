@@ -53,7 +53,13 @@ export default function CreateProjectModal({
     setError('')
 
     try {
-      await onSubmit(name.trim(), description.trim() || undefined)
+      // Only pass description if it has content (don't pass undefined)
+      const trimmedDescription = description.trim()
+      if (trimmedDescription) {
+        await onSubmit(name.trim(), trimmedDescription)
+      } else {
+        await onSubmit(name.trim())
+      }
       onClose()
     } catch (err: any) {
       setError(err.message || 'Failed to create project')

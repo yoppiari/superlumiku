@@ -962,20 +962,38 @@ model BrandKit {
 // AVATAR SYSTEM
 // ========================================
 
-model Avatar {
-  id         String @id @default(cuid())
-  userId     String
-  brandKitId String
+// Avatar Project: Container for avatars (similar to CarouselProject)
+model AvatarProject {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
 
-  name         String // "Skincare Model - Aura"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  avatars Avatar[]
+
+  @@index([userId])
+  @@map("avatar_projects")
+}
+
+model Avatar {
+  id         String  @id @default(cuid())
+  userId     String
+  projectId  String  // NEW: Link to AvatarProject
+  brandKitId String? // Optional: for advanced users
+
+  name         String // "My Avatar", "Fashion Model", etc
   baseImageUrl String // Original avatar image
   thumbnailUrl String?
 
   // Avatar characteristics (for better pose matching)
   gender    String? // "male", "female", "unisex"
   ageRange  String? // "young", "adult", "mature"
-  style     String? // "casual", "formal", "sporty"
+  style     String? // "casual", "formal", "sporty", "professional", "traditional"
   ethnicity String? // "asian", "caucasian", "mixed", etc
+  bodyType  String? // "half_body", "full_body" - NEW for avatar generation
 
   // Generation settings (if AI-generated)
   generationPrompt String?
@@ -984,14 +1002,21 @@ model Avatar {
   // Source
   sourceType String // "upload", "ai_generated"
 
+  // Stats
+  usageCount Int       @default(0) // How many times used in pose generation
+  lastUsedAt DateTime? // Last time this avatar was used
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  brandKit       BrandKit        @relation(fields: [brandKitId], references: [id], onDelete: Cascade)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        AvatarProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  brandKit       BrandKit?            @relation(fields: [brandKitId], references: [id], onDelete: SetNull)
   generatedPoses GeneratedPose[]
+  usageHistory   AvatarUsageHistory[]
 
   @@index([userId])
+  @@index([projectId])
   @@index([brandKitId])
   @@map("avatars")
 }
@@ -1061,6 +1086,11 @@ model PoseTemplate {
   gender           String? // "male", "female", "unisex"
   productPlacement String? // "hand-left", "hand-right", "worn", "both-hands"
 
+  // NEW: Enhanced categories for Avatar & Pose Generator
+  fashionCategory String? // "casual", "formal", "hijab", "sport", "traditional"
+  sceneType       String? // "indoor", "outdoor", "studio", "office", "home"
+  professionTheme String? // "doctor", "pilot", "chef", "teacher", "engineer", null
+
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -1070,6 +1100,8 @@ model PoseTemplate {
 
   @@index([category, isActive])
   @@index([successRate])
+  @@index([fashionCategory])
+  @@index([sceneType])
   @@map("pose_templates")
 }
 
@@ -1078,9 +1110,8 @@ model PoseTemplate {
 // ========================================
 
 model PoseGenerationProject {
-  id         String @id @default(cuid())
-  userId     String
-  brandKitId String
+  id     String @id @default(cuid())
+  userId String
 
   name        String
   description String?
@@ -1095,22 +1126,30 @@ model PoseGenerationProject {
 }
 
 model PoseGeneration {
-  id        String @id @default(cuid())
-  projectId String
+  id        String  @id @default(cuid())
+  projectId String?
   userId    String
   avatarId  String
-  productId String
 
   // Generation settings
-  totalPoses       Int // Target number of poses
-  poseDistribution String // JSON: {"standing": 50, "walking": 30, "sitting": 20}
+  totalPoses          Int // Target number of poses
+  selectedPoseIds     String // JSON array of pose template IDs
+  batchSize           Int    @default(10) // How many poses to generate
+
+  // Quality settings
+  quality String @default("sd") // "sd", "hd"
+
+  // Enhancement settings (JSON)
+  fashionSettings     String? // JSON: {hijab, accessories, outfit}
+  backgroundSettings  String? // JSON: {type, scene, customPrompt}
+  professionTheme     String? // "doctor", "pilot", "chef", null
 
   // AI settings
-  provider String // "huggingface", "fal", "replicate"
-  modelId  String // "control_v11p_sd15_openpose"
+  provider String @default("modelslab") // "modelslab", "huggingface", "fal"
+  modelId  String @default("controlnet-sd15") // Model identifier
 
   // Prompt engineering
-  basePrompt     String // From brand kit + product
+  basePrompt     String // AI prompt for generation
   negativePrompt String?
 
   // Status
@@ -1131,7 +1170,7 @@ model PoseGeneration {
   updatedAt   DateTime  @updatedAt
   completedAt DateTime?
 
-  project        PoseGenerationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project        PoseGenerationProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   generatedPoses GeneratedPose[]
 
   @@index([projectId])
@@ -1141,11 +1180,11 @@ model PoseGeneration {
 }
 
 model GeneratedPose {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   generationId   String
   userId         String
   avatarId       String
-  productId      String
+  productId      String? // Optional: for product placement
   poseTemplateId String
 
   // Generation params
@@ -1160,10 +1199,10 @@ model GeneratedPose {
   // Quality metrics
   success        Boolean @default(true)
   qualityScore   Float? // 0-1 (AI quality assessment)
-  generationTime Int // seconds
+  generationTime Int     @default(0) // seconds
 
   // AI metadata
-  provider      String // "huggingface", "fal", etc
+  provider      String // "modelslab", "huggingface", "fal", etc
   providerJobId String?
   seed          Int? // For reproducibility
 
@@ -1179,13 +1218,44 @@ model GeneratedPose {
 
   generation   PoseGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
   avatar       Avatar         @relation(fields: [avatarId], references: [id])
-  product      Product        @relation(fields: [productId], references: [id])
+  product      Product?       @relation(fields: [productId], references: [id])
   poseTemplate PoseTemplate   @relation(fields: [poseTemplateId], references: [id])
 
   @@index([generationId])
   @@index([userId, createdAt])
   @@index([poseTemplateId, success]) // For tracking template success rates
   @@map("generated_poses")
+}
+
+// ========================================
+// AVATAR USAGE HISTORY
+// ========================================
+
+model AvatarUsageHistory {
+  id       String @id @default(cuid())
+  avatarId String
+  userId   String
+
+  // Where was the avatar used
+  appId     String // "pose-generator", "poster-editor", etc.
+  appName   String // Display name of the app
+  action    String // "generate_pose", "create_poster", etc.
+
+  // Optional reference to the generated content
+  referenceId   String? // ID of the pose/poster/etc.
+  referenceType String? // "generated_pose", "poster_edit", etc.
+
+  metadata String? // JSON: additional context
+
+  createdAt DateTime @default(now())
+
+  avatar Avatar @relation(fields: [avatarId], references: [id], onDelete: Cascade)
+
+  @@index([avatarId])
+  @@index([userId])
+  @@index([appId])
+  @@index([createdAt])
+  @@map("avatar_usage_history")
 }
 
 // ========================================

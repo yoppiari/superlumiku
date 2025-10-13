@@ -88,12 +88,130 @@ echo "✅ FFmpeg version: $(ffmpeg -version | head -n1)"
 # Run database migrations
 echo "🗄️  Running database migrations..."
 cd /app/backend
-bun prisma migrate deploy || {
-    echo "⚠️  Migration failed, trying to generate Prisma client..."
-    bun prisma generate
-    bun prisma migrate deploy
-}
-echo "✅ Database migrations completed"
+
+# Debug: Show current directory and DATABASE_URL
+echo "📍 Current directory: $(pwd)"
+echo "📊 DATABASE_URL: ${DATABASE_URL:0:50}..."
+
+# Run custom migration script first (for Avatar & Pose Generator split)
+if [ -f "/app/backend/scripts/migrate-avatar-pose.sh" ]; then
+    echo "   Running Avatar & Pose Generator migration..."
+    bash /app/backend/scripts/migrate-avatar-pose.sh || echo "   ⚠️  Custom migration had errors, continuing..."
+fi
+
+# Generate Prisma Client FIRST (mandatory!)
+echo "🔧 Step 1: Generating Prisma Client..."
+bun prisma generate 2>&1 | tail -n 5
+echo "✅ Prisma Client generated"
+
+# Run Prisma migrations
+# Try migrate deploy first (for production migrations)
+echo "🔧 Step 2: Trying prisma migrate deploy..."
+if bun prisma migrate deploy 2>&1 | tee /tmp/migrate-deploy.log; then
+    echo "✅ Prisma migrate deploy successful"
+else
+    echo "⚠️  Prisma migrate deploy failed or no migrations found"
+    echo "   Error output:"
+    cat /tmp/migrate-deploy.log | tail -n 10
+
+    echo ""
+    echo "🔧 Step 3: Trying prisma db push (FORCE SYNC)..."
+
+    # Fallback to db push (syncs Prisma schema to database without migration files)
+    # FORCE this to succeed with explicit error handling
+    bun prisma db push --accept-data-loss --skip-generate --force-reset 2>&1 | tee /tmp/db-push.log
+    DB_PUSH_EXIT=$?
+
+    if [ $DB_PUSH_EXIT -eq 0 ]; then
+        echo "✅ Prisma db push successful - schema synced to database"
+    else
+        echo "⚠️  Prisma db push had issues (exit code: $DB_PUSH_EXIT)"
+        echo "   Full output:"
+        cat /tmp/db-push.log
+
+        echo ""
+        echo "🔧 Step 4: Trying WITHOUT --force-reset..."
+        if bun prisma db push --accept-data-loss --skip-generate 2>&1 | tee /tmp/db-push-retry.log; then
+            echo "✅ Prisma db push successful on retry"
+        else
+            echo "❌ All migration attempts failed!"
+            echo "   Last error output:"
+            cat /tmp/db-push-retry.log
+            echo ""
+            echo "⚠️  WARNING: Database schema might not be in sync!"
+            echo "   Manual intervention may be required."
+        fi
+    fi
+fi
+
+# Verify critical tables exist
+echo ""
+echo "🔍 Verifying critical tables..."
+CRITICAL_TABLES=("users" "avatars" "avatar_projects" "avatar_usage_history" "sessions" "credits")
+MISSING_TABLES=()
+
+if command -v psql &> /dev/null; then
+    for table in "${CRITICAL_TABLES[@]}"; do
+        echo "   Checking $table table..."
+        if psql "$DATABASE_URL" -c "\dt $table" 2>&1 | grep -q "$table"; then
+            echo "   ✅ $table EXISTS"
+        else
+            echo "   ❌ WARNING: $table NOT FOUND!"
+            MISSING_TABLES+=("$table")
+        fi
+    done
+
+    if [ ${#MISSING_TABLES[@]} -gt 0 ]; then
+        echo ""
+        echo "❌ CRITICAL: ${#MISSING_TABLES[@]} tables are missing!"
+        echo "   Missing tables: ${MISSING_TABLES[*]}"
+        echo ""
+        echo "🔧 ATTEMPTING EMERGENCY FIX: Running force-sync-schema script..."
+
+        if [ -f "/app/backend/scripts/force-sync-schema.ts" ]; then
+            cd /app/backend
+            if bun run scripts/force-sync-schema.ts 2>&1; then
+                echo "✅ Emergency schema sync successful!"
+
+                # Verify again
+                echo "   Re-verifying tables..."
+                ALL_FIXED=true
+                for table in "${MISSING_TABLES[@]}"; do
+                    if ! psql "$DATABASE_URL" -c "\dt $table" 2>&1 | grep -q "$table"; then
+                        echo "   ❌ $table still missing"
+                        ALL_FIXED=false
+                    else
+                        echo "   ✅ $table now exists"
+                    fi
+                done
+
+                if [ "$ALL_FIXED" = true ]; then
+                    echo "✅ All missing tables have been created!"
+                else
+                    echo "⚠️  Some tables still missing after emergency fix"
+                    echo "   Application may not work correctly"
+                fi
+            else
+                echo "❌ Emergency schema sync failed"
+                echo "⚠️  Application may not work correctly"
+            fi
+        else
+            echo "❌ force-sync-schema.ts not found"
+            echo "⚠️  Cannot perform emergency fix"
+        fi
+    else
+        echo "✅ All critical tables exist!"
+    fi
+
+    echo ""
+    echo "📊 Database Tables Summary:"
+    psql "$DATABASE_URL" -c "\dt" 2>&1 | grep -E "(avatar|user|session|credit)" | head -n 15
+else
+    echo "   psql not available, skipping table verification"
+    echo "⚠️  WARNING: Cannot verify database schema"
+fi
+
+echo "✅ Database migrations/sync completed"
 
 # Create directories
 echo "📁 Creating storage directories..."

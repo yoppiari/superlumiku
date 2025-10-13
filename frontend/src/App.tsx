@@ -13,6 +13,8 @@ import LoopingFlow from './apps/LoopingFlow'
 import VideoGenerator from './apps/VideoGenerator'
 import { PosterEditor } from './apps/PosterEditor'
 import AvatarGenerator from './apps/AvatarGenerator'
+import AvatarCreator from './apps/AvatarCreator'
+import PoseGenerator from './apps/PoseGenerator'
 import { setupSSOListeners, extractSSOFromURL } from './lib/sso'
 import { useAuthStore } from './stores/authStore'
 
@@ -52,6 +54,9 @@ function AppContent() {
       <Route path="/apps/video-generator/:projectId" element={<VideoGenerator />} />
       <Route path="/apps/poster-editor" element={<PosterEditor />} />
       <Route path="/apps/avatar-generator" element={<AvatarGenerator />} />
+      <Route path="/apps/avatar-creator" element={<AvatarCreator />} />
+      <Route path="/apps/avatar-creator/:projectId" element={<AvatarCreator />} />
+      <Route path="/apps/pose-generator" element={<PoseGenerator />} />
     </Routes>
   )
 }
