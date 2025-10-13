@@ -359,7 +359,6 @@ export default function AvatarCreator() {
         {/* Presets Gallery Modal */}
         {showPresetsModal && (
           <PresetsGalleryModal
-            projectId={currentProject.id}
             presets={presets}
             isLoading={isLoadingPresets}
             onClose={() => setShowPresetsModal(false)}
@@ -804,13 +803,11 @@ function GenerateAvatarModal({
 
 // ===== Presets Gallery Modal =====
 function PresetsGalleryModal({
-  projectId,
   presets,
   isLoading,
   onClose,
   onSelect,
 }: {
-  projectId: string
   presets: any[]
   isLoading: boolean
   onClose: () => void

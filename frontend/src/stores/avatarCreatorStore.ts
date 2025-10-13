@@ -114,7 +114,7 @@ interface AvatarCreatorState {
 
   // Generation tracking
   activeGenerations: Map<string, AvatarGeneration>
-  generationPollingIntervals: Map<string, NodeJS.Timeout>
+  generationPollingIntervals: Map<string, ReturnType<typeof setInterval>>
 
   // Presets
   presets: AvatarPreset[]
