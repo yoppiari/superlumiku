@@ -208,6 +208,81 @@ export const seedAIModels = async () => {
     },
 
     // ==========================================
+    // AVATAR CREATOR MODELS (FLUX.1-dev)
+    // ==========================================
+    {
+      appId: 'avatar-creator',
+      modelId: 'flux-dev-standard',
+      modelKey: 'avatar-creator:flux-dev-standard',
+      name: 'FLUX.1-dev Standard',
+      description: 'Text-to-image avatar generation with FLUX.1-dev + Realism LoRA',
+      provider: 'huggingface',
+      tier: 'free',
+      creditCost: 10,
+      creditPerPixel: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        model: 'black-forest-labs/FLUX.1-dev',
+        lora: 'realism',
+        quality: 'standard',
+        resolution: '512x512',
+        guidanceScale: 7.5,
+        processingTime: '~30-60s',
+        photoRealistic: true
+      }),
+      enabled: true,
+      beta: false
+    },
+    {
+      appId: 'avatar-creator',
+      modelId: 'flux-dev-hd',
+      modelKey: 'avatar-creator:flux-dev-hd',
+      name: 'FLUX.1-dev HD',
+      description: 'High resolution avatar generation (1024x1024) with enhanced details',
+      provider: 'huggingface',
+      tier: 'basic',
+      creditCost: 15,
+      creditPerPixel: null,
+      quotaCost: 2,
+      capabilities: JSON.stringify({
+        model: 'black-forest-labs/FLUX.1-dev',
+        lora: 'realism',
+        quality: 'hd',
+        resolution: '1024x1024',
+        guidanceScale: 7.5,
+        processingTime: '~45-90s',
+        photoRealistic: true,
+        enhancedDetails: true
+      }),
+      enabled: true,
+      beta: false
+    },
+    {
+      appId: 'avatar-creator',
+      modelId: 'flux-schnell-fast',
+      modelKey: 'avatar-creator:flux-schnell-fast',
+      name: 'FLUX.1-schnell Fast',
+      description: 'Rapid avatar generation with FLUX.1-schnell (5-10 seconds)',
+      provider: 'huggingface',
+      tier: 'pro',
+      creditCost: 8,
+      creditPerPixel: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        model: 'black-forest-labs/FLUX.1-schnell',
+        lora: 'realism',
+        quality: 'fast',
+        resolution: '512x512',
+        guidanceScale: 0,
+        processingTime: '~5-10s',
+        photoRealistic: true,
+        fastMode: true
+      }),
+      enabled: true,
+      beta: false
+    },
+
+    // ==========================================
     // AVATAR GENERATOR MODELS (Hugging Face)
     // ==========================================
     {
