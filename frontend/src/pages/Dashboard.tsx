@@ -78,6 +78,12 @@ export default function Dashboard() {
       navigate('/login')
       return
     }
+  }, [isAuthenticated, navigate])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
 
     const fetchDashboardData = async () => {
       try {
@@ -184,6 +190,11 @@ export default function Dashboard() {
 
   const handleNavigateToMyWork = () => {
     navigate('/my-work')
+  }
+
+  // Early return: Don't render dashboard if not authenticated
+  if (!isAuthenticated) {
+    return null
   }
 
   return (
