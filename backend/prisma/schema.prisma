@@ -35,6 +35,10 @@ model User {
   quotaUsages  QuotaUsage[] // NEW
   modelUsages  ModelUsage[] // NEW
 
+  @@index([role]) // Query users by role (admin dashboard)
+  @@index([accountType]) // Filter by account type
+  @@index([subscriptionTier]) // Filter by subscription tier
+  @@index([createdAt]) // Sort users by registration date
   @@map("users")
 }
 
@@ -49,6 +53,9 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId]) // FK index for joins and CASCADE deletes
+  @@index([expiresAt]) // Cleanup expired sessions efficiently
+  @@index([userId, expiresAt]) // Composite: find active sessions per user
   @@map("sessions")
 }
 
@@ -70,7 +77,9 @@ model Device {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, deviceId])
-  @@index([userId])
+  @@index([userId]) // FK index for joins
+  @@index([lastActive]) // Find inactive devices for cleanup
+  @@index([userId, lastActive]) // Composite: recently active devices per user
   @@map("devices")
 }
 
@@ -94,7 +103,12 @@ model Credit {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([userId]) // FK index for joins
+  @@index([userId, createdAt(sort: Desc)]) // Composite: credit history per user (most common query)
+  @@index([type]) // Filter transactions by type
+  @@index([referenceId, referenceType]) // Composite: find credits for specific generation
+  @@index([paymentId]) // Link credits to payments
+  @@index([createdAt]) // Time-based analytics
   @@map("credits")
 }
 
@@ -118,6 +132,11 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId]) // Find payments by user
+  @@index([status]) // Filter by payment status
+  @@index([userId, status]) // Composite: user's successful payments
+  @@index([createdAt]) // Sort by payment date
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user payment history
   @@map("payments")
 }
 
@@ -132,6 +151,7 @@ model ToolConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([enabled]) // Filter enabled tools
   @@map("tool_configs")
 }
 
@@ -184,9 +204,12 @@ model AppUsage {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([appId])
-  @@index([createdAt])
+  @@index([userId]) // FK index
+  @@index([appId]) // Filter by app
+  @@index([createdAt]) // Time-based analytics
+  @@index([userId, appId]) // Composite: user's usage per app
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent activity
+  @@index([appId, createdAt]) // Composite: app usage over time
   @@map("app_usages")
 }
 
@@ -206,7 +229,9 @@ model VideoMixerProject {
   videos      VideoMixerVideo[]
   generations VideoMixerGeneration[]
 
-  @@index([userId])
+  @@index([userId]) // Find user's projects
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent projects (most common query)
+  @@index([userId, updatedAt(sort: Desc)]) // Composite: recently modified projects
   @@map("video_mixer_projects")
 }
 
@@ -221,7 +246,8 @@ model VideoMixerGroup {
   project VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   videos  VideoMixerVideo[]
 
-  @@index([projectId])
+  @@index([projectId]) // FK index
+  @@index([projectId, order]) // Composite: ordered groups (common query)
   @@map("video_mixer_groups")
 }
 
@@ -241,8 +267,10 @@ model VideoMixerVideo {
   project VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   group   VideoMixerGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  @@index([projectId])
-  @@index([groupId])
+  @@index([projectId]) // FK index
+  @@index([groupId]) // FK index
+  @@index([projectId, order]) // Composite: ordered videos in project
+  @@index([groupId, order]) // Composite: ordered videos in group
   @@map("video_mixer_videos")
 }
 
@@ -289,9 +317,13 @@ model VideoMixerGeneration {
 
   project VideoMixerProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@index([projectId])
-  @@index([userId])
-  @@index([status])
+  @@index([projectId]) // FK index
+  @@index([userId]) // Find user's generations
+  @@index([status]) // Filter by status (pending, processing, completed, failed)
+  @@index([projectId, createdAt(sort: Desc)]) // Composite: project's recent generations
+  @@index([userId, status]) // Composite: user's pending/completed generations
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent generations
+  @@index([status, createdAt]) // Composite: process pending jobs in order
   @@map("video_mixer_generations")
 }
 
@@ -313,7 +345,9 @@ model CarouselProject {
   generations      CarouselGeneration[]
   positionSettings CarouselPositionSettings[]
 
-  @@index([userId])
+  @@index([userId]) // Find user's projects
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent projects
+  @@index([userId, updatedAt(sort: Desc)]) // Composite: recently modified projects
   @@map("carousel_projects")
 }
 
@@ -411,9 +445,13 @@ model CarouselGeneration {
 
   project CarouselProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@index([projectId])
-  @@index([userId])
-  @@index([status])
+  @@index([projectId]) // FK index
+  @@index([userId]) // Find user's generations
+  @@index([status]) // Filter by status
+  @@index([projectId, createdAt(sort: Desc)]) // Composite: project's recent generations
+  @@index([userId, status]) // Composite: user's pending/completed generations
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent generations
+  @@index([status, createdAt]) // Composite: process pending jobs in order
   @@map("carousel_generations")
 }
 
@@ -432,7 +470,9 @@ model LoopingFlowProject {
   videos      LoopingFlowVideo[]
   generations LoopingFlowGeneration[]
 
-  @@index([userId])
+  @@index([userId]) // Find user's projects
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent projects
+  @@index([userId, updatedAt(sort: Desc)]) // Composite: recently modified projects
   @@map("looping_flow_projects")
 }
 
@@ -481,9 +521,14 @@ model LoopingFlowGeneration {
   project         LoopingFlowProject      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   audioLayerFiles LoopingFlowAudioLayer[]
 
-  @@index([projectId])
-  @@index([userId])
-  @@index([status])
+  @@index([projectId]) // FK index
+  @@index([userId]) // Find user's generations
+  @@index([status]) // Filter by status
+  @@index([videoId]) // Find generations for specific video
+  @@index([projectId, createdAt(sort: Desc)]) // Composite: project's recent generations
+  @@index([userId, status]) // Composite: user's pending/completed generations
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent generations
+  @@index([status, createdAt]) // Composite: process pending jobs in order
   @@map("looping_flow_generations")
 }
 
@@ -628,8 +673,12 @@ model Subscription {
   user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan SubscriptionPlan @relation(fields: [planId], references: [id])
 
-  @@index([status])
-  @@index([endDate])
+  @@index([planId]) // FK index for joins
+  @@index([status]) // Filter by status
+  @@index([endDate]) // Find expiring subscriptions
+  @@index([status, endDate]) // Composite: active subscriptions expiring soon
+  @@index([nextBillingDate]) // Find subscriptions due for renewal
+  @@index([autoRenew, endDate]) // Composite: auto-renewable expiring subscriptions
   @@map("subscriptions")
 }
 
@@ -685,10 +734,16 @@ model ModelUsage {
   user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   model AIModel @relation(fields: [modelKey], references: [modelKey], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([appId])
-  @@index([modelKey])
-  @@index([createdAt])
+  @@index([userId]) // FK index
+  @@index([appId]) // Filter by app
+  @@index([modelKey]) // FK index and filter by model
+  @@index([createdAt]) // Time-based analytics
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent usage
+  @@index([appId, createdAt]) // Composite: app usage over time
+  @@index([modelKey, createdAt]) // Composite: model usage over time
+  @@index([userId, appId]) // Composite: user's usage per app
+  @@index([userId, modelKey]) // Composite: user's usage per model
+  @@index([usageType]) // Filter by PAYG vs Subscription
   @@map("model_usages")
 }
 
@@ -706,7 +761,9 @@ model AvatarProject {
 
   avatars Avatar[]
 
-  @@index([userId])
+  @@index([userId]) // Find user's projects
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent projects
+  @@index([userId, updatedAt(sort: Desc)]) // Composite: recently modified projects
   @@map("avatar_projects")
 }
 
@@ -752,8 +809,12 @@ model Avatar {
   project      AvatarProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   usageHistory AvatarUsageHistory[]
 
-  @@index([userId])
-  @@index([projectId])
+  @@index([userId]) // Find user's avatars
+  @@index([projectId]) // FK index
+  @@index([sourceType]) // Filter by generation type
+  @@index([userId, usageCount(sort: Desc)]) // Composite: user's most used avatars
+  @@index([userId, lastUsedAt(sort: Desc)]) // Composite: user's recently used avatars
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent avatars
   @@map("avatars")
 }
 
@@ -771,7 +832,10 @@ model AvatarPreset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([category])
+  @@index([category]) // Filter by category
+  @@index([isPublic]) // Filter public presets
+  @@index([category, isPublic]) // Composite: public presets by category
+  @@index([usageCount(sort: Desc)]) // Sort by popularity
   @@map("avatar_presets")
 }
 
@@ -794,7 +858,9 @@ model PersonaExample {
 
   createdAt DateTime @default(now())
 
-  @@index([category])
+  @@index([category]) // Filter by category
+  @@index([isActive]) // Filter active examples
+  @@index([category, isActive, displayOrder]) // Composite: active examples by category, ordered
   @@map("persona_examples")
 }
 
@@ -813,9 +879,13 @@ model AvatarUsageHistory {
 
   avatar Avatar @relation(fields: [avatarId], references: [id], onDelete: Cascade)
 
-  @@index([avatarId])
-  @@index([userId])
-  @@index([appId])
+  @@index([avatarId]) // FK index
+  @@index([userId]) // Find user's usage
+  @@index([appId]) // Filter by app
+  @@index([avatarId, createdAt(sort: Desc)]) // Composite: avatar usage history
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent avatar usage
+  @@index([appId, createdAt]) // Composite: app's avatar usage over time
+  @@index([referenceId, referenceType]) // Composite: find usage for specific reference
   @@map("avatar_usage_history")
 }
 
@@ -832,7 +902,13 @@ model AvatarGeneration {
   createdAt   DateTime  @default(now())
   completedAt DateTime?
 
-  @@index([userId])
-  @@index([status])
+  @@index([userId]) // Find user's generations
+  @@index([status]) // Filter by status
+  @@index([projectId]) // Find generations for project
+  @@index([avatarId]) // Link to created avatar
+  @@index([userId, status]) // Composite: user's pending/completed generations
+  @@index([userId, createdAt(sort: Desc)]) // Composite: user's recent generations
+  @@index([status, createdAt]) // Composite: process pending jobs in order
+  @@index([projectId, createdAt(sort: Desc)]) // Composite: project's recent generations
   @@map("avatar_generations")
 }
