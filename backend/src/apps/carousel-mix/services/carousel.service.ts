@@ -96,8 +96,16 @@ export class CarouselService {
   }
 
   async deleteSlide(slideId: string, userId: string) {
-    const slide = await repo.findSlidesByProjectId('') // We need to get slide first
-    // TODO: Add proper authorization check
+    // Get slide with project information to verify ownership
+    const slide = await repo.findSlideById(slideId)
+
+    if (!slide) {
+      throw new Error('Slide not found')
+    }
+
+    // Verify the project belongs to the user
+    await this.getProjectById(slide.projectId, userId)
+
     return repo.deleteSlide(slideId)
   }
 
@@ -152,7 +160,15 @@ export class CarouselService {
       order: number
     }>
   ) {
-    // TODO: Add proper authorization check
+    // Get text with project information to verify ownership
+    const text = await repo.findTextById(textId)
+
+    if (!text) {
+      throw new Error('Text not found')
+    }
+
+    // Verify the project belongs to the user
+    await this.getProjectById(text.projectId, userId)
 
     // Only content and order can be updated - styling is at position level
     const textData: any = {}
@@ -169,7 +185,16 @@ export class CarouselService {
   }
 
   async deleteText(textId: string, userId: string) {
-    // TODO: Add proper authorization check
+    // Get text with project information to verify ownership
+    const text = await repo.findTextById(textId)
+
+    if (!text) {
+      throw new Error('Text not found')
+    }
+
+    // Verify the project belongs to the user
+    await this.getProjectById(text.projectId, userId)
+
     return repo.deleteText(textId)
   }
 

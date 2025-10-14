@@ -108,6 +108,23 @@ export class CarouselRepository {
     })
   }
 
+  async findSlideById(id: string) {
+    return prisma.carouselSlide.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        projectId: true,
+        fileName: true,
+        filePath: true,
+        fileType: true,
+        fileSize: true,
+        slidePosition: true,
+        order: true,
+        createdAt: true,
+      },
+    })
+  }
+
   async deleteSlide(id: string) {
     return prisma.carouselSlide.delete({
       where: { id },
@@ -142,6 +159,20 @@ export class CarouselRepository {
     return prisma.carouselText.findMany({
       where: { projectId },
       orderBy: { order: 'asc' },
+    })
+  }
+
+  async findTextById(id: string) {
+    return prisma.carouselText.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        projectId: true,
+        content: true,
+        slidePosition: true,
+        order: true,
+        createdAt: true,
+      },
     })
   }
 

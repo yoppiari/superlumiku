@@ -8,6 +8,7 @@ import { saveFile, checkStorageQuota, updateUserStorage, deleteFile } from '../.
 import { getVideoDuration } from '../../lib/video-utils'
 import { addVideoMixerJob } from '../../lib/queue'
 import { z } from 'zod'
+import { videoMixerGenerationLimiter, fileUploadLimiter, fileDownloadLimiter } from '../../config/rate-limit-endpoints.config'
 
 const routes = new Hono<{ Variables: AuthVariables }>()
 const service = new VideoMixerService()
@@ -155,7 +156,7 @@ routes.delete('/groups/:id', authMiddleware, async (c) => {
 })
 
 // ===== Videos =====
-routes.post('/videos/upload', authMiddleware, async (c) => {
+routes.post('/videos/upload', authMiddleware, fileUploadLimiter, async (c) => {
   try {
     const userId = c.get('userId')
     const formData = await c.req.formData()
@@ -282,6 +283,7 @@ routes.post('/estimate', authMiddleware, async (c) => {
 routes.post(
   '/generate',
   authMiddleware,
+  videoMixerGenerationLimiter,
   async (c, next) => {
     try {
       const userId = c.get('userId')
@@ -357,7 +359,7 @@ routes.get('/projects/:projectId/generations', authMiddleware, async (c) => {
 })
 
 // Download route
-routes.get('/download/:generationId/:fileIndex', authMiddleware, async (c) => {
+routes.get('/download/:generationId/:fileIndex', authMiddleware, fileDownloadLimiter, async (c) => {
   try {
     const userId = c.get('userId')
     const generationId = c.req.param('generationId')
@@ -401,7 +403,7 @@ routes.get('/download/:generationId/:fileIndex', authMiddleware, async (c) => {
 })
 
 // Download all as ZIP
-routes.get('/download-all/:generationId', authMiddleware, async (c) => {
+routes.get('/download-all/:generationId', authMiddleware, fileDownloadLimiter, async (c) => {
   try {
     const userId = c.get('userId')
     const generationId = c.req.param('generationId')

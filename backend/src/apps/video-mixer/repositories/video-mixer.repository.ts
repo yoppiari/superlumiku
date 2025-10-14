@@ -89,6 +89,19 @@ export class VideoMixerRepository {
     })
   }
 
+  async findGroupById(groupId: string) {
+    return await prisma.videoMixerGroup.findUnique({
+      where: { id: groupId },
+      select: {
+        id: true,
+        projectId: true,
+        name: true,
+        order: true,
+        createdAt: true,
+      },
+    })
+  }
+
   async updateGroup(groupId: string, data: { name?: string; order?: number }) {
     return await prisma.videoMixerGroup.update({
       where: { id: groupId },

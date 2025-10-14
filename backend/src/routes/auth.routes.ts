@@ -1,10 +1,20 @@
 import { Hono } from 'hono'
 import { AuthService } from '../services/auth.service'
 import { authMiddleware } from '../middleware/auth.middleware'
+import { rateLimiter, accountRateLimiter } from '../middleware/rate-limiter.middleware'
+import { authRateLimits } from '../config/rate-limit.config'
 import { z } from 'zod'
 
 const authRoutes = new Hono()
 const authService = new AuthService()
+
+// Create rate limiters for authentication endpoints
+// Multi-tiered approach: IP-based + Account-based + Global
+const globalAuthLimiter = rateLimiter(authRateLimits.global)
+const loginIpLimiter = rateLimiter(authRateLimits.login)
+const loginAccountLimiter = accountRateLimiter('Too many failed login attempts for this account. Please try again later.')
+const registerLimiter = rateLimiter(authRateLimits.register)
+const profileUpdateLimiter = rateLimiter(authRateLimits.profileUpdate)
 
 // Validation schemas
 const registerSchema = z.object({
@@ -25,8 +35,8 @@ const updateProfileSchema = z.object({
   newPassword: z.string().min(8).optional(),
 })
 
-// Register
-authRoutes.post('/register', async (c) => {
+// Register - IP-based rate limiting (3 per hour)
+authRoutes.post('/register', globalAuthLimiter, registerLimiter, async (c) => {
   try {
     const body = await c.req.json()
     const validated = registerSchema.parse(body)
@@ -45,8 +55,11 @@ authRoutes.post('/register', async (c) => {
   }
 })
 
-// Login
-authRoutes.post('/login', async (c) => {
+// Login - Multi-tiered rate limiting
+// 1. Global auth rate limit (prevents system DoS)
+// 2. IP-based rate limit (5 per 15 min per IP)
+// 3. Account-based rate limit (5 per 15 min per email, lockout after 10 in 1 hour)
+authRoutes.post('/login', globalAuthLimiter, loginIpLimiter, loginAccountLimiter, async (c) => {
   try {
     const body = await c.req.json()
     const validated = loginSchema.parse(body)
@@ -78,7 +91,7 @@ authRoutes.get('/profile', authMiddleware, async (c) => {
 })
 
 // Update profile (protected)
-authRoutes.put('/profile', authMiddleware, async (c) => {
+authRoutes.put('/profile', authMiddleware, profileUpdateLimiter, async (c) => {
   try {
     const userId = c.get('userId')
     const body = await c.req.json()

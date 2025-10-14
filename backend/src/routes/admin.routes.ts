@@ -1,14 +1,17 @@
 import { Hono } from 'hono'
 import prisma from '../db/client'
 import bcrypt from 'bcryptjs'
+import { authMiddleware } from '../middleware/auth.middleware'
+import { adminSeedModelsLimiter } from '../config/rate-limit-endpoints.config'
 
 const app = new Hono()
 
 /**
  * POST /api/admin/seed-models
  * Seed AI models to database (admin only)
+ * SECURITY: Protected with authentication and rate limiting
  */
-app.post('/seed-models', async (c) => {
+app.post('/seed-models', authMiddleware, adminSeedModelsLimiter, async (c) => {
   try {
     console.log('🌱 Starting AI models seeding...')
 
@@ -74,64 +77,9 @@ app.post('/seed-models', async (c) => {
 })
 
 /**
- * POST /api/admin/update-enterprise-passwords
- * Update passwords for 4 enterprise users
+ * SECURITY NOTE: Password management endpoint removed.
+ * Passwords should be reset through secure user-initiated flows only.
+ * Never hardcode credentials or expose them in API responses.
  */
-app.post('/update-enterprise-passwords', async (c) => {
-  try {
-    console.log('🔐 Updating enterprise user passwords...')
-
-    const userUpdates = [
-      { email: 'ardianfaisal.id@gmail.com', newPassword: 'Ardian2025' },
-      { email: 'iqbal.elvo@gmail.com', newPassword: 'Iqbal2025' },
-      { email: 'galuh.inteko@gmail.com', newPassword: 'Galuh2025' },
-      { email: 'dilla.inteko@gmail.com', newPassword: 'Dilla2025' }
-    ]
-
-    const results = []
-
-    for (const update of userUpdates) {
-      const hashedPassword = await bcrypt.hash(update.newPassword, 10)
-
-      const user = await prisma.user.update({
-        where: { email: update.email },
-        data: { password: hashedPassword },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          credits: true
-        }
-      })
-
-      results.push({
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        credits: user.credits,
-        passwordUpdated: true
-      })
-
-      console.log(`✅ Updated password for: ${user.email}`)
-    }
-
-    return c.json({
-      success: true,
-      message: 'Enterprise user passwords updated successfully',
-      users: results,
-      credentials: userUpdates.map(u => ({
-        email: u.email,
-        password: u.newPassword
-      }))
-    })
-  } catch (error: any) {
-    console.error('❌ Password update error:', error)
-    return c.json({
-      success: false,
-      error: error.message
-    }, 500)
-  }
-})
 
 export default app
