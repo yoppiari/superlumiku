@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import ProfileDropdown from '../components/ProfileDropdown'
 import CreateProjectModal from '../components/CreateProjectModal'
 import UsageHistoryModal from '../components/UsageHistoryModal'
-import { UserCircle, Plus, ArrowLeft, Coins, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar } from 'lucide-react'
+import { UserCircle, Plus, ArrowLeft, Coins, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar, Grid } from 'lucide-react'
 
 export default function AvatarCreator() {
   const navigate = useNavigate()
@@ -26,11 +26,17 @@ export default function AvatarCreator() {
     deleteAvatar,
     isUploading,
     isGenerating,
+    activeGenerations,
+    loadPresets,
+    createAvatarFromPreset,
+    presets,
+    isLoadingPresets,
   } = useAvatarCreatorStore()
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [showPresetsModal, setShowPresetsModal] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null)
 
@@ -149,7 +155,17 @@ export default function AvatarCreator() {
 
         {/* Action Buttons */}
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-6">
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={() => {
+                loadPresets()
+                setShowPresetsModal(true)
+              }}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2 shadow-lg transition"
+            >
+              <Grid className="w-5 h-5" />
+              Browse Presets
+            </button>
             <button
               onClick={() => setShowUploadModal(true)}
               className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 shadow-lg transition"
@@ -166,6 +182,52 @@ export default function AvatarCreator() {
             </button>
           </div>
         </div>
+
+        {/* Active Generations */}
+        {Array.from(activeGenerations.values()).filter(g => g.projectId === currentProject.id).length > 0 && (
+          <div className="max-w-7xl mx-auto px-6 md:px-10 pb-6">
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 p-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                Generating Avatars
+              </h2>
+              <div className="space-y-3">
+                {Array.from(activeGenerations.values())
+                  .filter(g => g.projectId === currentProject.id)
+                  .map((generation) => (
+                    <div key={generation.id} className="bg-white rounded-lg p-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-900 mb-1">
+                            {generation.prompt.substring(0, 60)}{generation.prompt.length > 60 ? '...' : ''}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              generation.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              generation.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                              generation.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {generation.status === 'pending' && 'Waiting...'}
+                              {generation.status === 'processing' && 'Generating...'}
+                              {generation.status === 'completed' && 'Completed'}
+                              {generation.status === 'failed' && 'Failed'}
+                            </span>
+                            {generation.errorMessage && (
+                              <span className="text-xs text-red-600">{generation.errorMessage}</span>
+                            )}
+                          </div>
+                        </div>
+                        {(generation.status === 'pending' || generation.status === 'processing') && (
+                          <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Avatars Grid */}
         <div className="max-w-7xl mx-auto px-6 md:px-10 pb-8">
@@ -192,7 +254,7 @@ export default function AvatarCreator() {
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="font-semibold text-slate-900 flex-1">{avatar.name}</h3>
-                        {avatar.sourceType === 'ai_generated' && (
+                        {avatar.sourceType === 'text_to_image' && (
                           <span title="AI Generated">
                             <Sparkles className="w-4 h-4 text-purple-500 flex-shrink-0 ml-2" />
                           </span>
@@ -291,6 +353,20 @@ export default function AvatarCreator() {
             onClose={() => setShowGenerateModal(false)}
             onGenerate={generateAvatar}
             isGenerating={isGenerating}
+          />
+        )}
+
+        {/* Presets Gallery Modal */}
+        {showPresetsModal && (
+          <PresetsGalleryModal
+            presets={presets}
+            isLoading={isLoadingPresets}
+            onClose={() => setShowPresetsModal(false)}
+            onSelect={async (presetId, customName) => {
+              await createAvatarFromPreset(currentProject.id, presetId, customName)
+              alert('Avatar generation from preset started! It will appear in 30-60 seconds.')
+              setShowPresetsModal(false)
+            }}
           />
         )}
 
@@ -607,10 +683,10 @@ function GenerateAvatarModal({
         ageRange: formData.ageRange,
         style: formData.style,
       })
-      alert('Avatar generated successfully!')
+      alert('Avatar generation started! It will appear in 30-60 seconds.')
       onClose()
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to generate avatar')
+      alert(error.response?.data?.error || 'Failed to start generation')
     }
   }
 
@@ -618,7 +694,10 @@ function GenerateAvatarModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Generate Avatar with AI</h2>
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-purple-600" />
+            Generate Avatar with AI
+          </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -716,6 +795,136 @@ function GenerateAvatarModal({
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ===== Presets Gallery Modal =====
+function PresetsGalleryModal({
+  presets,
+  isLoading,
+  onClose,
+  onSelect,
+}: {
+  presets: any[]
+  isLoading: boolean
+  onClose: () => void
+  onSelect: (presetId: string, customName?: string) => Promise<void>
+}) {
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null)
+  const [customName, setCustomName] = useState('')
+
+  const categories = ['all', 'professional', 'casual', 'sports', 'fashion', 'traditional']
+
+  const filteredPresets = selectedCategory === 'all'
+    ? presets
+    : presets.filter(p => p.category === selectedCategory)
+
+  const handleSelect = async () => {
+    if (!selectedPresetId) {
+      alert('Please select a preset')
+      return
+    }
+
+    try {
+      await onSelect(selectedPresetId, customName || undefined)
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to create avatar from preset')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Grid className="w-6 h-6 text-blue-600" />
+              Browse Preset Avatars
+            </h2>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition">✕</button>
+          </div>
+
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-lg transition whitespace-nowrap ${
+                  selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {isLoading && (
+            <div className="text-center py-16">
+              <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-slate-600">Loading presets...</p>
+            </div>
+          )}
+
+          {!isLoading && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+              {filteredPresets.map((preset) => (
+                <div
+                  key={preset.id}
+                  onClick={() => {
+                    setSelectedPresetId(preset.id)
+                    setCustomName(preset.name)
+                  }}
+                  className={`cursor-pointer rounded-lg overflow-hidden border-2 transition ${
+                    selectedPresetId === preset.id ? 'border-blue-600 shadow-lg' : 'border-slate-200 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative">
+                    <UserCircle className="w-16 h-16 text-slate-400" />
+                    <span className="absolute bottom-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded">Placeholder</span>
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-semibold text-sm text-slate-900 mb-1">{preset.name}</h3>
+                    <p className="text-xs text-slate-600 line-clamp-2">{preset.description}</p>
+                    <span className="inline-block mt-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">{preset.category}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && filteredPresets.length === 0 && (
+            <div className="text-center py-16">
+              <UserCircle className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-600">No presets found in this category</p>
+            </div>
+          )}
+
+          {selectedPresetId && (
+            <div className="border-t border-slate-200 pt-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Custom Name (Optional)</label>
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Leave empty to use preset name"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={handleSelect} className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition flex items-center justify-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  Generate from Preset
+                </button>
+                <button onClick={onClose} className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition">Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

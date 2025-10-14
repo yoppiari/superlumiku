@@ -1,5 +1,14 @@
 import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
+import { timingSafeEqual } from 'crypto'
+import { securityLogger, getClientIP } from '../lib/security-logger'
+import {
+  PaymentVerificationError,
+  InvalidSignatureError,
+  PaymentNotFoundError,
+  PaymentCreationError,
+} from '../errors/PaymentError'
+import { env } from '../config/env'
 
 const prisma = new PrismaClient()
 
@@ -23,6 +32,23 @@ interface DuitkuCreatePaymentResponse {
   qrString?: string
 }
 
+interface DuitkuCallbackData {
+  merchantOrderId: string
+  reference: string
+  amount: number | string
+  merchantCode: string
+  signature: string
+  resultCode: string
+  statusCode?: string
+  statusMessage?: string
+  paymentMethod?: string
+  [key: string]: any
+}
+
+// In-memory storage for idempotency tracking (replace with Redis in production)
+// Maps merchantOrderId to signature hash for detecting duplicate callbacks
+const callbackIdempotencyStore = new Map<string, string>()
+
 export class PaymentService {
   private merchantCode: string
   private apiKey: string
@@ -31,14 +57,16 @@ export class PaymentService {
   private returnUrl: string
 
   constructor() {
-    this.merchantCode = process.env.DUITKU_MERCHANT_CODE || ''
-    this.apiKey = process.env.DUITKU_API_KEY || ''
-    this.callbackUrl = process.env.DUITKU_CALLBACK_URL || ''
-    this.returnUrl = process.env.DUITKU_RETURN_URL || ''
+    // Use centralized env config (validated at startup)
+    // No more direct process.env access - all values validated by Zod!
+    this.merchantCode = env.DUITKU_MERCHANT_CODE
+    this.apiKey = env.DUITKU_API_KEY
+    this.callbackUrl = env.DUITKU_CALLBACK_URL
+    this.returnUrl = env.DUITKU_RETURN_URL
 
-    // Use sandbox or production based on environment
-    this.baseUrl = process.env.DUITKU_ENV === 'production'
-      ? 'https://passport.duitku.com'
+    // Use validated base URL, with sandbox fallback based on DUITKU_ENV
+    this.baseUrl = env.DUITKU_ENV === 'production'
+      ? env.DUITKU_BASE_URL
       : 'https://sandbox.duitku.com'
   }
 
@@ -142,9 +170,107 @@ export class PaymentService {
   }
 
   /**
-   * Handle payment callback from Duitku
+   * Verify callback signature using timing-safe comparison
+   *
+   * SECURITY CRITICAL:
+   * - Uses correct Duitku signature formula: MD5(merchantCode + amount + merchantOrderId + apiKey)
+   * - Uses timing-safe comparison to prevent timing attacks
+   * - Logs all verification failures for fraud detection
+   *
+   * @throws {InvalidSignatureError} if signature doesn't match
    */
-  async handleCallback(callbackData: any) {
+  private verifyCallbackSignature(callbackData: DuitkuCallbackData): void {
+    const { merchantOrderId, amount, merchantCode, signature: callbackSignature } = callbackData
+
+    // Normalize amount to number
+    const normalizedAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+
+    // CRITICAL FIX: Use correct Duitku signature formula
+    // OLD (WRONG): MD5(merchantCode + amount + merchantCode + reference)
+    // NEW (CORRECT): MD5(merchantCode + amount + merchantOrderId + apiKey)
+    const signatureString = `${merchantCode}${normalizedAmount}${merchantOrderId}${this.apiKey}`
+
+    const expectedSignature = crypto
+      .createHash('md5')
+      .update(signatureString)
+      .digest('hex')
+
+    // Convert signatures to buffers for timing-safe comparison
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+    const receivedBuffer = Buffer.from(callbackSignature, 'hex')
+
+    // Length check first (fast fail for obviously wrong signatures)
+    if (expectedBuffer.length !== receivedBuffer.length) {
+      securityLogger.logInvalidSignature({
+        merchantOrderId,
+        amount: normalizedAmount,
+        receivedSignature: callbackSignature,
+      })
+      throw new InvalidSignatureError({
+        merchantOrderId,
+        amount: normalizedAmount,
+      })
+    }
+
+    // Timing-safe comparison (constant-time to prevent timing attacks)
+    if (!timingSafeEqual(expectedBuffer, receivedBuffer)) {
+      securityLogger.logInvalidSignature({
+        merchantOrderId,
+        amount: normalizedAmount,
+        receivedSignature: callbackSignature,
+      })
+      throw new InvalidSignatureError({
+        merchantOrderId,
+        amount: normalizedAmount,
+      })
+    }
+
+    // Signature verified successfully
+  }
+
+  /**
+   * Check for duplicate callbacks (idempotency)
+   *
+   * Prevents replay attacks by ensuring each callback is processed only once.
+   * Uses in-memory storage (replace with Redis in production for multi-instance deployments).
+   *
+   * @throws {DuplicateCallbackError} if callback already processed
+   */
+  private checkIdempotency(callbackData: DuitkuCallbackData): void {
+    const { merchantOrderId, signature } = callbackData
+
+    // Check if we've seen this callback before
+    const existingSignature = callbackIdempotencyStore.get(merchantOrderId)
+
+    if (existingSignature === signature) {
+      securityLogger.logDuplicateCallback({ merchantOrderId })
+      throw new PaymentVerificationError('Duplicate callback detected', {
+        merchantOrderId,
+      })
+    }
+
+    // Store this callback signature (expires in 24 hours in production with Redis)
+    callbackIdempotencyStore.set(merchantOrderId, signature)
+
+    // Clean up old entries to prevent memory leak (basic implementation)
+    // In production, use Redis with TTL instead
+    if (callbackIdempotencyStore.size > 10000) {
+      const keysToDelete = Array.from(callbackIdempotencyStore.keys()).slice(0, 1000)
+      keysToDelete.forEach((key) => callbackIdempotencyStore.delete(key))
+    }
+  }
+
+  /**
+   * Handle payment callback from Duitku
+   *
+   * SECURITY LAYERS:
+   * 1. IP whitelist (middleware)
+   * 2. Rate limiting (middleware)
+   * 3. Signature verification (timing-safe)
+   * 4. Idempotency check (replay attack prevention)
+   * 5. Audit logging (all events logged)
+   */
+  async handleCallback(callbackData: DuitkuCallbackData, clientIP?: string) {
     try {
       const {
         merchantOrderId,
@@ -155,15 +281,11 @@ export class PaymentService {
         signature: callbackSignature,
       } = callbackData
 
-      // Verify signature
-      const expectedSignature = crypto
-        .createHash('md5')
-        .update(`${this.merchantCode}${amount}${this.merchantCode}${reference}`)
-        .digest('hex')
+      // SECURITY LAYER 3: Verify signature (timing-safe)
+      this.verifyCallbackSignature(callbackData)
 
-      if (callbackSignature !== expectedSignature) {
-        throw new Error('Invalid callback signature')
-      }
+      // SECURITY LAYER 4: Check for duplicate callbacks (replay attack prevention)
+      this.checkIdempotency(callbackData)
 
       // Find payment record
       const payment = await prisma.payment.findUnique({
@@ -171,7 +293,30 @@ export class PaymentService {
       })
 
       if (!payment) {
-        throw new Error('Payment not found')
+        securityLogger.logPaymentNotFound({ merchantOrderId, ip: clientIP })
+        throw new PaymentNotFoundError(merchantOrderId)
+      }
+
+      // Normalize amount for comparison
+      const normalizedAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+
+      // Verify amount matches (prevent amount tampering)
+      if (Math.abs(payment.amount - normalizedAmount) > 0.01) {
+        securityLogger.logPaymentFailure({
+          reason: 'Amount mismatch',
+          merchantOrderId,
+          amount: normalizedAmount,
+          ip: clientIP,
+          metadata: {
+            expectedAmount: payment.amount,
+            receivedAmount: normalizedAmount,
+          },
+        })
+        throw new PaymentVerificationError('Amount mismatch', {
+          merchantOrderId,
+          expectedAmount: payment.amount,
+          receivedAmount: normalizedAmount,
+        })
       }
 
       // Update payment status based on callback
@@ -184,7 +329,7 @@ export class PaymentService {
         newStatus = 'failed'
       }
 
-      // Update payment record
+      // Update payment record with callback data
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -192,7 +337,11 @@ export class PaymentService {
           paymentMethod: callbackData.paymentMethod || payment.paymentMethod,
           duitkuData: JSON.stringify({
             ...JSON.parse(payment.duitkuData || '{}'),
-            callback: callbackData,
+            callback: {
+              ...callbackData,
+              receivedAt: new Date().toISOString(),
+              clientIP,
+            },
           }),
         },
       })
@@ -200,12 +349,43 @@ export class PaymentService {
       // If payment successful, add credits to user
       if (newStatus === 'success') {
         await this.addCreditsToUser(payment.userId, payment.creditAmount, payment.id)
+
+        // Log successful payment
+        securityLogger.logPaymentSuccess({
+          merchantOrderId,
+          amount: normalizedAmount,
+          ip: clientIP,
+          userId: payment.userId,
+        })
       }
 
-      return { success: true, status: newStatus }
+      return {
+        success: true,
+        status: newStatus,
+        merchantOrderId,
+        amount: normalizedAmount,
+      }
     } catch (error: any) {
-      console.error('Callback handling error:', error)
-      throw new Error(error.message || 'Failed to handle callback')
+      // Re-throw payment errors (already logged)
+      if (
+        error instanceof PaymentVerificationError ||
+        error instanceof PaymentNotFoundError
+      ) {
+        throw error
+      }
+
+      // Log unexpected errors
+      console.error('[PAYMENT] Unexpected callback handling error:', error)
+      securityLogger.logPaymentFailure({
+        reason: 'Unexpected error',
+        metadata: { error: error.message, stack: error.stack },
+        ip: clientIP,
+      })
+
+      throw new PaymentVerificationError(
+        'Failed to process payment callback',
+        { originalError: error.message }
+      )
     }
   }
 

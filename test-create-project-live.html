@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Create Project - Live Production</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px 10px 0;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #17a2b8;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        .response {
+            margin-top: 20px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-success { background: #28a745; color: white; }
+        .status-error { background: #dc3545; color: white; }
+        .instructions {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Create Project - Production</h1>
+
+        <div class="instructions">
+            <strong>📋 How to get your auth token:</strong>
+            <ol>
+                <li>Open <a href="https://dev.lumiku.com" target="_blank">dev.lumiku.com</a></li>
+                <li>Login to your account</li>
+                <li>Press <kbd>F12</kbd> to open Developer Tools</li>
+                <li>Go to <strong>Console</strong> tab</li>
+                <li>Type: <code>localStorage.getItem('token')</code></li>
+                <li>Copy the token (without quotes)</li>
+                <li>Paste it below</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h3>🔐 Authentication</h3>
+            <label>Auth Token:</label>
+            <input type="text" id="token" placeholder="Paste your auth token here" />
+            <button onclick="testAuth()">Test Auth</button>
+        </div>
+
+        <div class="section">
+            <h3>📝 Create Project</h3>
+            <label>Project Name:</label>
+            <input type="text" id="name" value="Test Production Fix" />
+
+            <label>Description (optional):</label>
+            <textarea id="description" rows="3">Testing the create project fix in production</textarea>
+
+            <button onclick="createProject()">🚀 Create Project</button>
+            <button onclick="testHealthCheck()">💚 Test Health</button>
+            <button onclick="testDatabaseHealth()">🗄️ Test Database</button>
+        </div>
+
+        <div id="result" class="response"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://dev.lumiku.com/api/apps/avatar-creator';
+
+        async function getToken() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                showError('Please enter your auth token first!');
+                return null;
+            }
+            return token;
+        }
+
+        async function testAuth() {
+            const token = await getToken();
+            if (!token) return;
+
+            showInfo('🔍 Testing authentication...');
+
+            try {
+                const response = await fetch(`${API_BASE}/projects`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(`✅ Authentication successful! Found ${data.projects?.length || 0} projects.`);
+                    showResponse(response.status, data);
+                } else {
+                    showError(`❌ Authentication failed: ${data.error || 'Unknown error'}`);
+                    showResponse(response.status, data);
+                }
+            } catch (error) {
+                showError(`❌ Network error: ${error.message}`);
+            }
+        }
+
+        async function createProject() {
+            const token = await getToken();
+            if (!token) return;
+
+            const name = document.getElementById('name').value.trim();
+            const description = document.getElementById('description').value.trim();
+
+            if (!name) {
+                showError('Please enter a project name!');
+                return;
+            }
+
+            showInfo('🚀 Creating project...');
+
+            try {
+                // Trim token to remove any whitespace
+                const cleanToken = token.trim();
+
+                const response = await fetch(`${API_BASE}/projects`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${cleanToken}`,
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        description: description || undefined
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(`✅ SUCCESS! Project created: ${data.project?.name}`);
+                    showResponse(response.status, data);
+
+                    // Show project details
+                    if (data.project) {
+                        const details = `
+                            <div class="info">
+                                <strong>Project Details:</strong><br>
+                                ID: ${data.project.id}<br>
+                                Name: ${data.project.name}<br>
+                                Description: ${data.project.description || 'N/A'}<br>
+                                Created: ${new Date(data.project.createdAt).toLocaleString()}
+                            </div>
+                        `;
+                        document.getElementById('result').innerHTML += details;
+                    }
+                } else {
+                    showError(`❌ FAILED! Error: ${data.error || 'Unknown error'}`);
+                    showResponse(response.status, data);
+
+                    // Show helpful debugging info
+                    const debug = `
+                        <div class="info">
+                            <strong>🔍 Debug Info:</strong><br>
+                            Status Code: ${response.status}<br>
+                            Error Type: ${data.error || 'Unknown'}<br>
+                            ${data.code ? `Error Code: ${data.code}<br>` : ''}
+                            ${data.details ? `Details: ${JSON.stringify(data.details)}<br>` : ''}
+                            ${data.message ? `Message: ${data.message}<br>` : ''}
+                        </div>
+                    `;
+                    document.getElementById('result').innerHTML += debug;
+                }
+            } catch (error) {
+                showError(`❌ Network error: ${error.message}`);
+            }
+        }
+
+        async function testHealthCheck() {
+            showInfo('💚 Testing health endpoint...');
+
+            try {
+                const response = await fetch('https://dev.lumiku.com/health');
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(`✅ Health check passed!`);
+                    showResponse(response.status, data);
+                } else {
+                    showError(`❌ Health check failed!`);
+                    showResponse(response.status, data);
+                }
+            } catch (error) {
+                showError(`❌ Network error: ${error.message}`);
+            }
+        }
+
+        async function testDatabaseHealth() {
+            showInfo('🗄️ Testing database health...');
+
+            try {
+                const response = await fetch('https://dev.lumiku.com/health/database');
+                const data = await response.json();
+
+                if (response.ok && data.database?.connected) {
+                    showSuccess(`✅ Database connected! All ${data.database.healthyTables}/${data.database.totalTables} tables exist.`);
+                    showResponse(response.status, data);
+
+                    // Show table details
+                    if (data.database?.tables) {
+                        const tables = Object.entries(data.database.tables)
+                            .map(([name, exists]) => `${exists ? '✅' : '❌'} ${name}`)
+                            .join('<br>');
+                        const tableInfo = `
+                            <div class="info">
+                                <strong>Database Tables:</strong><br>
+                                ${tables}
+                            </div>
+                        `;
+                        document.getElementById('result').innerHTML += tableInfo;
+                    }
+                } else {
+                    showError(`❌ Database check failed!`);
+                    showResponse(response.status, data);
+                }
+            } catch (error) {
+                showError(`❌ Network error: ${error.message}`);
+            }
+        }
+
+        function showSuccess(message) {
+            const result = document.getElementById('result');
+            result.innerHTML = `<div class="success">${message}</div>`;
+        }
+
+        function showError(message) {
+            const result = document.getElementById('result');
+            result.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function showInfo(message) {
+            const result = document.getElementById('result');
+            result.innerHTML = `<div class="info">${message}</div>`;
+        }
+
+        function showResponse(status, data) {
+            const statusClass = status < 400 ? 'status-success' : 'status-error';
+            const statusLabel = `<span class="status ${statusClass}">HTTP ${status}</span>`;
+
+            const responseHtml = `
+                <div class="response">
+                    <h4>Response ${statusLabel}</h4>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+
+            document.getElementById('result').innerHTML += responseHtml;
+        }
+    </script>
+</body>
+</html>

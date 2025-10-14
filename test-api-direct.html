@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test dev.lumiku.com API</title>
+</head>
+<body>
+    <h1>Test Avatar Creator API</h1>
+    <div id="result"></div>
+    
+    <script>
+    // This will run when you open this file in browser
+    // Make sure to open it from dev.lumiku.com domain or CORS will block
+    
+    const token = prompt('Enter your token (from localStorage.getItem("token") in dev.lumiku.com):')
+    
+    if (token) {
+        document.getElementById('result').innerHTML = '<p>Testing API...</p>'
+        
+        // Test create project
+        fetch('https://dev.lumiku.com/api/apps/avatar-creator/projects', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: 'Direct API Test',
+                description: 'Testing if backend works'
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('result').innerHTML = `
+                <h2>✅ SUCCESS!</h2>
+                <pre>${JSON.stringify(d, null, 2)}</pre>
+                <p>Backend is working correctly! Issue is frontend code.</p>
+            `
+        })
+        .catch(e => {
+            document.getElementById('result').innerHTML = `
+                <h2>❌ ERROR</h2>
+                <pre>${e}</pre>
+                <p>Backend issue detected.</p>
+            `
+        })
+    }
+    </script>
+</body>
+</html>

@@ -40,15 +40,43 @@ export interface LoopingFlowJob {
   }>
 }
 
-export interface VideoGeneratorJob {
+export interface AvatarGenerationJob {
   generationId: string
-  creditUsed: number
+  userId: string
+  projectId: string
+  prompt: string
+  options: {
+    width?: number
+    height?: number
+    seed?: number
+  }
+  metadata: {
+    name: string
+    sourceType: string
+    persona?: {
+      name?: string
+      age?: number
+      personality?: string[]
+      background?: string
+    }
+    attributes?: {
+      gender?: string
+      ageRange?: string
+      ethnicity?: string
+      bodyType?: string
+      hairStyle?: string
+      hairColor?: string
+      eyeColor?: string
+      skinTone?: string
+      style?: string
+    }
+  }
 }
 
 let videoMixerQueue: Queue<VideoMixerJob> | null = null
 let carouselMixQueue: Queue<CarouselMixJob> | null = null
 let loopingFlowQueue: Queue<LoopingFlowJob> | null = null
-let videoGenQueue: Queue<VideoGeneratorJob> | null = null
+let avatarGenerationQueue: Queue<AvatarGenerationJob> | null = null
 
 if (isRedisEnabled() && redis) {
   videoMixerQueue = new Queue<VideoMixerJob>('video-mixer', {
@@ -105,13 +133,13 @@ if (isRedisEnabled() && redis) {
     },
   })
 
-  videoGenQueue = new Queue<VideoGeneratorJob>('video-generator', {
+  avatarGenerationQueue = new Queue<AvatarGenerationJob>('avatar-generation', {
     connection: redis,
     defaultJobOptions: {
       attempts: 3,
       backoff: {
         type: 'exponential',
-        delay: 10000, // 10s, 50s, 250s (longer delay for API rate limits)
+        delay: 10000, // 10s, 100s, 1000s (FLUX can take time)
       },
       removeOnComplete: {
         age: 86400, // Keep completed jobs for 24 hours
@@ -225,26 +253,26 @@ export async function getLoopingFlowJobStatus(generationId: string) {
   }
 }
 
-export async function addVideoGenJob(data: VideoGeneratorJob) {
-  if (!videoGenQueue) {
+export async function addAvatarGenerationJob(data: AvatarGenerationJob) {
+  if (!avatarGenerationQueue) {
     console.warn('⚠️  Redis not configured - Job will not be processed')
     console.warn('   Generation will remain in "pending" status')
     console.warn('   See TODO_REDIS_SETUP.md for setup instructions')
     return null
   }
 
-  const job = await videoGenQueue.add('process-generation', data, {
+  const job = await avatarGenerationQueue.add('process-generation', data, {
     jobId: data.generationId,
   })
 
-  console.log(`📋 Video Generator job added to queue: ${job.id}`)
+  console.log(`📋 Avatar generation job added to queue: ${job.id}`)
   return job
 }
 
-export async function getVideoGenJobStatus(generationId: string) {
-  if (!videoGenQueue) return null
+export async function getAvatarGenerationJobStatus(generationId: string) {
+  if (!avatarGenerationQueue) return null
 
-  const job = await videoGenQueue.getJob(generationId)
+  const job = await avatarGenerationQueue.getJob(generationId)
   if (!job) return null
 
   const state = await job.getState()
@@ -258,4 +286,4 @@ export async function getVideoGenJobStatus(generationId: string) {
   }
 }
 
-export { videoMixerQueue, carouselMixQueue, loopingFlowQueue, videoGenQueue }
+export { videoMixerQueue, carouselMixQueue, loopingFlowQueue, avatarGenerationQueue }

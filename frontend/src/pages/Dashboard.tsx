@@ -20,7 +20,8 @@ import {
   FolderKanban,
   LogIn,
   Film,
-  Layers
+  Layers,
+  UserCircle
 } from 'lucide-react'
 
 interface AppData {
@@ -43,6 +44,7 @@ const iconMap: Record<string, any> = {
   video: Video,
   film: Film,
   layers: Layers,
+  'user-circle': UserCircle,
 }
 
 interface DashboardStats {

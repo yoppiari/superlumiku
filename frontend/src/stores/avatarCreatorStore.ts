@@ -59,6 +59,45 @@ export interface AvatarStats {
   averageUsage: number
 }
 
+export interface AvatarGeneration {
+  id: string
+  userId: string
+  projectId: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  prompt: string
+  options: string
+  avatarId: string | null
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AvatarPreset {
+  id: string
+  name: string
+  description: string
+  category: string
+  imageUrl: string
+  thumbnailUrl: string | null
+  generationPrompt: string
+  personaName: string | null
+  personaAge: number | null
+  personaPersonality: string | null
+  personaBackground: string | null
+  gender: string | null
+  ageRange: string | null
+  ethnicity: string | null
+  bodyType: string | null
+  hairStyle: string | null
+  hairColor: string | null
+  eyeColor: string | null
+  skinTone: string | null
+  style: string | null
+  popularity: number
+  createdAt: string
+  updatedAt: string
+}
+
 // ===== Store State =====
 
 interface AvatarCreatorState {
@@ -72,6 +111,14 @@ interface AvatarCreatorState {
   isGenerating: boolean
   isSaving: boolean
   lastSaved: Date | null
+
+  // Generation tracking
+  activeGenerations: Map<string, AvatarGeneration>
+  generationPollingIntervals: Map<string, ReturnType<typeof setInterval>>
+
+  // Presets
+  presets: AvatarPreset[]
+  isLoadingPresets: boolean
 
   // Actions - Projects
   loadProjects: () => Promise<void>
@@ -94,8 +141,15 @@ interface AvatarCreatorState {
     gender?: string
     ageRange?: string
     style?: string
-  }) => Promise<Avatar>
+  }) => Promise<AvatarGeneration>
+  checkGenerationStatus: (generationId: string) => Promise<void>
+  startGenerationPolling: (generationId: string) => void
+  stopGenerationPolling: (generationId: string) => void
   deleteAvatar: (avatarId: string) => Promise<void>
+
+  // Actions - Presets
+  loadPresets: (category?: string) => Promise<void>
+  createAvatarFromPreset: (projectId: string, presetId: string, customName?: string) => Promise<AvatarGeneration>
 
   // Actions - Utility
   reset: () => void
@@ -113,6 +167,10 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
     isGenerating: false,
     isSaving: false,
     lastSaved: null,
+    activeGenerations: new Map(),
+    generationPollingIntervals: new Map(),
+    presets: [],
+    isLoadingPresets: false,
 
     // ===== Projects Actions =====
 
@@ -248,7 +306,7 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
         if (metadata.ethnicity) formData.append('ethnicity', metadata.ethnicity)
 
         const res = await api.post(
-          `/api/apps/avatar-creator/projects/${projectId}/avatars`,
+          `/api/apps/avatar-creator/projects/${projectId}/avatars/upload`,
           formData,
           { headers: { 'Content-Type': 'multipart/form-data' } }
         )
@@ -297,22 +355,94 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
           }
         )
 
-        const newAvatar = res.data.avatar
+        const generation: AvatarGeneration = res.data.generation
 
         set((state) => {
-          if (state.currentProject?.id === projectId) {
-            state.currentProject.avatars.unshift(newAvatar)
-          }
+          state.activeGenerations.set(generation.id, generation)
           state.isGenerating = false
         })
 
-        return newAvatar
+        // Start polling for status
+        useAvatarCreatorStore.getState().startGenerationPolling(generation.id)
+
+        return generation
       } catch (error) {
         set((state) => {
           state.isGenerating = false
         })
         console.error('Failed to generate avatar:', error)
         throw error
+      }
+    },
+
+    checkGenerationStatus: async (generationId: string) => {
+      try {
+        const res = await api.get(`/api/apps/avatar-creator/generations/${generationId}`)
+        const generation: AvatarGeneration = res.data.generation
+
+        set((state) => {
+          state.activeGenerations.set(generationId, generation)
+
+          // If completed, fetch avatar and add to project
+          if (generation.status === 'completed' && generation.avatarId) {
+            useAvatarCreatorStore.getState().stopGenerationPolling(generationId)
+
+            // Fetch the completed avatar
+            api.get(`/api/apps/avatar-creator/avatars/${generation.avatarId}`)
+              .then((avatarRes) => {
+                const avatar = avatarRes.data.avatar
+                set((innerState) => {
+                  if (innerState.currentProject?.id === generation.projectId) {
+                    innerState.currentProject.avatars.unshift(avatar)
+                  }
+                  innerState.activeGenerations.delete(generationId)
+                })
+              })
+              .catch((err) => {
+                console.error('Failed to fetch completed avatar:', err)
+              })
+          }
+
+          // If failed, stop polling
+          if (generation.status === 'failed') {
+            useAvatarCreatorStore.getState().stopGenerationPolling(generationId)
+          }
+        })
+      } catch (error) {
+        console.error('Failed to check generation status:', error)
+      }
+    },
+
+    startGenerationPolling: (generationId: string) => {
+      const { generationPollingIntervals, checkGenerationStatus } = useAvatarCreatorStore.getState()
+
+      // Don't start if already polling
+      if (generationPollingIntervals.has(generationId)) {
+        return
+      }
+
+      // Poll every 5 seconds
+      const interval = setInterval(() => {
+        checkGenerationStatus(generationId)
+      }, 5000)
+
+      set((state) => {
+        state.generationPollingIntervals.set(generationId, interval)
+      })
+
+      // Do initial check immediately
+      checkGenerationStatus(generationId)
+    },
+
+    stopGenerationPolling: (generationId: string) => {
+      const { generationPollingIntervals } = useAvatarCreatorStore.getState()
+      const interval = generationPollingIntervals.get(generationId)
+
+      if (interval) {
+        clearInterval(interval)
+        set((state) => {
+          state.generationPollingIntervals.delete(generationId)
+        })
       }
     },
 
@@ -342,14 +472,80 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
       }
     },
 
+    // ===== Presets Actions =====
+
+    loadPresets: async (category?: string) => {
+      set((state) => {
+        state.isLoadingPresets = true
+      })
+
+      try {
+        const url = category
+          ? `/api/apps/avatar-creator/presets?category=${category}`
+          : '/api/apps/avatar-creator/presets'
+
+        const res = await api.get(url)
+        set((state) => {
+          state.presets = res.data.presets
+          state.isLoadingPresets = false
+        })
+      } catch (error) {
+        console.error('Failed to load presets:', error)
+        set((state) => {
+          state.isLoadingPresets = false
+        })
+        throw error
+      }
+    },
+
+    createAvatarFromPreset: async (projectId: string, presetId: string, customName?: string) => {
+      set((state) => {
+        state.isGenerating = true
+      })
+
+      try {
+        const res = await api.post(
+          `/api/apps/avatar-creator/projects/${projectId}/avatars/from-preset`,
+          {
+            presetId,
+            customName,
+          }
+        )
+
+        const generation: AvatarGeneration = res.data.generation
+
+        set((state) => {
+          state.activeGenerations.set(generation.id, generation)
+          state.isGenerating = false
+        })
+
+        // Start polling for status
+        useAvatarCreatorStore.getState().startGenerationPolling(generation.id)
+
+        return generation
+      } catch (error) {
+        set((state) => {
+          state.isGenerating = false
+        })
+        console.error('Failed to create avatar from preset:', error)
+        throw error
+      }
+    },
+
     // ===== Utility Actions =====
 
     reset: () => {
+      // Clear all polling intervals
+      const { generationPollingIntervals } = useAvatarCreatorStore.getState()
+      generationPollingIntervals.forEach((interval) => clearInterval(interval))
+
       set((state) => {
         state.projects = []
         state.currentProject = null
         state.isUploading = false
         state.isGenerating = false
+        state.activeGenerations = new Map()
+        state.generationPollingIntervals = new Map()
       })
     },
   }))

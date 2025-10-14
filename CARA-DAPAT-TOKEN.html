@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cara Mendapatkan Auth Token</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 18px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 8px;
+            position: relative;
+        }
+        .step-number {
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #667eea;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .step h3 {
+            margin-top: 5px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        .step p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        .code {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            margin: 20px 0;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .visual {
+            background: #e7f3ff;
+            border: 2px solid #2196F3;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .visual code {
+            background: #1e1e1e;
+            color: #4CAF50;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .keyboard {
+            display: inline-block;
+            background: #333;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-weight: bold;
+            margin: 0 5px;
+            box-shadow: 0 3px 0 #000;
+        }
+        .arrow {
+            color: #667eea;
+            font-size: 30px;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .example-token {
+            background: #fff;
+            border: 2px dashed #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Cara Mendapatkan Auth Token</h1>
+        <p class="subtitle">Ikuti langkah-langkah berikut dengan teliti</p>
+
+        <!-- STEP 1 -->
+        <div class="step">
+            <div class="step-number">1</div>
+            <h3>Buka Website dan Login</h3>
+            <p>1. Buka tab baru di browser</p>
+            <p>2. Pergi ke: <strong>https://dev.lumiku.com</strong></p>
+            <p>3. <strong>Login</strong> dengan email dan password Anda</p>
+            <p>4. Pastikan sudah berhasil masuk ke dashboard</p>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- STEP 2 -->
+        <div class="step">
+            <div class="step-number">2</div>
+            <h3>Buka Developer Tools</h3>
+            <p>Tekan salah satu tombol keyboard berikut:</p>
+            <div style="text-align: center; margin: 20px 0;">
+                <div>
+                    <strong>Windows:</strong>
+                    <span class="keyboard">F12</span>
+                    atau
+                    <span class="keyboard">Ctrl</span> +
+                    <span class="keyboard">Shift</span> +
+                    <span class="keyboard">I</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <strong>Mac:</strong>
+                    <span class="keyboard">Cmd</span> +
+                    <span class="keyboard">Option</span> +
+                    <span class="keyboard">I</span>
+                </div>
+            </div>
+            <div class="warning">
+                <strong>⚠️ Catatan:</strong> Akan muncul panel di bagian bawah atau samping browser. Jangan panik, ini normal!
+            </div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- STEP 3 -->
+        <div class="step">
+            <div class="step-number">3</div>
+            <h3>Buka Tab "Console"</h3>
+            <p>Di panel Developer Tools yang muncul, Anda akan melihat beberapa tab:</p>
+            <p><code>Elements | Console | Sources | Network | ...</code></p>
+            <p><strong>Klik tab "Console"</strong> (biasanya tab kedua)</p>
+            <div class="visual">
+                <p style="margin: 0;">Cari dan klik:</p>
+                <div style="font-size: 24px; margin: 10px 0; color: #667eea; font-weight: bold;">
+                    Console
+                </div>
+            </div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- STEP 4 -->
+        <div class="step">
+            <div class="step-number">4</div>
+            <h3>Ketik Perintah di Console</h3>
+            <p>Di area Console (biasanya ada simbol <code>&gt;</code>), ketik perintah berikut:</p>
+            <div class="code">
+localStorage.getItem('token')
+            </div>
+            <p>Lalu tekan <span class="keyboard">Enter</span></p>
+            <div class="warning">
+                <strong>💡 Tips:</strong> Copy-paste perintah di atas agar tidak typo!
+            </div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- STEP 5 -->
+        <div class="step">
+            <div class="step-number">5</div>
+            <h3>Copy Token yang Muncul</h3>
+            <p>Setelah tekan Enter, akan muncul string panjang seperti ini:</p>
+            <div class="example-token">
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbTEyd..."
+            </div>
+            <p><strong>Copy seluruh string tersebut</strong> (tanpa tanda kutip "")</p>
+            <div class="warning">
+                <strong>⚠️ Penting:</strong> Token ini sangat panjang (ratusan karakter). Pastikan copy semuanya!
+            </div>
+            <button class="btn" onclick="showCopyTip()">📋 Bagaimana Cara Copy yang Benar?</button>
+            <div id="copyTip" style="display: none; margin-top: 15px;">
+                <div class="success">
+                    <strong>Cara Copy Token:</strong><br><br>
+                    1. Klik sekali pada token di Console<br>
+                    2. Token akan otomatis ter-highlight<br>
+                    3. Tekan <span class="keyboard">Ctrl</span> + <span class="keyboard">C</span> (Windows) atau <span class="keyboard">Cmd</span> + <span class="keyboard">C</span> (Mac)<br>
+                    4. Atau klik kanan → pilih "Copy"
+                </div>
+            </div>
+        </div>
+
+        <div class="arrow">↓</div>
+
+        <!-- STEP 6 -->
+        <div class="step">
+            <div class="step-number">6</div>
+            <h3>Paste ke Test Page</h3>
+            <p>1. Kembali ke halaman <strong>test-create-project-live.html</strong></p>
+            <p>2. Paste token ke field <strong>"Auth Token"</strong></p>
+            <p>3. Klik tombol <strong>"🚀 Create Project"</strong></p>
+            <p>4. Lihat hasilnya!</p>
+        </div>
+
+        <div class="success" style="margin-top: 40px;">
+            <h3 style="margin-top: 0; color: #155724;">✅ Selesai!</h3>
+            <p style="margin-bottom: 0;">Setelah Anda paste token dan klik "Create Project", kita akan bisa melihat error message yang sebenarnya dari production dan bisa fix masalahnya!</p>
+        </div>
+
+        <button class="btn" onclick="openTestPage()">🚀 Buka Test Page Sekarang</button>
+
+        <div class="warning" style="margin-top: 30px;">
+            <strong>🔒 Keamanan:</strong><br>
+            Token ini adalah kunci akses ke akun Anda. <strong>Jangan share ke orang lain!</strong> Token ini hanya digunakan untuk testing di komputer Anda sendiri.
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #eee;">
+
+        <h2 style="color: #667eea; text-align: center;">📞 Butuh Bantuan?</h2>
+        <div class="step" style="border-left-color: #ffc107;">
+            <h3>Masalah Umum:</h3>
+            <p><strong>Q: Developer Tools tidak muncul?</strong><br>
+            A: Coba tekan F12 beberapa kali, atau cek menu browser → More Tools → Developer Tools</p>
+
+            <p><strong>Q: Token tidak muncul di Console?</strong><br>
+            A: Pastikan Anda sudah login di dev.lumiku.com. Jika sudah, coba logout lalu login lagi.</p>
+
+            <p><strong>Q: Muncul "null" di Console?</strong><br>
+            A: Artinya token tidak tersimpan. Coba login ulang di dev.lumiku.com</p>
+        </div>
+    </div>
+
+    <script>
+        function showCopyTip() {
+            document.getElementById('copyTip').style.display = 'block';
+        }
+
+        function openTestPage() {
+            window.open('test-create-project-live.html', '_blank');
+        }
+    </script>
+</body>
+</html>

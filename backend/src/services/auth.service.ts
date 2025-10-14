@@ -2,6 +2,7 @@ import prisma from '../db/client'
 import { hashPassword, comparePassword } from '../lib/bcrypt'
 import { signToken } from '../lib/jwt'
 import { DeviceService } from './device.service'
+import { rateLimitService } from './rate-limit.service'
 
 const deviceService = new DeviceService()
 
@@ -80,16 +81,21 @@ export class AuthService {
       where: { email: input.email },
     })
 
-    if (!user) {
+    // Use constant-time password comparison to prevent timing attacks
+    // Always perform password hashing even for non-existent users
+    const dummyHash = '$2a$10$' + 'X'.repeat(53) // Valid bcrypt hash format
+    const passwordHash = user?.password || dummyHash
+    const isValidPassword = await comparePassword(input.password, passwordHash)
+
+    // Check both user existence AND password validity
+    if (!user || !isValidPassword) {
+      // Track failed attempt (works for both non-existent users and wrong passwords)
+      await rateLimitService.trackFailedLogin(input.email, ipAddress || 'unknown')
       throw new Error('Invalid email or password')
     }
 
-    // Verify password
-    const isValidPassword = await comparePassword(input.password, user.password)
-
-    if (!isValidPassword) {
-      throw new Error('Invalid email or password')
-    }
+    // Successful login - reset failed attempts
+    await rateLimitService.resetFailedLogins(input.email, ipAddress)
 
     // Get current credit balance
     const lastCredit = await prisma.credit.findFirst({
@@ -107,6 +113,9 @@ export class AuthService {
     if (userAgent) {
       await deviceService.trackDevice(user.id, { userAgent, ipAddress })
     }
+
+    // Log successful login
+    console.log(`[AUTH] Successful login: ${user.email} from IP ${ipAddress}`)
 
     return {
       user: {

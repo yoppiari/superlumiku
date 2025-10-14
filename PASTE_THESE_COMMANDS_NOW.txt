@@ -1,0 +1,75 @@
+# ===================================================
+# PASTE THESE COMMANDS IN COOLIFY TERMINAL NOW!
+# Copy satu per satu, paste di terminal, tekan Enter
+# ===================================================
+
+# Command 1: Navigate to backend directory
+cd backend
+
+# Command 2: Check if we're in the right place (should show prisma folder)
+ls -la | grep prisma
+
+# Command 3: Check DATABASE_URL is set
+echo $DATABASE_URL
+
+# Command 4: RUN THE MIGRATION (THIS IS THE MAIN FIX!)
+bun prisma db push --skip-generate --accept-data-loss
+
+# ===================================================
+# EXPECTED OUTPUT after Command 4:
+# ===================================================
+# Environment variables loaded from .env
+# Prisma schema loaded from prisma/schema.prisma
+# Datasource "db": PostgreSQL database "lumiku-dev" at "107.155.75.50:5986"
+#
+# The following migration(s) have been created and applied from new schema changes:
+#
+# migrations/
+#   └─ 20251012084500_avatar_projects/
+#       └─ migration.sql
+#
+# Your database is now in sync with your schema.
+# ✔ Generated Prisma Client (5.0.0 | library) to ./node_modules/@prisma/client in 150ms
+#
+# ===================================================
+
+# Command 5: VERIFY table was created
+psql "$DATABASE_URL" -c "\dt avatar_projects"
+
+# OR if psql not available:
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM avatar_projects;"
+
+# EXPECTED OUTPUT:
+#  count
+# -------
+#      0
+# (1 row)
+#
+# This means TABLE EXISTS! ✅
+
+# ===================================================
+# IF YOU GET ERRORS:
+# ===================================================
+
+# Error: "bun: command not found"
+# Try this instead:
+npx prisma db push --skip-generate --accept-data-loss
+
+# Error: "Can't reach database server"
+# Check environment variable:
+env | grep DATABASE_URL
+
+# Error: "Schema does not have AvatarProject model"
+# Check schema file:
+cat prisma/schema.prisma | grep -A 10 "model AvatarProject"
+
+# ===================================================
+# AFTER SUCCESSFUL MIGRATION:
+# ===================================================
+
+# 1. Go back to browser: https://dev.lumiku.com
+# 2. Hard refresh: Ctrl + Shift + R
+# 3. Try creating a project again
+# 4. Should work! ✅
+
+# ===================================================

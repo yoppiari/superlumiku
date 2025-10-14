@@ -1,748 +1,492 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../../middleware/auth.middleware'
-import { avatarService } from './services/avatar.service'
-import { avatarAIService } from './services/avatar-ai.service'
-import { avatarProjectService } from './services/avatar-project.service'
-import { avatarCreatorConfig } from './plugin.config'
-import { z } from 'zod'
-import path from 'path'
-import fs from 'fs/promises'
-import { existsSync } from 'fs'
+import { AuthVariables } from '../../types/hono'
+import { avatarCreatorService } from './services/avatar-creator.service'
+import type {
+  CreateProjectRequest,
+  UpdateProjectRequest,
+  UploadAvatarRequest,
+  UpdateAvatarRequest,
+  GenerateAvatarRequest,
+} from './types'
 
-const routes = new Hono()
+/**
+ * Avatar Creator Routes
+ *
+ * Phase 2-3: Full implementation
+ * - Projects CRUD
+ * - Avatar Upload & Management
+ * - Avatar AI Generation (FLUX)
+ * - Usage tracking
+ * - Stats
+ */
 
-// ========================================
-// VALIDATION SCHEMAS
-// ========================================
-
-const createProjectSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-})
-
-const updateProjectSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-})
-
-const createAvatarSchema = z.object({
-  name: z.string().min(1).max(100),
-  gender: z.enum(['male', 'female', 'unisex']).optional(),
-  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
-  style: z.enum(['casual', 'formal', 'sporty']).optional(),
-  ethnicity: z.string().optional(),
-})
-
-const updateAvatarSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  gender: z.enum(['male', 'female', 'unisex']).optional(),
-  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
-  style: z.enum(['casual', 'formal', 'sporty']).optional(),
-  ethnicity: z.string().optional(),
-})
-
-const generateAvatarSchema = z.object({
-  prompt: z.string().min(10).max(500),
-  name: z.string().min(1).max(100),
-  gender: z.enum(['male', 'female', 'unisex']).optional(),
-  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
-  style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
-  ethnicity: z.string().optional(),
-  bodyType: z.enum(['half_body', 'full_body']).optional(),
-  count: z.number().min(1).max(5).optional(),
-})
-
-const generatePreviewSchema = z.object({
-  prompt: z.string().min(10).max(500),
-  gender: z.enum(['male', 'female', 'unisex']).optional(),
-  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
-  style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
-  ethnicity: z.string().optional(),
-  bodyType: z.enum(['half_body', 'full_body']).optional(),
-})
-
-const savePreviewSchema = z.object({
-  name: z.string().min(1).max(100),
-  imageBase64: z.string().min(100), // Base64 encoded image
-  thumbnailBase64: z.string().min(100), // Base64 encoded thumbnail
-  gender: z.enum(['male', 'female', 'unisex']).optional(),
-  ageRange: z.enum(['young', 'adult', 'mature']).optional(),
-  style: z.enum(['casual', 'formal', 'sporty', 'professional', 'traditional']).optional(),
-  ethnicity: z.string().optional(),
-  bodyType: z.enum(['half_body', 'full_body']).optional(),
-  generationPrompt: z.string(), // The enhanced prompt that was used
-})
+const app = new Hono<{ Variables: AuthVariables }>()
 
 // ========================================
-// PROJECT ROUTES
+// Projects Routes
 // ========================================
 
-// GET ALL PROJECTS
-routes.get('/projects', authMiddleware, async (c) => {
+/**
+ * GET /api/apps/avatar-creator/projects
+ * Get all projects for current user
+ */
+app.get('/projects', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
-    const projects = await avatarProjectService.getUserProjects(userId)
+
+    const projects = await avatarCreatorService.getProjects(userId)
 
     return c.json({
-      success: true,
       projects,
     })
   } catch (error: any) {
     console.error('Error fetching projects:', error)
-    return c.json({ error: error.message }, 400)
+    return c.json({ error: error.message || 'Failed to fetch projects' }, 500)
   }
 })
 
-// CREATE PROJECT
-routes.post('/projects', authMiddleware, async (c) => {
+/**
+ * POST /api/apps/avatar-creator/projects
+ * Create new project
+ */
+app.post('/projects', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
-    const body = await c.req.json()
+    const body = await c.req.json<CreateProjectRequest>()
 
-    const validated = createProjectSchema.parse(body)
+    // Validation
+    if (!body.name || body.name.trim().length === 0) {
+      return c.json({ error: 'Project name is required' }, 400)
+    }
 
-    const project = await avatarProjectService.createProject(userId, validated)
+    const project = await avatarCreatorService.createProject(userId, body)
 
     return c.json({
-      success: true,
-      project,
       message: 'Project created successfully',
-    }, 201)
-  } catch (error: any) {
-    // Enhanced error logging with context
-    console.error('Error creating project:', {
-      userId: c.get('userId'),
-      error: error.message,
-      code: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      project,
     })
-
-    // Zod validation errors
-    if (error instanceof z.ZodError) {
-      return c.json({
-        error: 'Validation error',
-        details: error.errors,
-      }, 400)
-    }
-
-    // Prisma/Database connection errors (P1xxx codes)
-    if (error.code && typeof error.code === 'string' && error.code.startsWith('P1')) {
-      return c.json({
-        error: 'Database connection error',
-        message: 'Cannot connect to database. Please try again later.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      }, 503)
-    }
-
-    // Prisma constraint errors (P2xxx codes)
-    if (error.code && typeof error.code === 'string' && error.code.startsWith('P2')) {
-      const errorMessages: Record<string, string> = {
-        P2002: 'A project with this name already exists',
-        P2003: 'Invalid reference',
-        P2025: 'Record not found',
-      }
-      return c.json({
-        error: errorMessages[error.code] || 'Database error',
-        code: error.code,
-      }, 400)
-    }
-
-    // Generic error
-    return c.json({
-      error: error.message || 'Failed to create project',
-    }, 400)
+  } catch (error: any) {
+    console.error('Error creating project:', error)
+    return c.json({ error: error.message || 'Failed to create project' }, 500)
   }
 })
 
-// GET PROJECT BY ID
-routes.get('/projects/:id', authMiddleware, async (c) => {
+/**
+ * GET /api/apps/avatar-creator/projects/:id
+ * Get project by ID with all avatars
+ */
+app.get('/projects/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
     const projectId = c.req.param('id')
 
-    const project = await avatarProjectService.getProject(projectId, userId)
-
-    if (!project) {
-      return c.json({ error: 'Project not found' }, 404)
-    }
+    const project = await avatarCreatorService.getProjectById(projectId, userId)
 
     return c.json({
-      success: true,
       project,
     })
   } catch (error: any) {
     console.error('Error fetching project:', error)
-    return c.json({ error: error.message }, 400)
+    const statusCode = error.message === 'Project not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to fetch project' }, statusCode)
   }
 })
 
-// UPDATE PROJECT
-routes.put('/projects/:id', authMiddleware, async (c) => {
+/**
+ * PUT /api/apps/avatar-creator/projects/:id
+ * Update project
+ */
+app.put('/projects/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
     const projectId = c.req.param('id')
-    const body = await c.req.json()
+    const body = await c.req.json<UpdateProjectRequest>()
 
-    const validated = updateProjectSchema.parse(body)
-
-    const project = await avatarProjectService.updateProject(projectId, userId, validated)
+    const project = await avatarCreatorService.updateProject(projectId, userId, body)
 
     return c.json({
-      success: true,
-      project,
       message: 'Project updated successfully',
+      project,
     })
   } catch (error: any) {
     console.error('Error updating project:', error)
-    if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
-    }
-    return c.json({ error: error.message }, 400)
+    const statusCode = error.message === 'Project not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to update project' }, statusCode)
   }
 })
 
-// DELETE PROJECT
-routes.delete('/projects/:id', authMiddleware, async (c) => {
+/**
+ * DELETE /api/apps/avatar-creator/projects/:id
+ * Delete project (and all its avatars)
+ */
+app.delete('/projects/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
     const projectId = c.req.param('id')
 
-    await avatarProjectService.deleteProject(projectId, userId)
+    await avatarCreatorService.deleteProject(projectId, userId)
 
     return c.json({
-      success: true,
       message: 'Project deleted successfully',
     })
   } catch (error: any) {
     console.error('Error deleting project:', error)
-    return c.json({ error: error.message }, 400)
-  }
-})
-
-// GET PROJECT STATS
-routes.get('/projects/:id/stats', authMiddleware, async (c) => {
-  try {
-    const userId = c.get('userId')
-    const projectId = c.req.param('id')
-
-    const stats = await avatarService.getProjectStats(projectId, userId)
-
-    return c.json({
-      success: true,
-      stats,
-    })
-  } catch (error: any) {
-    console.error('Error fetching project stats:', error)
-    return c.json({ error: error.message }, 400)
+    const statusCode = error.message === 'Project not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to delete project' }, statusCode)
   }
 })
 
 // ========================================
-// AVATAR ROUTES (PROJECT-SCOPED)
+// Avatar Routes - Upload
 // ========================================
 
-// UPLOAD AVATAR TO PROJECT
-routes.post('/projects/:projectId/avatars', authMiddleware, async (c) => {
+/**
+ * POST /api/apps/avatar-creator/projects/:projectId/avatars/upload
+ * Upload avatar image with persona
+ */
+app.post('/projects/:projectId/avatars/upload', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
     const projectId = c.req.param('projectId')
+    const body = await c.req.parseBody()
 
-    // Get form data
-    const formData = await c.req.formData()
-    const imageFile = formData.get('image') as File | null
-    const name = formData.get('name') as string
-    // Convert empty strings to undefined for optional enum fields
-    const genderRaw = formData.get('gender') as string | null
-    const ageRangeRaw = formData.get('ageRange') as string | null
-    const styleRaw = formData.get('style') as string | null
-    const ethnicityRaw = formData.get('ethnicity') as string | null
-
-    const gender = genderRaw && genderRaw.trim() !== '' ? genderRaw : undefined
-    const ageRange = ageRangeRaw && ageRangeRaw.trim() !== '' ? ageRangeRaw : undefined
-    const style = styleRaw && styleRaw.trim() !== '' ? styleRaw : undefined
-    const ethnicity = ethnicityRaw && ethnicityRaw.trim() !== '' ? ethnicityRaw : undefined
-
-    if (!imageFile) {
+    // Get uploaded file
+    const file = body.image as File
+    if (!file) {
       return c.json({ error: 'Image file is required' }, 400)
     }
 
-    if (!name) {
+    // Get form data
+    const name = body.name as string
+    if (!name || name.trim().length === 0) {
       return c.json({ error: 'Avatar name is required' }, 400)
     }
 
-    // Validate data
-    const validated = createAvatarSchema.parse({
-      name,
-      gender,
-      ageRange,
-      style,
-      ethnicity,
-    })
-
-    // Save uploaded file
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'avatar-creator', userId)
-    if (!existsSync(uploadsDir)) {
-      await fs.mkdir(uploadsDir, { recursive: true })
+    // Parse personality array if string
+    let personaPersonality: string[] | undefined
+    if (body.personaPersonality) {
+      try {
+        personaPersonality =
+          typeof body.personaPersonality === 'string'
+            ? JSON.parse(body.personaPersonality)
+            : body.personaPersonality
+      } catch {
+        personaPersonality = undefined
+      }
     }
 
-    const fileExtension = path.extname(imageFile.name)
-    const filename = `avatar_${Date.now()}${fileExtension}`
-    const filepath = path.join(uploadsDir, filename)
+    // Prepare upload data
+    const uploadData: UploadAvatarRequest = {
+      name,
+      // Persona
+      personaName: body.personaName as string | undefined,
+      personaAge: body.personaAge ? parseInt(body.personaAge as string) : undefined,
+      personaPersonality,
+      personaBackground: body.personaBackground as string | undefined,
+      // Visual attributes
+      gender: body.gender as string | undefined,
+      ageRange: body.ageRange as string | undefined,
+      ethnicity: body.ethnicity as string | undefined,
+      bodyType: body.bodyType as string | undefined,
+      hairStyle: body.hairStyle as string | undefined,
+      hairColor: body.hairColor as string | undefined,
+      eyeColor: body.eyeColor as string | undefined,
+      skinTone: body.skinTone as string | undefined,
+      style: body.style as string | undefined,
+    }
 
-    // Write file
-    const arrayBuffer = await imageFile.arrayBuffer()
-    await fs.writeFile(filepath, Buffer.from(arrayBuffer))
-
-    // Store relative path
-    const relativePath = `/uploads/avatar-creator/${userId}/${filename}`
-
-    // Create avatar in database
-    const avatar = await avatarService.createAvatar(userId, projectId, validated, relativePath)
+    const avatar = await avatarCreatorService.uploadAvatar(projectId, userId, file, uploadData)
 
     return c.json({
-      success: true,
+      message: 'Avatar uploaded successfully',
       avatar,
-      message: 'Avatar created successfully',
-    }, 201)
+    })
   } catch (error: any) {
-    console.error('Error creating avatar:', error)
-    if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
-    }
-    return c.json({ error: error.message }, 400)
+    console.error('Error uploading avatar:', error)
+    return c.json({ error: error.message || 'Failed to upload avatar' }, 500)
   }
 })
 
-// GENERATE AI AVATAR IN PROJECT
-routes.post('/projects/:projectId/avatars/generate', authMiddleware, async (c) => {
+// ========================================
+// Avatar Routes - AI Generation
+// ========================================
+
+/**
+ * POST /api/apps/avatar-creator/projects/:projectId/avatars/generate
+ * Generate avatar using FLUX AI (text-to-image)
+ */
+app.post('/projects/:projectId/avatars/generate', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
     const projectId = c.req.param('projectId')
-    const body = await c.req.json()
+    const body = await c.req.json<GenerateAvatarRequest>()
 
-    // Validate
-    const validated = generateAvatarSchema.parse(body)
-
-    console.log('Generating AI avatar for user:', userId, 'project:', projectId)
-
-    // Generate avatar(s)
-    if (validated.count && validated.count > 1) {
-      // Generate multiple variations
-      const avatars = await avatarAIService.generateVariations({
-        userId,
-        projectId,
-        basePrompt: validated.prompt,
-        name: validated.name,
-        count: validated.count,
-        gender: validated.gender,
-        ageRange: validated.ageRange,
-        style: validated.style,
-      })
-
-      return c.json({
-        success: true,
-        avatars,
-        message: `Generated ${avatars.length} avatar variations`,
-      }, 201)
-    } else {
-      // Generate single avatar
-      const avatar = await avatarAIService.generateFromText({
-        userId,
-        projectId,
-        prompt: validated.prompt,
-        name: validated.name,
-        gender: validated.gender,
-        ageRange: validated.ageRange,
-        style: validated.style,
-        ethnicity: validated.ethnicity,
-      })
-
-      return c.json({
-        success: true,
-        avatar,
-        message: 'Avatar generated successfully',
-      }, 201)
+    // Validation
+    if (!body.name || body.name.trim().length === 0) {
+      return c.json({ error: 'Avatar name is required' }, 400)
     }
+
+    if (!body.prompt || body.prompt.trim().length === 0) {
+      return c.json({ error: 'Prompt is required for generation' }, 400)
+    }
+
+    // Start generation (queues job)
+    const generation = await avatarCreatorService.generateAvatar(projectId, userId, body)
+
+    return c.json({
+      message: 'Avatar generation started',
+      generation,
+      note: 'Generation is processing in background. Check status using generation ID.',
+    })
   } catch (error: any) {
     console.error('Error generating avatar:', error)
-    if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
-    }
-    return c.json({ error: error.message }, 500)
+    return c.json({ error: error.message || 'Failed to generate avatar' }, 500)
   }
 })
 
-// GENERATE AVATAR PREVIEW (NEW - TWO-PHASE FLOW)
-routes.post('/projects/:projectId/avatars/generate-preview', authMiddleware, async (c) => {
+/**
+ * GET /api/apps/avatar-creator/generations/:id
+ * Get generation status and result
+ */
+app.get('/generations/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
-    const projectId = c.req.param('projectId')
-    const body = await c.req.json()
+    const generationId = c.req.param('id')
 
-    // Validate
-    const validated = generatePreviewSchema.parse(body)
+    const generation = await avatarCreatorService.getGeneration(generationId, userId)
 
-    console.log('Generating avatar preview for user:', userId, 'project:', projectId)
-
-    // Generate preview (no DB save, no credit deduction yet)
-    const preview = await avatarAIService.generatePreview({
-      prompt: validated.prompt,
-      gender: validated.gender,
-      ageRange: validated.ageRange,
-      style: validated.style,
-      ethnicity: validated.ethnicity,
-      bodyType: validated.bodyType,
-    })
+    if (!generation) {
+      return c.json({ error: 'Generation not found' }, 404)
+    }
 
     return c.json({
-      success: true,
-      preview,
-      message: 'Preview generated successfully. Review and save if you like it.',
-    }, 200)
-  } catch (error: any) {
-    console.error('Error generating preview:', error)
-    if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
-    }
-    return c.json({ error: error.message }, 500)
-  }
-})
-
-// SAVE AVATAR PREVIEW (NEW - TWO-PHASE FLOW)
-routes.post('/projects/:projectId/avatars/save-preview', authMiddleware, async (c) => {
-  try {
-    const userId = c.get('userId')
-    const projectId = c.req.param('projectId')
-    const body = await c.req.json()
-
-    // Validate
-    const validated = savePreviewSchema.parse(body)
-
-    console.log('Saving avatar preview for user:', userId, 'project:', projectId)
-
-    // TODO: Check user credits here before saving
-    // TODO: Deduct credits after successful save
-
-    // Save preview to DB and storage
-    const avatar = await avatarAIService.savePreview({
-      userId,
-      projectId,
-      name: validated.name,
-      imageBase64: validated.imageBase64,
-      thumbnailBase64: validated.thumbnailBase64,
-      gender: validated.gender,
-      ageRange: validated.ageRange,
-      style: validated.style,
-      ethnicity: validated.ethnicity,
-      bodyType: validated.bodyType,
-      generationPrompt: validated.generationPrompt,
+      generation,
     })
-
-    return c.json({
-      success: true,
-      avatar,
-      message: 'Avatar saved successfully',
-    }, 201)
   } catch (error: any) {
-    console.error('Error saving preview:', error)
-    if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
-    }
-    return c.json({ error: error.message }, 500)
+    console.error('Error fetching generation:', error)
+    return c.json({ error: error.message || 'Failed to fetch generation' }, 500)
   }
 })
 
 // ========================================
-// AVATAR ROUTES (INDIVIDUAL - Keep for backward compatibility)
+// Avatar Routes - Management
 // ========================================
 
-// GET AVATAR BY ID
-routes.get('/avatars/:id', authMiddleware, async (c) => {
-  try {
-    const userId = c.get('userId')
-    const id = c.req.param('id')
-
-    const avatar = await avatarService.getAvatar(id, userId)
-
-    if (!avatar) {
-      return c.json({ error: 'Avatar not found' }, 404)
-    }
-
-    return c.json({
-      success: true,
-      avatar,
-    })
-  } catch (error: any) {
-    console.error('Error fetching avatar:', error)
-    return c.json({ error: error.message }, 400)
-  }
-})
-
-// UPDATE AVATAR
-routes.put('/avatars/:id', authMiddleware, async (c) => {
-  try {
-    const userId = c.get('userId')
-    const id = c.req.param('id')
-    const body = await c.req.json()
-
-    const validated = updateAvatarSchema.parse(body)
-
-    const avatar = await avatarService.updateAvatar(id, userId, validated)
-
-    return c.json({
-      success: true,
-      avatar,
-      message: 'Avatar updated successfully',
-    })
-  } catch (error: any) {
-    console.error('Error updating avatar:', error)
-    if (error instanceof z.ZodError) {
-      return c.json({ error: 'Validation error', details: error.errors }, 400)
-    }
-    return c.json({ error: error.message }, 400)
-  }
-})
-
-// DELETE AVATAR
-routes.delete('/avatars/:id', authMiddleware, async (c) => {
-  try {
-    const userId = c.get('userId')
-    const id = c.req.param('id')
-
-    await avatarService.deleteAvatar(id, userId)
-
-    return c.json({
-      success: true,
-      message: 'Avatar deleted successfully',
-    })
-  } catch (error: any) {
-    console.error('Error deleting avatar:', error)
-    return c.json({ error: error.message }, 400)
-  }
-})
-
-// GET AVATAR USAGE HISTORY
-routes.get('/avatars/:id/usage-history', authMiddleware, async (c) => {
+/**
+ * GET /api/apps/avatar-creator/avatars/:id
+ * Get avatar by ID
+ */
+app.get('/avatars/:id', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
     const avatarId = c.req.param('id')
 
-    const history = await avatarService.getAvatarUsageHistory(avatarId, userId)
-    const summary = await avatarService.getAvatarUsageSummary(avatarId, userId)
+    const avatar = await avatarCreatorService.getAvatar(avatarId, userId)
 
     return c.json({
-      success: true,
-      history,
-      summary,
+      avatar,
     })
   } catch (error: any) {
-    console.error('Error fetching avatar usage history:', error)
-    return c.json({ error: error.message }, 400)
+    console.error('Error fetching avatar:', error)
+    const statusCode = error.message === 'Avatar not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to fetch avatar' }, statusCode)
+  }
+})
+
+/**
+ * PUT /api/apps/avatar-creator/avatars/:id
+ * Update avatar metadata (persona, attributes)
+ */
+app.put('/avatars/:id', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const avatarId = c.req.param('id')
+    const body = await c.req.json<UpdateAvatarRequest>()
+
+    const avatar = await avatarCreatorService.updateAvatar(avatarId, userId, body)
+
+    return c.json({
+      message: 'Avatar updated successfully',
+      avatar,
+    })
+  } catch (error: any) {
+    console.error('Error updating avatar:', error)
+    const statusCode = error.message === 'Avatar not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to update avatar' }, statusCode)
+  }
+})
+
+/**
+ * DELETE /api/apps/avatar-creator/avatars/:id
+ * Delete avatar (and its files)
+ */
+app.delete('/avatars/:id', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const avatarId = c.req.param('id')
+
+    await avatarCreatorService.deleteAvatar(avatarId, userId)
+
+    return c.json({
+      message: 'Avatar deleted successfully',
+    })
+  } catch (error: any) {
+    console.error('Error deleting avatar:', error)
+    const statusCode = error.message === 'Avatar not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to delete avatar' }, statusCode)
   }
 })
 
 // ========================================
-// LEGACY ROUTES (Deprecated - kept for backward compatibility)
+// Usage Tracking Routes
 // ========================================
 
-// GET ALL AVATARS (all projects)
-routes.get('/avatars', authMiddleware, async (c) => {
+/**
+ * GET /api/apps/avatar-creator/avatars/:id/usage-history
+ * Get usage history for avatar
+ */
+app.get('/avatars/:id/usage-history', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
-    const avatars = await avatarService.getUserAvatars(userId)
+    const avatarId = c.req.param('id')
+
+    const result = await avatarCreatorService.getUsageHistory(avatarId, userId)
 
     return c.json({
-      success: true,
-      avatars,
+      history: result.history,
+      summary: result.summary,
     })
   } catch (error: any) {
-    console.error('Error fetching avatars:', error)
-    return c.json({ error: error.message }, 400)
+    console.error('Error fetching usage history:', error)
+    const statusCode = error.message === 'Avatar not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to fetch usage history' }, statusCode)
   }
 })
 
-// GET STATS (all projects)
-routes.get('/stats', authMiddleware, async (c) => {
+// ========================================
+// Preset Routes
+// ========================================
+
+/**
+ * GET /api/apps/avatar-creator/presets
+ * Get all preset avatars (optionally filter by category)
+ */
+app.get('/presets', async (c) => {
   try {
-    const userId = c.get('userId')
-    const stats = await avatarService.getStats(userId)
+    const category = c.req.query('category')
+
+    const presets = await avatarCreatorService.getPresets(category)
 
     return c.json({
-      success: true,
+      presets,
+    })
+  } catch (error: any) {
+    console.error('Error fetching presets:', error)
+    return c.json({ error: error.message || 'Failed to fetch presets' }, 500)
+  }
+})
+
+/**
+ * GET /api/apps/avatar-creator/presets/:id
+ * Get preset by ID
+ */
+app.get('/presets/:id', async (c) => {
+  try {
+    const presetId = c.req.param('id')
+
+    const preset = await avatarCreatorService.getPresetById(presetId)
+
+    return c.json({
+      preset,
+    })
+  } catch (error: any) {
+    console.error('Error fetching preset:', error)
+    const statusCode = error.message === 'Preset not found' ? 404 : 500
+    return c.json({ error: error.message || 'Failed to fetch preset' }, statusCode)
+  }
+})
+
+/**
+ * POST /api/apps/avatar-creator/projects/:projectId/avatars/from-preset
+ * Create avatar from preset (queues AI generation with preset attributes)
+ */
+app.post('/projects/:projectId/avatars/from-preset', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+    const projectId = c.req.param('projectId')
+    const body = await c.req.json<{ presetId: string; customName?: string }>()
+
+    // Validation
+    if (!body.presetId) {
+      return c.json({ error: 'Preset ID is required' }, 400)
+    }
+
+    // Create avatar from preset (queues generation)
+    const generation = await avatarCreatorService.createAvatarFromPreset(
+      projectId,
+      userId,
+      body.presetId,
+      body.customName
+    )
+
+    return c.json({
+      message: 'Avatar generation from preset started',
+      generation,
+      note: 'Generation is processing in background. Check status using generation ID.',
+    })
+  } catch (error: any) {
+    console.error('Error creating avatar from preset:', error)
+    return c.json({ error: error.message || 'Failed to create avatar from preset' }, 500)
+  }
+})
+
+// ========================================
+// Stats Routes
+// ========================================
+
+/**
+ * GET /api/apps/avatar-creator/stats
+ * Get user statistics
+ */
+app.get('/stats', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('userId')
+
+    const stats = await avatarCreatorService.getUserStats(userId)
+
+    return c.json({
       stats,
     })
   } catch (error: any) {
     console.error('Error fetching stats:', error)
-    return c.json({ error: error.message }, 400)
+    return c.json({ error: error.message || 'Failed to fetch stats' }, 500)
   }
 })
 
 // ========================================
-// DEBUG ROUTES - TEMPORARY FOR PRODUCTION DEBUGGING
-// TODO: DELETE THESE ROUTES AFTER ISSUE IS RESOLVED!
+// Health Check
 // ========================================
 
-import prisma from '../../db/client'
-
-// DEBUG: Full diagnostic
-routes.get('/debug/full-diagnostic', async (c) => {
-  const results: any = {
-    timestamp: new Date().toISOString(),
-    tests: {},
-    environment: {},
-  }
-
-  // Test 1: Database connection
-  try {
-    await prisma.$queryRaw`SELECT 1`
-    results.tests.databaseConnection = { success: true }
-  } catch (error: any) {
-    results.tests.databaseConnection = {
-      success: false,
-      error: error.message,
-      code: error.code,
-    }
-  }
-
-  // Test 2: Tables exist
-  try {
-    const tables = ['users', 'avatar_projects', 'avatars']
-    const checks: any = {}
-
-    for (const table of tables) {
-      const result = await prisma.$queryRaw<any[]>`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables
-          WHERE table_schema = 'public'
-          AND table_name = ${table}
-        ) as exists
-      `
-      checks[table] = result[0]?.exists || false
-    }
-
-    results.tests.tablesExist = { success: true, tables: checks }
-  } catch (error: any) {
-    results.tests.tablesExist = {
-      success: false,
-      error: error.message,
-    }
-  }
-
-  // Test 3: User exists
-  try {
-    const userCount = await prisma.user.count()
-    results.tests.usersExist = {
-      success: userCount > 0,
-      count: userCount,
-    }
-  } catch (error: any) {
-    results.tests.usersExist = {
-      success: false,
-      error: error.message,
-    }
-  }
-
-  // Test 4: Try to create and delete project
-  try {
-    const testUser = await prisma.user.findFirst()
-    if (!testUser) {
-      results.tests.createProject = {
-        success: false,
-        error: 'No users found',
-      }
-    } else {
-      const project = await prisma.avatarProject.create({
-        data: {
-          userId: testUser.id,
-          name: `Diagnostic ${Date.now()}`,
-          description: 'Auto-diagnostic test',
-        },
-      })
-
-      await prisma.avatarProject.delete({
-        where: { id: project.id },
-      })
-
-      results.tests.createProject = {
-        success: true,
-        testProjectId: project.id,
-      }
-    }
-  } catch (error: any) {
-    results.tests.createProject = {
-      success: false,
-      error: error.message,
-      code: error.code,
-      meta: error.meta,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : error.stack?.split('\n')[0],
-    }
-  }
-
-  // Environment info
-  results.environment = {
-    nodeEnv: process.env.NODE_ENV,
-    databaseUrl: process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':***@'),
-    postgresHost: process.env.POSTGRES_HOST,
-    prismaVersion: '5.22.0',
-  }
-
-  // Determine overall status
-  const allTestsPassed = Object.values(results.tests).every(
-    (test: any) => test.success === true
-  )
-
+app.get('/health', (c) => {
   return c.json({
-    overallStatus: allTestsPassed ? 'HEALTHY' : 'ISSUES_DETECTED',
-    ...results,
+    status: 'ok',
+    app: 'avatar-creator',
+    message: 'Avatar Creator API is running (Phase 2-5 - Full Implementation + Presets)',
+    endpoints: {
+      projects: 'GET, POST /projects',
+      project: 'GET, PUT, DELETE /projects/:id',
+      upload: 'POST /projects/:projectId/avatars/upload',
+      generate: 'POST /projects/:projectId/avatars/generate',
+      fromPreset: 'POST /projects/:projectId/avatars/from-preset',
+      generation: 'GET /generations/:id',
+      avatar: 'GET, PUT, DELETE /avatars/:id',
+      presets: 'GET /presets (optional ?category=)',
+      preset: 'GET /presets/:id',
+      usage: 'GET /avatars/:id/usage-history',
+      stats: 'GET /stats',
+    },
   })
 })
 
-// DEBUG: Test with auth
-routes.post('/debug/test-with-auth', authMiddleware, async (c) => {
-  try {
-    const userId = c.get('userId')
-    const body = await c.req.json()
-
-    console.log('🔍 DEBUG: Authenticated test for user:', userId)
-    console.log('🔍 DEBUG: Request body:', body)
-
-    // Try to create project
-    const project = await prisma.avatarProject.create({
-      data: {
-        userId: userId,
-        name: body.name || `Auth Test ${Date.now()}`,
-        description: body.description || 'Authenticated test project',
-      },
-      include: {
-        avatars: true,
-      },
-    })
-
-    console.log('✅ DEBUG: Project created with auth:', project.id)
-
-    // Clean up
-    await prisma.avatarProject.delete({
-      where: { id: project.id },
-    })
-
-    return c.json({
-      success: true,
-      message: 'Authenticated test passed! The fix is working.',
-      userId: userId,
-      testProjectId: project.id,
-      timestamp: new Date().toISOString(),
-    })
-  } catch (error: any) {
-    console.error('❌ DEBUG: Authenticated test failed:', error)
-    return c.json({
-      success: false,
-      error: error.message,
-      code: error.code,
-      userId: c.get('userId'),
-      stack: error.stack?.split('\n').slice(0, 3).join('\n'),
-      timestamp: new Date().toISOString(),
-    }, 500)
-  }
-})
-
-export default routes
+export default app

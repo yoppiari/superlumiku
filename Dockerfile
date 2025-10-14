@@ -14,6 +14,7 @@ RUN npm install
 # Copy frontend source
 COPY frontend/ ./
 
+# Force cache bust - timestamp: 2025-10-13-09:18
 # Build frontend for production
 RUN npm run build
 

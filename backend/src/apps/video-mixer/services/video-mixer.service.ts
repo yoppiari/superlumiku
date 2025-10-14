@@ -87,11 +87,33 @@ export class VideoMixerService {
   }
 
   async updateGroup(groupId: string, userId: string, name?: string, order?: number) {
-    const group = await repo.updateGroup(groupId, { name, order })
-    return group
+    // Get group with project to verify ownership
+    const group = await repo.findGroupById(groupId)
+
+    if (!group) {
+      throw new Error('Group not found')
+    }
+
+    // Verify project ownership
+    await this.getProject(group.projectId, userId)
+
+    // Now update
+    const updated = await repo.updateGroup(groupId, { name, order })
+    return updated
   }
 
   async deleteGroup(groupId: string, userId: string) {
+    // Get group with project to verify ownership
+    const group = await repo.findGroupById(groupId)
+
+    if (!group) {
+      throw new Error('Group not found')
+    }
+
+    // Verify project ownership
+    await this.getProject(group.projectId, userId)
+
+    // Now delete
     await repo.deleteGroup(groupId)
     return { success: true }
   }

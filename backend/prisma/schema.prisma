@@ -35,11 +35,6 @@ model User {
   quotaUsages  QuotaUsage[] // NEW
   modelUsages  ModelUsage[] // NEW
 
-  // Avatar & Pose Generator Relations
-  brandKits BrandKit[]
-  avatars   Avatar[]
-  products  Product[]
-
   @@map("users")
 }
 
@@ -514,196 +509,6 @@ model LoopingFlowAudioLayer {
 }
 
 // ========================================
-// Video Generator App Models
-// ========================================
-
-model VideoGeneratorProject {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  generations VideoGeneration[]
-
-  @@index([userId])
-  @@map("video_generator_projects")
-}
-
-model VideoGeneration {
-  id        String @id @default(cuid())
-  projectId String
-  userId    String
-
-  // Provider & Model Information
-  provider  String // 'modelslab', 'edenai'
-  modelId   String // 'veo3', 'kling-2.5', 'wan-2.2-t2v', etc
-  modelName String // Display name for UI
-
-  // Input Parameters
-  prompt         String
-  negativePrompt String?
-
-  // Image Inputs (optional)
-  startImagePath String? // Path to uploaded start image (image-to-video)
-  endImagePath   String? // Path to uploaded end image (video continuation)
-
-  // Generation Settings
-  resolution  String @default("720p") // '720p', '1080p', '4k'
-  duration    Int    @default(5) // Duration in seconds
-  aspectRatio String @default("16:9") // '16:9', '9:16', '1:1', '4:5'
-
-  // Advanced Settings (JSON)
-  advancedSettings String? // JSON: provider-specific settings
-
-  // Pricing & Status
-  creditUsed Int
-  status     String @default("pending") // pending, processing, completed, failed
-
-  // Output
-  outputPath    String? // Path to generated video
-  thumbnailPath String? // Thumbnail for preview
-  errorMessage  String?
-
-  // Provider Job Tracking
-  providerJobId    String? // Job ID from provider API for status checking
-  providerResponse String? // Full provider response (JSON)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-
-  project VideoGeneratorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([projectId])
-  @@index([userId])
-  @@index([status])
-  @@index([providerJobId])
-  @@map("video_generations")
-}
-
-// ========================================
-// Poster Editor App Models
-// ========================================
-
-model PosterEditorProject {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  posters PosterEdit[]
-
-  @@index([userId])
-  @@map("poster_editor_projects")
-}
-
-model PosterEdit {
-  id        String              @id @default(cuid())
-  userId    String
-  projectId String
-  project   PosterEditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  // File URLs
-  originalUrl String // Original upload
-  maskUrl     String? // Generated mask for inpainting
-  editedUrl   String? // After inpainting + text rendering
-  enhancedUrl String? // After super resolution
-
-  // Metadata
-  originalSize String // JSON: {width, height, fileSize, format}
-  enhancedSize String? // JSON: After upscaling
-
-  // OCR Data
-  ocrData String? // JSON: Detected text boxes with positions
-
-  // User Edits
-  userEdits String? // JSON: Text modifications, fonts, colors
-
-  // Enhancement Settings
-  enhanceSettings String? // JSON: {scale, faceEnhance, model}
-
-  // Processing
-  status         String  @default("PENDING") // PENDING, UPLOADING, DETECTING_TEXT, GENERATING, ENHANCING, COMPLETED, FAILED
-  processingTime Int? // Total seconds
-  errorMessage   String?
-
-  // Credits
-  creditsUsed Int     @default(0)
-  breakdown   String? // JSON: {inpainting: 0, enhance: 0, resize: 0}
-
-  // Exports
-  exports PosterExport[]
-
-  // Bridge to App 2 (Variation Generator)
-  sentToVariations   Boolean           @default(false)
-  variationProjectId String?           @unique
-  variationProject   VariationProject? @relation(fields: [variationProjectId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@index([userId, createdAt])
-  @@index([status])
-  @@map("poster_edits")
-}
-
-model PosterExport {
-  id           String     @id @default(cuid())
-  posterEditId String
-  posterEdit   PosterEdit @relation(fields: [posterEditId], references: [id], onDelete: Cascade)
-
-  formatName String // "A4", "IG_POST", "custom", etc.
-  width      Int
-  height     Int
-  fileUrl    String
-  fileSize   Int // bytes
-
-  resizeMethod String // "smart_crop", "fit", "fill", "stretch"
-  wasUpscaled  Boolean @default(false)
-  upscaleRatio Float?
-
-  createdAt DateTime @default(now())
-
-  @@index([posterEditId])
-  @@index([formatName])
-  @@map("poster_exports")
-}
-
-// Bridge to App 2 - Variation Generator
-model VariationProject {
-  id     String @id @default(cuid())
-  userId String
-
-  // Source
-  sourceType   String      @default("FROM_EDITOR") // FROM_EDITOR, DIRECT_UPLOAD
-  posterEditId String?     @unique
-  posterEdit   PosterEdit?
-
-  // Or direct upload for App 2
-  uploadedUrl String?
-
-  // Generation settings (for App 2)
-  settings String? // JSON: style presets, custom prompts, etc.
-
-  // Status
-  status String @default("pending")
-
-  // Results (App 2 will populate)
-  variationUrls String? // JSON array of generated variation URLs
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, createdAt])
-  @@map("variation_projects")
-}
-
-// ========================================
 // DUAL USER SYSTEM: Subscription & Model-Level Access
 // ========================================
 
@@ -888,89 +693,16 @@ model ModelUsage {
 }
 
 // ========================================
-// AVATAR GENERATOR APP (Simple Quick Avatar with Poses)
+// Avatar Creator App Models
 // ========================================
 
-// Simple avatar generation with pose selection
-model AvatarGeneration {
-  id String @id @default(cuid())
-  userId String
-  poseTemplateId String
-
-  // Input/Output
-  inputImageUrl String
-  outputImageUrl String?
-
-  // Settings
-  quality String @default("sd") // "sd", "hd"
-
-  // Status
-  status String @default("pending") // pending, processing, completed, failed
-  errorMessage String?
-
-  // Credits
-  creditUsed Int @default(5)
-
-  createdAt DateTime @default(now())
-  completedAt DateTime?
-
-  @@index([userId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("avatar_generations")
-}
-
-// ========================================
-// AVATAR & POSE GENERATOR SYSTEM (Full System)
-// ========================================
-
-// ========================================
-// BRAND KIT SYSTEM
-// ========================================
-
-model BrandKit {
-  id     String @id @default(cuid())
-  userId String
-
-  // Multi-brand support
-  brandName String // "Skincare Aura", "Fashion Elite", "Kids World"
-  category  String? // "skincare", "fashion", "kids", etc
-
-  // Brand Assets
-  logoUrl String?
-  colors  String // JSON: ["#FF5733", "#33FF57"]
-  fonts   String // JSON: [{family: "Inter", weights: [400,700]}]
-
-  // Brand Voice (for future AI copywriting)
-  tone    String? // "casual", "formal", "playful"
-  tagline String?
-
-  isDefault Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  avatars  Avatar[]
-  products Product[]
-
-  @@index([userId])
-  @@map("brand_kits")
-}
-
-// ========================================
-// AVATAR SYSTEM
-// ========================================
-
-// Avatar Project: Container for avatars (similar to CarouselProject)
 model AvatarProject {
   id          String   @id @default(cuid())
   userId      String
   name        String
   description String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   avatars Avatar[]
 
@@ -979,273 +711,103 @@ model AvatarProject {
 }
 
 model Avatar {
-  id         String  @id @default(cuid())
-  userId     String
-  projectId  String  // NEW: Link to AvatarProject
-  brandKitId String? // Optional: for advanced users
+  id       String  @id @default(cuid())
+  userId   String
+  projectId String
 
-  name         String // "My Avatar", "Fashion Model", etc
-  baseImageUrl String // Original avatar image
+  // Basic Info
+  name         String
+  baseImageUrl String
   thumbnailUrl String?
 
-  // Avatar characteristics (for better pose matching)
-  gender    String? // "male", "female", "unisex"
-  ageRange  String? // "young", "adult", "mature"
-  style     String? // "casual", "formal", "sporty", "professional", "traditional"
-  ethnicity String? // "asian", "caucasian", "mixed", etc
-  bodyType  String? // "half_body", "full_body" - NEW for avatar generation
+  // Persona (untuk prompt generation di apps lain)
+  personaName        String?
+  personaAge         Int?
+  personaPersonality String? @db.Text // JSON: ["friendly", "professional"]
+  personaBackground  String? @db.Text // Latar belakang
 
-  // Generation settings (if AI-generated)
-  generationPrompt String?
-  faceEmbedding    String? // For consistent face across poses (future)
+  // Visual Attributes
+  gender    String?
+  ageRange  String?
+  ethnicity String?
+  bodyType  String?
+  hairStyle String?
+  hairColor String?
+  eyeColor  String?
+  skinTone  String?
+  style     String?
 
-  // Source
-  sourceType String // "upload", "ai_generated"
+  // Generation Info
+  sourceType       String // uploaded, text_to_image, from_preset, from_reference
+  generationPrompt String? @db.Text
+  seedUsed         Int?
 
-  // Stats
-  usageCount Int       @default(0) // How many times used in pose generation
-  lastUsedAt DateTime? // Last time this avatar was used
+  // Tracking
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project        AvatarProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  brandKit       BrandKit?            @relation(fields: [brandKitId], references: [id], onDelete: SetNull)
-  generatedPoses GeneratedPose[]
-  usageHistory   AvatarUsageHistory[]
+  project      AvatarProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  usageHistory AvatarUsageHistory[]
 
   @@index([userId])
   @@index([projectId])
-  @@index([brandKitId])
   @@map("avatars")
 }
 
-// ========================================
-// PRODUCT SYSTEM
-// ========================================
-
-model Product {
-  id         String @id @default(cuid())
-  userId     String
-  brandKitId String
-
-  name        String
-  category    String // "skincare", "fashion-top", "accessory", etc
-  subcategory String? // "serum", "moisturizer", "shirt", "shoes"
-
-  // Product assets
-  originalUrl    String // Original upload
-  transparentUrl String? // After background removal (SAM)
-  thumbnailUrl   String?
-
-  // Product metadata (for better placement in poses)
-  productType   String // "bottle", "tube", "box", "clothing", "accessory"
-  placement     String // "hand-held", "worn", "displayed", "table"
-  dominantColor String? // For smart background matching
+model AvatarPreset {
+  id              String  @id @default(cuid())
+  name            String
+  previewImageUrl String
+  category        String // business, casual, traditional, creative
+  personaTemplate String  @db.Text // JSON
+  visualAttributes String @db.Text // JSON
+  generationPrompt String @db.Text
+  isPublic        Boolean @default(true)
+  usageCount      Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  brandKit       BrandKit        @relation(fields: [brandKitId], references: [id], onDelete: Cascade)
-  generatedPoses GeneratedPose[]
-
-  @@index([userId])
-  @@index([brandKitId])
   @@index([category])
-  @@map("products")
+  @@map("avatar_presets")
 }
 
-// ========================================
-// POSE TEMPLATE LIBRARY
-// ========================================
+model PersonaExample {
+  id       String  @id @default(cuid())
+  name     String
+  category String // business, creative, lifestyle, healthcare
 
-model PoseTemplate {
-  id String @id @default(cuid())
+  // Persona fields
+  personaName        String
+  personaAge         Int
+  personaPersonality String  @db.Text // JSON array
+  personaBackground  String  @db.Text
 
-  // Categorization
-  category    String // "fashion-standing", "skincare-application", etc
-  subcategory String? // "casual", "formal", "action"
+  // Visual suggestions (optional)
+  suggestedAttributes String? @db.Text // JSON
 
-  // Pose data (OpenPose format - 18 keypoints)
-  keypointsJson String // JSON: [{x, y, confidence}, ...]
-  previewUrl    String // Small preview image
-
-  // Metadata
-  difficulty  String // "simple", "medium", "complex"
-  tags        String // JSON: ["standing", "front-facing", "arms-crossed"]
-  description String?
-
-  // Quality tracking
-  usageCount      Int   @default(0)
-  successRate     Float @default(0.95) // Track generation success
-  avgQualityScore Float @default(0.85)
-
-  // Filtering
-  gender           String? // "male", "female", "unisex"
-  productPlacement String? // "hand-left", "hand-right", "worn", "both-hands"
-
-  // NEW: Enhanced categories for Avatar & Pose Generator
-  fashionCategory String? // "casual", "formal", "hijab", "sport", "traditional"
-  sceneType       String? // "indoor", "outdoor", "studio", "office", "home"
-  professionTheme String? // "doctor", "pilot", "chef", "teacher", "engineer", null
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  generatedPoses GeneratedPose[]
-
-  @@index([category, isActive])
-  @@index([successRate])
-  @@index([fashionCategory])
-  @@index([sceneType])
-  @@map("pose_templates")
-}
-
-// ========================================
-// POSE GENERATION
-// ========================================
-
-model PoseGenerationProject {
-  id     String @id @default(cuid())
-  userId String
-
-  name        String
-  description String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  generations PoseGeneration[]
-
-  @@index([userId])
-  @@map("pose_generation_projects")
-}
-
-model PoseGeneration {
-  id        String  @id @default(cuid())
-  projectId String?
-  userId    String
-  avatarId  String
-
-  // Generation settings
-  totalPoses          Int // Target number of poses
-  selectedPoseIds     String // JSON array of pose template IDs
-  batchSize           Int    @default(10) // How many poses to generate
-
-  // Quality settings
-  quality String @default("sd") // "sd", "hd"
-
-  // Enhancement settings (JSON)
-  fashionSettings     String? // JSON: {hijab, accessories, outfit}
-  backgroundSettings  String? // JSON: {type, scene, customPrompt}
-  professionTheme     String? // "doctor", "pilot", "chef", null
-
-  // AI settings
-  provider String @default("modelslab") // "modelslab", "huggingface", "fal"
-  modelId  String @default("controlnet-sd15") // Model identifier
-
-  // Prompt engineering
-  basePrompt     String // AI prompt for generation
-  negativePrompt String?
-
-  // Status
-  status   String @default("pending") // pending, processing, completed, failed
-  progress Int    @default(0) // 0-100
-
-  // Results
-  successfulPoses Int @default(0)
-  failedPoses     Int @default(0)
-
-  // Credits
-  creditUsed Int @default(0)
-
-  // Output
-  outputFolder String? // Path to generated poses
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-
-  project        PoseGenerationProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  generatedPoses GeneratedPose[]
-
-  @@index([projectId])
-  @@index([userId])
-  @@index([status])
-  @@map("pose_generations")
-}
-
-model GeneratedPose {
-  id             String  @id @default(cuid())
-  generationId   String
-  userId         String
-  avatarId       String
-  productId      String? // Optional: for product placement
-  poseTemplateId String
-
-  // Generation params
-  prompt          String
-  negativePrompt  String?
-  controlnetImage String? // Pose skeleton image used
-
-  // Result
-  outputUrl    String
-  thumbnailUrl String?
-
-  // Quality metrics
-  success        Boolean @default(true)
-  qualityScore   Float? // 0-1 (AI quality assessment)
-  generationTime Int     @default(0) // seconds
-
-  // AI metadata
-  provider      String // "modelslab", "huggingface", "fal", etc
-  providerJobId String?
-  seed          Int? // For reproducibility
-
-  // Usage tracking
-  exported      Boolean @default(false)
-  exportCount   Int     @default(0)
-  usedInPosters Int     @default(0)
-
-  // User feedback (optional)
-  userRating Int? // 1-5 stars
+  displayOrder Int     @default(0)
+  isActive     Boolean @default(true)
 
   createdAt DateTime @default(now())
 
-  generation   PoseGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
-  avatar       Avatar         @relation(fields: [avatarId], references: [id])
-  product      Product?       @relation(fields: [productId], references: [id])
-  poseTemplate PoseTemplate   @relation(fields: [poseTemplateId], references: [id])
-
-  @@index([generationId])
-  @@index([userId, createdAt])
-  @@index([poseTemplateId, success]) // For tracking template success rates
-  @@map("generated_poses")
+  @@index([category])
+  @@map("persona_examples")
 }
-
-// ========================================
-// AVATAR USAGE HISTORY
-// ========================================
 
 model AvatarUsageHistory {
-  id       String @id @default(cuid())
-  avatarId String
-  userId   String
-
-  // Where was the avatar used
-  appId     String // "pose-generator", "poster-editor", etc.
-  appName   String // Display name of the app
-  action    String // "generate_pose", "create_poster", etc.
-
-  // Optional reference to the generated content
-  referenceId   String? // ID of the pose/poster/etc.
-  referenceType String? // "generated_pose", "poster_edit", etc.
-
-  metadata String? // JSON: additional context
+  id            String  @id @default(cuid())
+  avatarId      String
+  userId        String
+  appId         String
+  appName       String
+  action        String
+  referenceId   String?
+  referenceType String?
+  metadata      String? @db.Text
 
   createdAt DateTime @default(now())
 
@@ -1254,39 +816,23 @@ model AvatarUsageHistory {
   @@index([avatarId])
   @@index([userId])
   @@index([appId])
-  @@index([createdAt])
   @@map("avatar_usage_history")
 }
 
-// ========================================
-// ANALYTICS (Internal - Track User Productivity)
-// ========================================
+model AvatarGeneration {
+  id        String   @id @default(cuid())
+  userId    String
+  avatarId  String? // null until completed
+  projectId String
+  status    String   @default("pending") // pending, processing, completed, failed
+  prompt    String   @db.Text
+  options   String?  @db.Text // JSON
+  errorMessage String? @db.Text
 
-model DesignMetrics {
-  id         String @id @default(cuid())
-  userId     String
-  brandKitId String
-  designType String // "avatar", "pose", "poster"
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
 
-  // Usage stats
-  timesCreated    Int    @default(0)
-  timesExported   Int    @default(0)
-  formatBreakdown String // JSON: {"ig_post": 50, "fb_cover": 30}
-
-  // Time tracking
-  avgCreationTime Int // seconds
-  totalTimeSaved  Int // vs traditional methods (estimated)
-
-  // Cost tracking
-  estimatedSavings Float // Rupiah saved vs photoshoot
-
-  // Period
-  period String // "2025-10" for monthly aggregation
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, brandKitId, designType, period])
-  @@index([userId, period])
-  @@map("design_metrics")
+  @@index([userId])
+  @@index([status])
+  @@map("avatar_generations")
 }
