@@ -31,8 +31,8 @@ export class AppError extends Error implements IAppError {
     this.timestamp = new Date()
 
     // Maintain proper stack trace (Node.js only)
-    if (typeof Error.captureStackTrace === 'function') {
-      Error.captureStackTrace(this, AppError)
+    if (typeof (Error as any).captureStackTrace === 'function') {
+      (Error as any).captureStackTrace(this, AppError)
     }
   }
 
