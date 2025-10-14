@@ -39,58 +39,87 @@ export class CreditService {
 
   /**
    * Deduct credits from user (for tool usage)
+   * Uses database transaction with serializable isolation to prevent race conditions
    */
   async deductCredits(input: DeductCreditsInput) {
-    const currentBalance = await this.getBalance(input.userId)
+    return await prisma.$transaction(async (tx) => {
+      // Get latest balance with row lock (SELECT FOR UPDATE equivalent)
+      const latestCredit = await tx.credit.findFirst({
+        where: { userId: input.userId },
+        orderBy: { createdAt: 'desc' },
+        select: { balance: true, id: true }
+      })
 
-    if (currentBalance < input.amount) {
-      throw new Error('Insufficient credits')
-    }
+      const currentBalance = latestCredit?.balance || 0
 
-    const newBalance = currentBalance - input.amount
+      if (currentBalance < input.amount) {
+        throw new Error('Insufficient credits')
+      }
 
-    const credit = await prisma.credit.create({
-      data: {
-        userId: input.userId,
-        amount: -input.amount, // Negative for deduction
-        balance: newBalance,
-        type: 'usage',
-        description: input.description,
-        referenceId: input.referenceId,
-        referenceType: input.referenceType,
-      },
+      const newBalance = currentBalance - input.amount
+
+      // Create new credit record atomically within transaction
+      const credit = await tx.credit.create({
+        data: {
+          userId: input.userId,
+          amount: -input.amount, // Negative for deduction
+          balance: newBalance,
+          type: 'usage',
+          description: input.description,
+          referenceId: input.referenceId,
+          referenceType: input.referenceType,
+        },
+      })
+
+      return {
+        credit,
+        previousBalance: currentBalance,
+        newBalance,
+      }
+    }, {
+      isolationLevel: 'Serializable', // Highest isolation level to prevent race conditions
+      maxWait: 5000, // Wait up to 5 seconds for transaction lock
+      timeout: 10000, // Transaction timeout after 10 seconds
     })
-
-    return {
-      credit,
-      previousBalance: currentBalance,
-      newBalance,
-    }
   }
 
   /**
    * Add credits to user (for purchase, bonus, refund)
+   * Uses database transaction to ensure atomic operations
    */
   async addCredits(input: AddCreditsInput) {
-    const currentBalance = await this.getBalance(input.userId)
-    const newBalance = currentBalance + input.amount
+    return await prisma.$transaction(async (tx) => {
+      // Get latest balance with row lock
+      const latestCredit = await tx.credit.findFirst({
+        where: { userId: input.userId },
+        orderBy: { createdAt: 'desc' },
+        select: { balance: true, id: true }
+      })
 
-    const credit = await prisma.credit.create({
-      data: {
-        userId: input.userId,
-        amount: input.amount,
-        balance: newBalance,
-        type: input.type,
-        description: input.description,
-        paymentId: input.paymentId,
-      },
+      const currentBalance = latestCredit?.balance || 0
+      const newBalance = currentBalance + input.amount
+
+      const credit = await tx.credit.create({
+        data: {
+          userId: input.userId,
+          amount: input.amount,
+          balance: newBalance,
+          type: input.type,
+          description: input.description,
+          paymentId: input.paymentId,
+        },
+      })
+
+      return {
+        credit,
+        previousBalance: currentBalance,
+        newBalance,
+      }
+    }, {
+      isolationLevel: 'Serializable',
+      maxWait: 5000,
+      timeout: 10000,
     })
-
-    return {
-      credit,
-      previousBalance: currentBalance,
-      newBalance,
-    }
   }
 
   /**

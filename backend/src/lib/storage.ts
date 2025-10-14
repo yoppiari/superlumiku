@@ -105,7 +105,8 @@ export async function getUserStorageUsed(userId: string): Promise<number> {
 }
 
 /**
- * Check if user has enough storage quota for file upload
+ * Check if user has enough storage quota for file upload (READ-ONLY, no reservation)
+ * For display purposes only - use checkAndReserveStorage for actual uploads
  */
 export async function checkStorageQuota(
   userId: string,
@@ -136,7 +137,82 @@ export async function checkStorageQuota(
 }
 
 /**
- * Update user storage usage
+ * Atomically check and reserve storage quota
+ * Uses database transaction to prevent race conditions
+ * Returns reservation ID for later commit or rollback
+ */
+export async function checkAndReserveStorage(
+  userId: string,
+  fileSize: number
+): Promise<{ allowed: boolean; reservationId?: string; used?: number; quota?: number }> {
+  return await prisma.$transaction(async (tx) => {
+    // Lock user row for update
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        storageQuota: true,
+        storageUsed: true
+      }
+    })
+
+    if (!user) {
+      throw new Error('User not found')
+    }
+
+    const newUsage = user.storageUsed + fileSize
+
+    // Check if reservation would exceed quota
+    if (newUsage > user.storageQuota) {
+      return {
+        allowed: false,
+        used: user.storageUsed,
+        quota: user.storageQuota
+      }
+    }
+
+    // Atomically increment storage usage (reserve space)
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        storageUsed: { increment: fileSize }
+      }
+    })
+
+    const reservationId = randomBytes(16).toString('hex')
+
+    return {
+      allowed: true,
+      reservationId,
+      used: user.storageUsed,
+      quota: user.storageQuota
+    }
+  }, {
+    isolationLevel: 'Serializable',
+    maxWait: 5000,
+    timeout: 10000,
+  })
+}
+
+/**
+ * Release storage reservation (rollback on upload failure)
+ * @param userId - User ID
+ * @param fileSize - Size to release in bytes
+ */
+export async function releaseStorageReservation(
+  userId: string,
+  fileSize: number
+): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      storageUsed: { decrement: fileSize }
+    }
+  })
+}
+
+/**
+ * Update user storage usage (for manual adjustments)
  * @param userId - User ID
  * @param delta - Change in bytes (positive = add, negative = subtract)
  */

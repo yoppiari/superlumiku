@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import { LoadingSpinner } from './components/ui'
 import { setupSSOListeners, extractSSOFromURL } from './lib/sso'
 import { useAuthStore } from './stores/authStore'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 // Eager-load critical pages
 import Home from './pages/Home'
@@ -52,23 +53,142 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/my-work" element={<MyWork />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/credits" element={<Credits />} />
-        <Route path="/apps/video-mixer" element={<VideoMixer />} />
-        <Route path="/apps/carousel-mix" element={<CarouselMix />} />
-        <Route path="/apps/carousel-mix/:projectId" element={<CarouselMix />} />
-        <Route path="/apps/looping-flow" element={<LoopingFlow />} />
-        <Route path="/apps/looping-flow/:projectId" element={<LoopingFlow />} />
-        <Route path="/apps/video-generator" element={<VideoGenerator />} />
-        <Route path="/apps/video-generator/:projectId" element={<VideoGenerator />} />
-        <Route path="/apps/poster-editor" element={<PosterEditor />} />
-        <Route path="/apps/avatar-generator" element={<AvatarGenerator />} />
-        <Route path="/apps/avatar-creator" element={<AvatarCreator />} />
-        <Route path="/apps/avatar-creator/:projectId" element={<AvatarCreator />} />
-        <Route path="/apps/pose-generator" element={<PoseGenerator />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ErrorBoundary level="page">
+              <Dashboard />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/my-work"
+          element={
+            <ErrorBoundary level="page">
+              <MyWork />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ErrorBoundary level="page">
+              <Profile />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ErrorBoundary level="page">
+              <Settings />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/credits"
+          element={
+            <ErrorBoundary level="page">
+              <Credits />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/video-mixer"
+          element={
+            <ErrorBoundary level="page">
+              <VideoMixer />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/carousel-mix"
+          element={
+            <ErrorBoundary level="page">
+              <CarouselMix />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/carousel-mix/:projectId"
+          element={
+            <ErrorBoundary level="page">
+              <CarouselMix />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/looping-flow"
+          element={
+            <ErrorBoundary level="page">
+              <LoopingFlow />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/looping-flow/:projectId"
+          element={
+            <ErrorBoundary level="page">
+              <LoopingFlow />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/video-generator"
+          element={
+            <ErrorBoundary level="page">
+              <VideoGenerator />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/video-generator/:projectId"
+          element={
+            <ErrorBoundary level="page">
+              <VideoGenerator />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/poster-editor"
+          element={
+            <ErrorBoundary level="page">
+              <PosterEditor />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/avatar-generator"
+          element={
+            <ErrorBoundary level="page">
+              <AvatarGenerator />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/avatar-creator"
+          element={
+            <ErrorBoundary level="page">
+              <AvatarCreator />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/avatar-creator/:projectId"
+          element={
+            <ErrorBoundary level="page">
+              <AvatarCreator />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/pose-generator"
+          element={
+            <ErrorBoundary level="page">
+              <PoseGenerator />
+            </ErrorBoundary>
+          }
+        />
       </Routes>
     </Suspense>
   )
@@ -76,9 +196,11 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <ErrorBoundary level="app">
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

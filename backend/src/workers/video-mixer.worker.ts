@@ -314,4 +314,54 @@ worker.on('ready', () => {
   console.log('🔧 Video Mixer Worker ready and listening for jobs')
 })
 
+// Graceful shutdown handlers
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n${signal} received. Starting graceful shutdown...`)
+
+  try {
+    // Stop accepting new jobs
+    console.log('Closing worker...')
+    await worker.close()
+
+    // Cleanup all active FFmpeg processes
+    console.log('Cleaning up FFmpeg processes...')
+    await ffmpegService.cleanupAll()
+
+    // Disconnect from Redis
+    if (redis) {
+      console.log('Disconnecting from Redis...')
+      await redis.quit()
+    }
+
+    // Disconnect from database
+    console.log('Disconnecting from database...')
+    await prisma.$disconnect()
+
+    console.log('✅ Graceful shutdown complete')
+    process.exit(0)
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error)
+    process.exit(1)
+  }
+}
+
+// Listen for termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Promise Rejection in worker:', reason)
+  console.error('Promise:', promise)
+  // Exit process to trigger restart by process manager
+  process.exit(1)
+})
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception in worker:', error)
+  // Exit process to trigger restart by process manager
+  process.exit(1)
+})
+
 console.log('🚀 Video Mixer Worker started')

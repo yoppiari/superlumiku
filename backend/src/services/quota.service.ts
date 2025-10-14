@@ -70,6 +70,7 @@ export class QuotaService {
 
   /**
    * Increment quota usage
+   * Uses database transaction with atomic increment to prevent race conditions
    */
   async incrementQuota(
     userId: string,
@@ -78,35 +79,46 @@ export class QuotaService {
   ): Promise<void> {
     const today = new Date().toISOString().split('T')[0]
 
-    const quota = await prisma.quotaUsage.findUnique({
-      where: {
-        userId_period_quotaType: {
-          userId,
-          period: today,
-          quotaType: 'daily'
+    await prisma.$transaction(async (tx) => {
+      const quota = await tx.quotaUsage.findUnique({
+        where: {
+          userId_period_quotaType: {
+            userId,
+            period: today,
+            quotaType: 'daily'
+          }
         }
+      })
+
+      if (!quota) {
+        throw new Error('Quota record not found')
       }
-    })
 
-    if (!quota) {
-      throw new Error('Quota record not found')
-    }
-
-    // Parse model breakdown
-    const breakdown = quota.modelBreakdown
-      ? JSON.parse(quota.modelBreakdown)
-      : {}
-
-    const modelId = modelKey.split(':')[1]
-    breakdown[modelId] = (breakdown[modelId] || 0) + quotaCost
-
-    // Update quota
-    await prisma.quotaUsage.update({
-      where: { id: quota.id },
-      data: {
-        usageCount: quota.usageCount + quotaCost,
-        modelBreakdown: JSON.stringify(breakdown)
+      // Check if increment would exceed quota limit
+      if (quota.usageCount + quotaCost > quota.quotaLimit) {
+        throw new Error('Quota limit would be exceeded')
       }
+
+      // Parse model breakdown
+      const breakdown = quota.modelBreakdown
+        ? JSON.parse(quota.modelBreakdown)
+        : {}
+
+      const modelId = modelKey.split(':')[1]
+      breakdown[modelId] = (breakdown[modelId] || 0) + quotaCost
+
+      // Update quota with atomic increment
+      await tx.quotaUsage.update({
+        where: { id: quota.id },
+        data: {
+          usageCount: { increment: quotaCost }, // Atomic increment!
+          modelBreakdown: JSON.stringify(breakdown)
+        }
+      })
+    }, {
+      isolationLevel: 'Serializable',
+      maxWait: 5000,
+      timeout: 10000,
     })
   }
 

@@ -9,6 +9,7 @@ import { asyncHandler } from '../utils/error-handler'
 import { logger } from '../utils/logger'
 import { AuthContext } from '../types/routes'
 import { z } from 'zod'
+import { validatePassword, checkPasswordStrength } from '../utils/password-validation'
 
 const authRoutes = new Hono<{ Variables: AuthVariables }>()
 const authService = new AuthService()
@@ -21,10 +22,19 @@ const loginAccountLimiter = accountRateLimiter('Too many failed login attempts f
 const registerLimiter = rateLimiter(authRateLimits.register)
 const profileUpdateLimiter = rateLimiter(authRateLimits.profileUpdate)
 
-// Validation schemas
+// Validation schemas with strong password requirements
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string()
+    .min(12, 'Password must be at least 12 characters')
+    .max(128, 'Password must not exceed 128 characters')
+    .refine((password) => {
+      const result = validatePassword(password)
+      return result.valid
+    }, (password) => {
+      const result = validatePassword(password)
+      return { message: result.errors.join('. ') }
+    }),
   name: z.string().optional(),
 })
 
@@ -37,7 +47,19 @@ const updateProfileSchema = z.object({
   name: z.string().optional(),
   email: z.string().email('Invalid email address').optional(),
   currentPassword: z.string().optional(),
-  newPassword: z.string().min(8, 'Password must be at least 8 characters').optional(),
+  newPassword: z.string()
+    .min(12, 'Password must be at least 12 characters')
+    .max(128, 'Password must not exceed 128 characters')
+    .refine((password) => {
+      if (!password) return true // Optional field
+      const result = validatePassword(password)
+      return result.valid
+    }, (password) => {
+      if (!password) return { message: '' }
+      const result = validatePassword(password)
+      return { message: result.errors.join('. ') }
+    })
+    .optional(),
 })
 
 /**
@@ -150,6 +172,36 @@ authRoutes.put(
 
     return sendSuccess(c, result, 'Profile updated successfully')
   }, 'Update User Profile')
+)
+
+/**
+ * POST /api/auth/password/strength
+ * Check password strength without creating account
+ * Useful for real-time password validation on frontend
+ *
+ * @body password
+ * @returns Password strength analysis
+ */
+authRoutes.post(
+  '/password/strength',
+  asyncHandler(async (c) => {
+    const body = await c.req.json()
+    const { password } = body
+
+    if (!password || typeof password !== 'string') {
+      return c.json({ error: 'Password required' }, 400)
+    }
+
+    const result = checkPasswordStrength(password)
+
+    return c.json({
+      score: result.score,
+      strength: result.strength,
+      feedback: result.feedback,
+      crackTime: result.crackTime,
+      isCommon: result.isCommon
+    })
+  }, 'Check Password Strength')
 )
 
 export default authRoutes

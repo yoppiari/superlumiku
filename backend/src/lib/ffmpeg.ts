@@ -1,6 +1,7 @@
 import ffmpeg from 'fluent-ffmpeg'
 import path from 'path'
 import { promises as fs } from 'fs'
+import { randomBytes } from 'crypto'
 
 export interface VideoInput {
   filePath: string
@@ -45,6 +46,9 @@ const BITRATE_MAP = {
 }
 
 export class FFmpegService {
+  private activeCommands: Map<string, any> = new Map()
+  private cleanupHandlers: Set<() => Promise<void>> = new Set()
+
   /**
    * Mix multiple videos into one output
    */
@@ -54,6 +58,53 @@ export class FFmpegService {
     options: ProcessingOptions,
     onProgress?: (progress: number) => void
   ): Promise<void> {
+    const jobId = randomBytes(8).toString('hex')
+    let command: any
+    let concatFilePath: string | undefined
+    let tempFiles: string[] = []
+
+    // Timeout for hung processes (10 minutes max)
+    const timeoutId = setTimeout(() => {
+      if (command) {
+        console.warn(`FFmpeg process timeout for job ${jobId}`)
+        try {
+          command.kill('SIGKILL')
+        } catch (e) {
+          console.error('Failed to kill hung FFmpeg process:', e)
+        }
+      }
+    }, 10 * 60 * 1000)
+
+    const cleanup = async () => {
+      clearTimeout(timeoutId)
+
+      if (command) {
+        try {
+          command.removeAllListeners()
+        } catch (e) {
+          console.error('Failed to remove listeners:', e)
+        }
+        this.activeCommands.delete(jobId)
+      }
+
+      // Delete temporary files
+      for (const tempFile of tempFiles) {
+        try {
+          await fs.unlink(tempFile)
+        } catch (e) {
+          console.warn(`Failed to cleanup temp file ${tempFile}:`, e)
+        }
+      }
+
+      if (concatFilePath) {
+        try {
+          await fs.unlink(concatFilePath)
+        } catch (e) {
+          console.warn('Failed to cleanup concat file:', e)
+        }
+      }
+    }
+
     return new Promise(async (resolve, reject) => {
       try {
         // Sort by order
@@ -67,7 +118,8 @@ export class FFmpegService {
 
         if (useSmartDistribution) {
           // Use complex filter for individual trimming
-          const command = ffmpeg()
+          command = ffmpeg()
+          this.activeCommands.set(jobId, command)
 
           // Add each input separately (NO -t option, will trim in filter)
           sortedInputs.forEach((input) => {
@@ -166,12 +218,17 @@ export class FFmpegService {
           })
 
           // Error handling
-          command.on('error', (err: any) => {
+          command.on('error', async (err: any) => {
+            await cleanup()
+            try {
+              command.kill('SIGKILL')
+            } catch {}
             reject(new Error(`FFmpeg error: ${err.message}`))
           })
 
           // Success
-          command.on('end', () => {
+          command.on('end', async () => {
+            await cleanup()
             resolve()
           })
 
@@ -179,7 +236,9 @@ export class FFmpegService {
           command.save(outputPath)
         } else {
           // Original concat file method
-          const concatFilePath = outputPath.replace('.mp4', '_concat.txt')
+          concatFilePath = outputPath.replace('.mp4', '_concat.txt')
+          tempFiles.push(concatFilePath)
+
           const concatContent = sortedInputs
             .map((input) => `file '${path.resolve(input.filePath).replace(/\\/g, '/')}'`)
             .join('\n')
@@ -187,15 +246,22 @@ export class FFmpegService {
           // Write concat file
           await fs.writeFile(concatFilePath, concatContent)
 
-          const command = ffmpeg()
+          command = ffmpeg()
+          this.activeCommands.set(jobId, command)
 
           // Input: concat demuxer
           command.input(concatFilePath).inputOptions(['-f', 'concat', '-safe', '0'])
 
           // Continue with filters and output...
-          await this.applyFiltersAndOutput(command, outputPath, options, onProgress, resolve, reject, concatFilePath, globalSpeedFactor)
+          await this.applyFiltersAndOutput(command, outputPath, options, onProgress, resolve, reject, cleanup, globalSpeedFactor)
         }
       } catch (error) {
+        await cleanup()
+        if (command) {
+          try {
+            command.kill('SIGKILL')
+          } catch {}
+        }
         reject(error)
       }
     })
@@ -208,7 +274,7 @@ export class FFmpegService {
     onProgress: ((progress: number) => void) | undefined,
     resolve: (value: void) => void,
     reject: (reason?: any) => void,
-    concatFilePath?: string,
+    cleanup: () => Promise<void>,
     globalSpeedFactor?: number
   ): Promise<void> {
     // Video filters
@@ -300,26 +366,63 @@ export class FFmpegService {
 
     // Error handling
     command.on('error', async (err: any) => {
-      if (concatFilePath) {
-        try {
-          await fs.unlink(concatFilePath)
-        } catch {}
-      }
+      await cleanup()
+      try {
+        command.kill('SIGKILL')
+      } catch {}
       reject(new Error(`FFmpeg error: ${err.message}`))
     })
 
     // Success
     command.on('end', async () => {
-      if (concatFilePath) {
-        try {
-          await fs.unlink(concatFilePath) // Cleanup concat file
-        } catch {}
-      }
+      await cleanup()
       resolve()
     })
 
     // Run
     command.save(outputPath)
+  }
+
+  /**
+   * Cleanup all active FFmpeg processes (for graceful shutdown)
+   */
+  async cleanupAll(): Promise<void> {
+    console.log(`[FFmpegService] Cleaning up ${this.activeCommands.size} active FFmpeg processes`)
+
+    const killPromises: Promise<void>[] = []
+
+    for (const [jobId, command] of this.activeCommands) {
+      killPromises.push(
+        (async () => {
+          try {
+            console.log(`[FFmpegService] Killing FFmpeg process ${jobId}`)
+            command.kill('SIGTERM')
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            command.kill('SIGKILL') // Force kill if still alive
+            command.removeAllListeners()
+          } catch (error) {
+            console.error(`[FFmpegService] Failed to kill FFmpeg process ${jobId}:`, error)
+          }
+        })()
+      )
+    }
+
+    await Promise.all(killPromises)
+    this.activeCommands.clear()
+
+    // Run custom cleanup handlers
+    const cleanupPromises = Array.from(this.cleanupHandlers).map(handler => handler())
+    await Promise.allSettled(cleanupPromises)
+    this.cleanupHandlers.clear()
+
+    console.log('[FFmpegService] Cleanup complete')
+  }
+
+  /**
+   * Register a cleanup handler to be called on shutdown
+   */
+  registerCleanupHandler(handler: () => Promise<void>): void {
+    this.cleanupHandlers.add(handler)
   }
 
   /**
@@ -353,16 +456,42 @@ export class FFmpegService {
    * Generate thumbnail from video
    */
   async generateThumbnail(videoPath: string, outputPath: string, timeOffset: number = 1): Promise<void> {
+    const jobId = randomBytes(8).toString('hex')
+    let command: any
+
     return new Promise((resolve, reject) => {
-      ffmpeg(videoPath)
+      const cleanup = () => {
+        if (command) {
+          try {
+            command.removeAllListeners()
+            this.activeCommands.delete(jobId)
+          } catch (e) {
+            console.error('Failed to cleanup thumbnail command:', e)
+          }
+        }
+      }
+
+      command = ffmpeg(videoPath)
+      this.activeCommands.set(jobId, command)
+
+      command
         .screenshots({
           timestamps: [timeOffset],
           filename: path.basename(outputPath),
           folder: path.dirname(outputPath),
           size: '640x360'
         })
-        .on('end', () => resolve())
-        .on('error', (err: any) => reject(new Error(`Thumbnail generation failed: ${err.message}`)))
+        .on('end', () => {
+          cleanup()
+          resolve()
+        })
+        .on('error', (err: any) => {
+          cleanup()
+          try {
+            command.kill('SIGKILL')
+          } catch {}
+          reject(new Error(`Thumbnail generation failed: ${err.message}`))
+        })
     })
   }
 }
