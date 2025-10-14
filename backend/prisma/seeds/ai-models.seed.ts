@@ -212,7 +212,7 @@ export const seedAIModels = async () => {
     // ==========================================
     {
       appId: 'avatar-creator',
-      modelId: 'black-forest-labs/FLUX.1-dev',
+      modelId: 'flux-dev-base',
       modelKey: 'avatar-creator:flux-dev-base',
       name: 'FLUX.1-dev Base',
       description: 'High-quality text-to-image avatar generation with FLUX.1-dev (base model without LoRA)',
@@ -242,7 +242,7 @@ export const seedAIModels = async () => {
     },
     {
       appId: 'avatar-creator',
-      modelId: 'black-forest-labs/FLUX.1-dev',
+      modelId: 'flux-dev-realism',
       modelKey: 'avatar-creator:flux-dev-realism',
       name: 'FLUX.1-dev + Realism LoRA',
       description: 'Ultra-realistic avatar generation with FLUX.1-dev enhanced by Realism LoRA for photorealistic portraits',
@@ -273,7 +273,7 @@ export const seedAIModels = async () => {
     },
     {
       appId: 'avatar-creator',
-      modelId: 'black-forest-labs/FLUX.1-dev',
+      modelId: 'flux-dev-hd-realism',
       modelKey: 'avatar-creator:flux-dev-hd-realism',
       name: 'FLUX.1-dev HD + Realism LoRA',
       description: 'Premium 1024x1024 photorealistic avatars with FLUX.1-dev + Realism LoRA at maximum quality',
@@ -305,7 +305,7 @@ export const seedAIModels = async () => {
     },
     {
       appId: 'avatar-creator',
-      modelId: 'black-forest-labs/FLUX.1-schnell',
+      modelId: 'flux-schnell-fast',
       modelKey: 'avatar-creator:flux-schnell-fast',
       name: 'FLUX.1-schnell Fast',
       description: 'Rapid avatar generation with FLUX.1-schnell distilled model (5-15 seconds, good quality)',
