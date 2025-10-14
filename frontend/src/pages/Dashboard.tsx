@@ -57,10 +57,20 @@ interface DashboardStats {
   lastLogin: string
 }
 
+/**
+ * Safe number formatter - handles undefined/null values gracefully
+ */
+const formatNumber = (value: number | undefined | null): string => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return '0'
+  }
+  return value.toLocaleString()
+}
+
 export default function Dashboard() {
   const { user, isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
-  const [creditBalance, setCreditBalance] = useState(user?.creditBalance || 2450)
+  const [creditBalance, setCreditBalance] = useState(user?.creditBalance || 0)
   const [apps, setApps] = useState<AppData[]>([])
   const [loadingApps, setLoadingApps] = useState(true)
   const [recentGenerations, setRecentGenerations] = useState<GenerationItem[]>([])
@@ -89,9 +99,10 @@ export default function Dashboard() {
       try {
         // Fetch credit balance
         const balanceData = await creditsService.getBalance()
-        setCreditBalance(balanceData.balance)
+        setCreditBalance(balanceData?.balance ?? 0)
       } catch (err) {
         handleApiError(err, 'Fetch credit balance')
+        setCreditBalance(0)
       }
 
       try {
@@ -117,9 +128,15 @@ export default function Dashboard() {
       try {
         // Fetch dashboard stats
         const statsData = await dashboardService.getStats()
-        setStats(statsData)
+        setStats({
+          totalSpending: statsData?.totalSpending ?? 0,
+          totalWorks: statsData?.totalWorks ?? 0,
+          totalProjects: statsData?.totalProjects ?? 0,
+          lastLogin: statsData?.lastLogin ?? new Date().toISOString(),
+        })
       } catch (err) {
         handleApiError(err, 'Fetch dashboard stats')
+        // Keep default values on error
       } finally {
         setLoadingStats(false)
       }
@@ -146,28 +163,28 @@ export default function Dashboard() {
   const dashboardStats = [
     {
       icon: Coins,
-      value: loadingStats ? '...' : `${stats.totalSpending.toLocaleString()}`,
+      value: loadingStats ? '...' : formatNumber(stats.totalSpending),
       label: 'Spending (This Month)',
       color: 'bg-purple-50 text-purple-700',
       suffix: ' Credits'
     },
     {
       icon: Briefcase,
-      value: loadingStats ? '...' : `${stats.totalWorks}`,
+      value: loadingStats ? '...' : `${stats.totalWorks ?? 0}`,
       label: 'Total Works (This Month)',
       color: 'bg-blue-50 text-blue-700',
       suffix: ''
     },
     {
       icon: FolderKanban,
-      value: loadingStats ? '...' : `${stats.totalProjects}`,
+      value: loadingStats ? '...' : `${stats.totalProjects ?? 0}`,
       label: 'Total Projects (This Month)',
       color: 'bg-green-50 text-green-700',
       suffix: ''
     },
     {
       icon: LogIn,
-      value: loadingStats ? '...' : formatLastLogin(stats.lastLogin),
+      value: loadingStats ? '...' : formatLastLogin(stats.lastLogin ?? new Date().toISOString()),
       label: 'Last Login',
       color: 'bg-orange-50 text-orange-700',
       suffix: ''
@@ -214,7 +231,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-4 md:gap-6">
               <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
                 <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
-                <span className="font-medium text-slate-900">{creditBalance.toLocaleString()} Credits</span>
+                <span className="font-medium text-slate-900">{formatNumber(creditBalance)} Credits</span>
               </div>
               <ProfileDropdown />
             </div>
