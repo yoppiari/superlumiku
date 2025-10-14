@@ -1,7 +1,12 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../../middleware/auth.middleware'
+import { deductCredits, recordCreditUsage, getCreditBalance } from '../../core/middleware/credit.middleware'
+import { presetRateLimiters } from '../../middleware/rate-limiter.middleware'
+import { validateBody, validateQuery, validateFormData } from '../../middleware/validation.middleware'
 import { AuthVariables } from '../../types/hono'
 import { avatarCreatorService } from './services/avatar-creator.service'
+import { avatarCreatorConfig } from './plugin.config'
+import * as schemas from './validation/schemas'
 import type {
   CreateProjectRequest,
   UpdateProjectRequest,
@@ -9,6 +14,13 @@ import type {
   UpdateAvatarRequest,
   GenerateAvatarRequest,
 } from './types'
+import { asyncHandler, handleError } from '../../core/errors/ErrorHandler'
+import {
+  ValidationError,
+  InsufficientCreditsError,
+  NotFoundError,
+} from '../../core/errors'
+import prisma from '../../db/client'
 
 /**
  * Avatar Creator Routes
@@ -19,9 +31,55 @@ import type {
  * - Avatar AI Generation (FLUX)
  * - Usage tracking
  * - Stats
+ *
+ * Security Features:
+ * - Rate limiting on expensive operations (AI generation, file uploads)
+ * - File upload validation with magic byte checking
+ * - Path traversal protection
+ * - MIME type spoofing prevention
  */
 
 const app = new Hono<{ Variables: AuthVariables }>()
+
+// ========================================
+// Rate Limiter Definitions
+// ========================================
+
+/**
+ * Rate limiter for avatar generation (FLUX AI)
+ * 5 requests per minute per user - prevents excessive API costs
+ */
+const avatarGenerationLimiter = presetRateLimiters.expensiveAI(
+  'rl:avatar-creator:generate',
+  'Too many avatar generation requests. Please wait 1 minute before generating more avatars.'
+)
+
+/**
+ * Rate limiter for file uploads
+ * 10 requests per minute per user - prevents abuse and resource exhaustion
+ */
+const avatarUploadLimiter = presetRateLimiters.fileUpload(
+  'rl:avatar-creator:upload',
+  'Too many upload requests. Please wait before uploading more images.'
+)
+
+/**
+ * Rate limiter for preset-based avatar creation
+ * 8 requests per minute per user - slightly more restrictive than upload
+ */
+const presetAvatarLimiter = presetRateLimiters.presetUsage(
+  'rl:avatar-creator:preset',
+  'Too many preset avatar requests. Please wait before creating more avatars from presets.'
+)
+
+/**
+ * Rate limiter for project creation
+ * 20 requests per hour per user - prevents resource exhaustion
+ */
+const projectCreationLimiter = presetRateLimiters.resourceCreation(
+  'rl:avatar-creator:projects',
+  'Too many project creation requests. Please try again later.'
+)
 
 // ========================================
 // Projects Routes
@@ -31,34 +89,31 @@ const app = new Hono<{ Variables: AuthVariables }>()
  * GET /api/apps/avatar-creator/projects
  * Get all projects for current user
  */
-app.get('/projects', authMiddleware, async (c) => {
-  try {
+app.get('/projects',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
-
     const projects = await avatarCreatorService.getProjects(userId)
 
-    return c.json({
-      projects,
-    })
-  } catch (error: any) {
-    console.error('Error fetching projects:', error)
-    return c.json({ error: error.message || 'Failed to fetch projects' }, 500)
-  }
-})
+    return c.json({ projects })
+  }, 'Get Projects')
+)
 
 /**
  * POST /api/apps/avatar-creator/projects
  * Create new project
+ *
+ * SECURITY:
+ * - Rate limited to 20 requests per hour per user
+ * - Input validated with Zod schema
  */
-app.post('/projects', authMiddleware, async (c) => {
-  try {
+app.post('/projects',
+  authMiddleware,
+  projectCreationLimiter,
+  validateBody(schemas.createProjectSchema),
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
-    const body = await c.req.json<CreateProjectRequest>()
-
-    // Validation
-    if (!body.name || body.name.trim().length === 0) {
-      return c.json({ error: 'Project name is required' }, 400)
-    }
+    const body = c.get('validatedBody') as schemas.CreateProjectInput
 
     const project = await avatarCreatorService.createProject(userId, body)
 
@@ -66,42 +121,38 @@ app.post('/projects', authMiddleware, async (c) => {
       message: 'Project created successfully',
       project,
     })
-  } catch (error: any) {
-    console.error('Error creating project:', error)
-    return c.json({ error: error.message || 'Failed to create project' }, 500)
-  }
-})
+  }, 'Create Project')
+)
 
 /**
  * GET /api/apps/avatar-creator/projects/:id
  * Get project by ID with all avatars
  */
-app.get('/projects/:id', authMiddleware, async (c) => {
-  try {
+app.get('/projects/:id',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const projectId = c.req.param('id')
 
     const project = await avatarCreatorService.getProjectById(projectId, userId)
 
-    return c.json({
-      project,
-    })
-  } catch (error: any) {
-    console.error('Error fetching project:', error)
-    const statusCode = error.message === 'Project not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to fetch project' }, statusCode)
-  }
-})
+    return c.json({ project })
+  }, 'Get Project')
+)
 
 /**
  * PUT /api/apps/avatar-creator/projects/:id
  * Update project
+ *
+ * SECURITY: Input validated with Zod schema
  */
-app.put('/projects/:id', authMiddleware, async (c) => {
-  try {
+app.put('/projects/:id',
+  authMiddleware,
+  validateBody(schemas.updateProjectSchema),
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const projectId = c.req.param('id')
-    const body = await c.req.json<UpdateProjectRequest>()
+    const body = c.get('validatedBody') as schemas.UpdateProjectInput
 
     const project = await avatarCreatorService.updateProject(projectId, userId, body)
 
@@ -109,19 +160,16 @@ app.put('/projects/:id', authMiddleware, async (c) => {
       message: 'Project updated successfully',
       project,
     })
-  } catch (error: any) {
-    console.error('Error updating project:', error)
-    const statusCode = error.message === 'Project not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to update project' }, statusCode)
-  }
-})
+  }, 'Update Project')
+)
 
 /**
  * DELETE /api/apps/avatar-creator/projects/:id
  * Delete project (and all its avatars)
  */
-app.delete('/projects/:id', authMiddleware, async (c) => {
-  try {
+app.delete('/projects/:id',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const projectId = c.req.param('id')
 
@@ -130,12 +178,8 @@ app.delete('/projects/:id', authMiddleware, async (c) => {
     return c.json({
       message: 'Project deleted successfully',
     })
-  } catch (error: any) {
-    console.error('Error deleting project:', error)
-    const statusCode = error.message === 'Project not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to delete project' }, statusCode)
-  }
-})
+  }, 'Delete Project')
+)
 
 // ========================================
 // Avatar Routes - Upload
@@ -144,9 +188,26 @@ app.delete('/projects/:id', authMiddleware, async (c) => {
 /**
  * POST /api/apps/avatar-creator/projects/:projectId/avatars/upload
  * Upload avatar image with persona
+ *
+ * SECURITY:
+ * - Rate limited to 10 requests per minute per user
+ * - Input validated with Zod schema
+ * - File validation with magic byte checking
+ * - Path traversal protection
+ * - MIME type spoofing prevention
+ *
+ * CREDITS:
+ * - Costs 2 credits (file storage + thumbnail generation + image processing)
+ * - Credits checked and deducted by middleware before processing
+ * - Enterprise users with 'enterprise_unlimited' tag bypass credit check
  */
-app.post('/projects/:projectId/avatars/upload', authMiddleware, async (c) => {
-  try {
+app.post(
+  '/projects/:projectId/avatars/upload',
+  authMiddleware,
+  avatarUploadLimiter,
+  deductCredits(avatarCreatorConfig.credits.uploadAvatar, 'upload_avatar', avatarCreatorConfig.appId),
+  validateFormData(schemas.uploadAvatarMetadataSchema),
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const projectId = c.req.param('projectId')
     const body = await c.req.parseBody()
@@ -154,60 +215,32 @@ app.post('/projects/:projectId/avatars/upload', authMiddleware, async (c) => {
     // Get uploaded file
     const file = body['image'] as File
     if (!file) {
-      return c.json({ error: 'Image file is required' }, 400)
+      throw new ValidationError('Image file is required')
     }
 
-    // Get form data
-    const name = body['name'] as string
-    if (!name || name.trim().length === 0) {
-      return c.json({ error: 'Avatar name is required' }, 400)
-    }
-
-    // Parse personality array if string
-    let personaPersonality: string[] | undefined
-    if (body['personaPersonality']) {
-      try {
-        if (typeof body['personaPersonality'] === 'string') {
-          personaPersonality = JSON.parse(body['personaPersonality'])
-        } else if (Array.isArray(body['personaPersonality'])) {
-          personaPersonality = body['personaPersonality'] as string[]
-        }
-      } catch {
-        personaPersonality = undefined
-      }
-    }
-
-    // Prepare upload data
-    const uploadData: UploadAvatarRequest = {
-      name,
-      // Persona
-      personaName: body['personaName'] as string | undefined,
-      personaAge: body['personaAge'] ? parseInt(body['personaAge'] as string) : undefined,
-      personaPersonality,
-      personaBackground: body['personaBackground'] as string | undefined,
-      // Visual attributes
-      gender: body['gender'] as string | undefined,
-      ageRange: body['ageRange'] as string | undefined,
-      ethnicity: body['ethnicity'] as string | undefined,
-      bodyType: body['bodyType'] as string | undefined,
-      hairStyle: body['hairStyle'] as string | undefined,
-      hairColor: body['hairColor'] as string | undefined,
-      eyeColor: body['eyeColor'] as string | undefined,
-      skinTone: body['skinTone'] as string | undefined,
-      style: body['style'] as string | undefined,
-    }
+    // Get validated form data (already processed by middleware)
+    const uploadData = c.get('validatedFormData') as UploadAvatarRequest
 
     const avatar = await avatarCreatorService.uploadAvatar(projectId, userId, file, uploadData)
+
+    // Record credit usage after successful operation
+    const deduction = c.get('creditDeduction')
+    const { newBalance, creditUsed } = await recordCreditUsage(
+      userId,
+      deduction.appId,
+      deduction.action,
+      deduction.amount,
+      { avatarId: avatar.id, projectId }
+    )
 
     return c.json({
       message: 'Avatar uploaded successfully',
       avatar,
+      creditUsed,
+      creditBalance: newBalance,
     })
-  } catch (error: any) {
-    console.error('Error uploading avatar:', error)
-    return c.json({ error: error.message || 'Failed to upload avatar' }, 500)
-  }
-})
+  }, 'Upload Avatar')
+)
 
 // ========================================
 // Avatar Routes - AI Generation
@@ -216,59 +249,114 @@ app.post('/projects/:projectId/avatars/upload', authMiddleware, async (c) => {
 /**
  * POST /api/apps/avatar-creator/projects/:projectId/avatars/generate
  * Generate avatar using FLUX AI (text-to-image)
+ *
+ * SECURITY:
+ * - Rate limited to 5 requests per minute per user (expensive AI operation)
+ * - Input validated with Zod schema
+ *
+ * CREDITS:
+ * - Costs 10 credits (expensive FLUX.1-dev API call)
+ * - Credits checked by middleware, then manually deducted after successful queuing
+ * - Credits refunded by worker if generation fails
+ * - Enterprise users with 'enterprise_unlimited' tag bypass credit check
  */
-app.post('/projects/:projectId/avatars/generate', authMiddleware, async (c) => {
-  try {
+app.post(
+  '/projects/:projectId/avatars/generate',
+  authMiddleware,
+  avatarGenerationLimiter,
+  validateBody(schemas.generateAvatarSchema),
+  // Check credits first, store in context for manual deduction
+  async (c, next) => {
+    try {
+      const userId = c.get('userId')
+      const creditCost = avatarCreatorConfig.credits.generateAvatar
+
+      // Check if user has enterprise unlimited access
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { userTags: true },
+      })
+
+      const tags = user?.userTags ? JSON.parse(user.userTags) : []
+      const hasEnterpriseUnlimited = tags.includes('enterprise_unlimited')
+
+      if (!hasEnterpriseUnlimited) {
+        // Check credit balance for non-enterprise users
+        const balance = await getCreditBalance(userId)
+
+        if (balance < creditCost) {
+          throw new InsufficientCreditsError(creditCost, balance)
+        }
+      }
+
+      // Store credit info for later deduction
+      c.set('creditDeduction', {
+        amount: hasEnterpriseUnlimited ? 0 : creditCost,
+        action: 'generate_avatar',
+        appId: avatarCreatorConfig.appId,
+        isEnterprise: hasEnterpriseUnlimited,
+      })
+
+      await next()
+    } catch (error) {
+      return handleError(c, error, 'Check Credits for Generation')
+    }
+  },
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const projectId = c.req.param('projectId')
-    const body = await c.req.json<GenerateAvatarRequest>()
+    const body = c.get('validatedBody') as GenerateAvatarRequest
 
-    // Validation
-    if (!body.name || body.name.trim().length === 0) {
-      return c.json({ error: 'Avatar name is required' }, 400)
-    }
+    // Get credit deduction info from context
+    const deduction = c.get('creditDeduction')
 
-    if (!body.prompt || body.prompt.trim().length === 0) {
-      return c.json({ error: 'Prompt is required for generation' }, 400)
-    }
+    // Start generation (queues job) - pass credit cost for accurate refunds
+    const generation = await avatarCreatorService.generateAvatar(
+      projectId,
+      userId,
+      body,
+      deduction.amount // Pass actual cost (0 for enterprise, 10 for regular users)
+    )
 
-    // Start generation (queues job)
-    const generation = await avatarCreatorService.generateAvatar(projectId, userId, body)
+    // Deduct credits after successful queuing (so we don't charge if queuing fails)
+    const { newBalance, creditUsed } = await recordCreditUsage(
+      userId,
+      deduction.appId,
+      deduction.action,
+      deduction.amount,
+      {
+        generationId: generation.id,
+        projectId,
+        prompt: body.prompt,
+        type: 'text_to_image',
+      }
+    )
 
     return c.json({
       message: 'Avatar generation started',
       generation,
-      note: 'Generation is processing in background. Check status using generation ID.',
+      creditUsed,
+      creditBalance: newBalance,
+      note: 'Generation is processing in background. Check status using generation ID. Credits will be refunded if generation fails.',
     })
-  } catch (error: any) {
-    console.error('Error generating avatar:', error)
-    return c.json({ error: error.message || 'Failed to generate avatar' }, 500)
-  }
-})
+  }, 'Generate Avatar')
+)
 
 /**
  * GET /api/apps/avatar-creator/generations/:id
  * Get generation status and result
  */
-app.get('/generations/:id', authMiddleware, async (c) => {
-  try {
+app.get('/generations/:id',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const generationId = c.req.param('id')
 
     const generation = await avatarCreatorService.getGeneration(generationId, userId)
 
-    if (!generation) {
-      return c.json({ error: 'Generation not found' }, 404)
-    }
-
-    return c.json({
-      generation,
-    })
-  } catch (error: any) {
-    console.error('Error fetching generation:', error)
-    return c.json({ error: error.message || 'Failed to fetch generation' }, 500)
-  }
-})
+    return c.json({ generation })
+  }, 'Get Generation Status')
+)
 
 // ========================================
 // Avatar Routes - Management
@@ -278,32 +366,31 @@ app.get('/generations/:id', authMiddleware, async (c) => {
  * GET /api/apps/avatar-creator/avatars/:id
  * Get avatar by ID
  */
-app.get('/avatars/:id', authMiddleware, async (c) => {
-  try {
+app.get('/avatars/:id',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const avatarId = c.req.param('id')
 
     const avatar = await avatarCreatorService.getAvatar(avatarId, userId)
 
-    return c.json({
-      avatar,
-    })
-  } catch (error: any) {
-    console.error('Error fetching avatar:', error)
-    const statusCode = error.message === 'Avatar not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to fetch avatar' }, statusCode)
-  }
-})
+    return c.json({ avatar })
+  }, 'Get Avatar')
+)
 
 /**
  * PUT /api/apps/avatar-creator/avatars/:id
  * Update avatar metadata (persona, attributes)
+ *
+ * SECURITY: Input validated with Zod schema
  */
-app.put('/avatars/:id', authMiddleware, async (c) => {
-  try {
+app.put('/avatars/:id',
+  authMiddleware,
+  validateBody(schemas.updateAvatarSchema),
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const avatarId = c.req.param('id')
-    const body = await c.req.json<UpdateAvatarRequest>()
+    const body = c.get('validatedBody') as schemas.UpdateAvatarInput
 
     const avatar = await avatarCreatorService.updateAvatar(avatarId, userId, body)
 
@@ -311,19 +398,16 @@ app.put('/avatars/:id', authMiddleware, async (c) => {
       message: 'Avatar updated successfully',
       avatar,
     })
-  } catch (error: any) {
-    console.error('Error updating avatar:', error)
-    const statusCode = error.message === 'Avatar not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to update avatar' }, statusCode)
-  }
-})
+  }, 'Update Avatar')
+)
 
 /**
  * DELETE /api/apps/avatar-creator/avatars/:id
  * Delete avatar (and its files)
  */
-app.delete('/avatars/:id', authMiddleware, async (c) => {
-  try {
+app.delete('/avatars/:id',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const avatarId = c.req.param('id')
 
@@ -332,12 +416,8 @@ app.delete('/avatars/:id', authMiddleware, async (c) => {
     return c.json({
       message: 'Avatar deleted successfully',
     })
-  } catch (error: any) {
-    console.error('Error deleting avatar:', error)
-    const statusCode = error.message === 'Avatar not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to delete avatar' }, statusCode)
-  }
-})
+  }, 'Delete Avatar')
+)
 
 // ========================================
 // Usage Tracking Routes
@@ -347,8 +427,9 @@ app.delete('/avatars/:id', authMiddleware, async (c) => {
  * GET /api/apps/avatar-creator/avatars/:id/usage-history
  * Get usage history for avatar
  */
-app.get('/avatars/:id/usage-history', authMiddleware, async (c) => {
-  try {
+app.get('/avatars/:id/usage-history',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const avatarId = c.req.param('id')
 
@@ -358,12 +439,8 @@ app.get('/avatars/:id/usage-history', authMiddleware, async (c) => {
       history: result.history,
       summary: result.summary,
     })
-  } catch (error: any) {
-    console.error('Error fetching usage history:', error)
-    const statusCode = error.message === 'Avatar not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to fetch usage history' }, statusCode)
-  }
-})
+  }, 'Get Usage History')
+)
 
 // ========================================
 // Preset Routes
@@ -372,75 +449,131 @@ app.get('/avatars/:id/usage-history', authMiddleware, async (c) => {
 /**
  * GET /api/apps/avatar-creator/presets
  * Get all preset avatars (optionally filter by category)
+ *
+ * SECURITY: Query parameters validated with Zod schema
  */
-app.get('/presets', async (c) => {
-  try {
-    const category = c.req.query('category')
+app.get('/presets',
+  validateQuery(schemas.queryPresetsSchema),
+  asyncHandler(async (c) => {
+    const query = c.get('validatedQuery') as schemas.QueryPresetsInput
+    const category = query.category
 
     const presets = await avatarCreatorService.getPresets(category)
 
-    return c.json({
-      presets,
-    })
-  } catch (error: any) {
-    console.error('Error fetching presets:', error)
-    return c.json({ error: error.message || 'Failed to fetch presets' }, 500)
-  }
-})
+    return c.json({ presets })
+  }, 'Get Presets')
+)
 
 /**
  * GET /api/apps/avatar-creator/presets/:id
  * Get preset by ID
  */
-app.get('/presets/:id', async (c) => {
-  try {
+app.get('/presets/:id',
+  asyncHandler(async (c) => {
     const presetId = c.req.param('id')
 
     const preset = await avatarCreatorService.getPresetById(presetId)
 
-    return c.json({
-      preset,
-    })
-  } catch (error: any) {
-    console.error('Error fetching preset:', error)
-    const statusCode = error.message === 'Preset not found' ? 404 : 500
-    return c.json({ error: error.message || 'Failed to fetch preset' }, statusCode)
-  }
-})
+    return c.json({ preset })
+  }, 'Get Preset')
+)
 
 /**
  * POST /api/apps/avatar-creator/projects/:projectId/avatars/from-preset
  * Create avatar from preset (queues AI generation with preset attributes)
+ *
+ * SECURITY:
+ * - Rate limited to 8 requests per minute per user
+ * - Input validated with Zod schema
+ *
+ * CREDITS:
+ * - Costs 8 credits (preset generation with optimized prompt)
+ * - Credits checked by middleware, then manually deducted after successful queuing
+ * - Credits refunded by worker if generation fails
+ * - Enterprise users with 'enterprise_unlimited' tag bypass credit check
  */
-app.post('/projects/:projectId/avatars/from-preset', authMiddleware, async (c) => {
-  try {
+app.post(
+  '/projects/:projectId/avatars/from-preset',
+  authMiddleware,
+  presetAvatarLimiter,
+  validateBody(schemas.createFromPresetSchema),
+  // Check credits first, store in context for manual deduction
+  async (c, next) => {
+    try {
+      const userId = c.get('userId')
+      const creditCost = avatarCreatorConfig.credits.fromPreset
+
+      // Check if user has enterprise unlimited access
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { userTags: true },
+      })
+
+      const tags = user?.userTags ? JSON.parse(user.userTags) : []
+      const hasEnterpriseUnlimited = tags.includes('enterprise_unlimited')
+
+      if (!hasEnterpriseUnlimited) {
+        // Check credit balance for non-enterprise users
+        const balance = await getCreditBalance(userId)
+
+        if (balance < creditCost) {
+          throw new InsufficientCreditsError(creditCost, balance)
+        }
+      }
+
+      // Store credit info for later deduction
+      c.set('creditDeduction', {
+        amount: hasEnterpriseUnlimited ? 0 : creditCost,
+        action: 'from_preset',
+        appId: avatarCreatorConfig.appId,
+        isEnterprise: hasEnterpriseUnlimited,
+      })
+
+      await next()
+    } catch (error) {
+      return handleError(c, error, 'Check Credits for Preset')
+    }
+  },
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
     const projectId = c.req.param('projectId')
-    const body = await c.req.json<{ presetId: string; customName?: string }>()
+    const body = c.get('validatedBody') as schemas.CreateFromPresetInput
 
-    // Validation
-    if (!body.presetId) {
-      return c.json({ error: 'Preset ID is required' }, 400)
-    }
+    // Get credit deduction info from context
+    const deduction = c.get('creditDeduction')
 
-    // Create avatar from preset (queues generation)
+    // Create avatar from preset (queues generation) - pass credit cost for accurate refunds
     const generation = await avatarCreatorService.createAvatarFromPreset(
       projectId,
       userId,
       body.presetId,
-      body.customName
+      body.customName,
+      deduction.amount // Pass actual cost (0 for enterprise, 8 for regular users)
+    )
+
+    // Deduct credits after successful queuing
+    const { newBalance, creditUsed } = await recordCreditUsage(
+      userId,
+      deduction.appId,
+      deduction.action,
+      deduction.amount,
+      {
+        generationId: generation.id,
+        projectId,
+        presetId: body.presetId,
+        type: 'from_preset',
+      }
     )
 
     return c.json({
       message: 'Avatar generation from preset started',
       generation,
-      note: 'Generation is processing in background. Check status using generation ID.',
+      creditUsed,
+      creditBalance: newBalance,
+      note: 'Generation is processing in background. Check status using generation ID. Credits will be refunded if generation fails.',
     })
-  } catch (error: any) {
-    console.error('Error creating avatar from preset:', error)
-    return c.json({ error: error.message || 'Failed to create avatar from preset' }, 500)
-  }
-})
+  }, 'Create Avatar from Preset')
+)
 
 // ========================================
 // Stats Routes
@@ -448,22 +581,42 @@ app.post('/projects/:projectId/avatars/from-preset', authMiddleware, async (c) =
 
 /**
  * GET /api/apps/avatar-creator/stats
- * Get user statistics
+ * Get user statistics including credit balance and costs
  */
-app.get('/stats', authMiddleware, async (c) => {
-  try {
+app.get('/stats',
+  authMiddleware,
+  asyncHandler(async (c) => {
     const userId = c.get('userId')
 
+    // Get user stats
     const stats = await avatarCreatorService.getUserStats(userId)
+
+    // Get credit balance
+    const creditBalance = await getCreditBalance(userId)
+
+    // Check if user has enterprise unlimited access
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { userTags: true },
+    })
+
+    const tags = user?.userTags ? JSON.parse(user.userTags) : []
+    const hasEnterpriseUnlimited = tags.includes('enterprise_unlimited')
 
     return c.json({
       stats,
+      creditBalance,
+      hasEnterpriseUnlimited,
+      costs: {
+        generateAvatar: avatarCreatorConfig.credits.generateAvatar,
+        uploadAvatar: avatarCreatorConfig.credits.uploadAvatar,
+        fromPreset: avatarCreatorConfig.credits.fromPreset,
+        fromReference: avatarCreatorConfig.credits.fromReference,
+        editPersona: avatarCreatorConfig.credits.editPersona,
+      },
     })
-  } catch (error: any) {
-    console.error('Error fetching stats:', error)
-    return c.json({ error: error.message || 'Failed to fetch stats' }, 500)
-  }
-})
+  }, 'Get Stats')
+)
 
 // ========================================
 // Health Check

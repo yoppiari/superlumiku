@@ -361,5 +361,6 @@ export interface AvatarGenerationJob {
     sourceType: AvatarSourceType
     persona?: PersonaData
     attributes?: VisualAttributes
+    creditCost?: number // Cost of this generation for accurate refunds on failure
   }
 }

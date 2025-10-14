@@ -13,6 +13,7 @@ export interface AuthVariables {
     appId: string
     action: string
     amount: number
+    isEnterprise?: boolean
   }
 }
 

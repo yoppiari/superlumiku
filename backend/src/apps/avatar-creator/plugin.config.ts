@@ -19,22 +19,27 @@ export const avatarCreatorConfig: PluginConfig = {
   // Routing
   routePrefix: '/api/apps/avatar-creator',
 
-  // Credits Configuration (DISABLED - no validation yet)
-  // TODO: Enable after app is fully functional
+  // Credits Configuration - ENABLED
+  // Credit costs reflect the computational expense of each operation
   credits: {
     // Text-to-image generation (FLUX.1-dev + LoRA)
-    generateAvatar: 0, // Was: 10 credits
+    // High cost due to expensive FLUX API call (~$0.05 per generation)
+    generateAvatar: 10,
 
     // Upload avatar + processing
-    uploadAvatar: 0, // Was: 2 credits
+    // File storage + thumbnail generation + image processing
+    uploadAvatar: 2,
 
     // From preset (generation)
-    fromPreset: 0, // Was: 8 credits
+    // Slightly cheaper as prompt is pre-optimized
+    fromPreset: 8,
 
     // From reference (img2img)
-    fromReference: 0, // Was: 12 credits
+    // Most expensive due to img2img processing
+    fromReference: 12,
 
     // Edit persona (free)
+    // Metadata-only operation, no computation
     editPersona: 0,
   },
 

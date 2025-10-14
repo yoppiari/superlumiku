@@ -3,6 +3,12 @@ import fs from 'fs/promises'
 import sharp from 'sharp'
 import * as repository from '../repositories/avatar-creator.repository'
 import { addAvatarGenerationJob } from '../../../lib/queue'
+import {
+  validateImageFile,
+  generateSecureFilename,
+  logSecurityViolation,
+} from '../../../utils/file-validation'
+import { NotFoundError, ResourceNotFoundError } from '../../../core/errors'
 import type {
   AvatarProject,
   Avatar,
@@ -43,7 +49,7 @@ class AvatarCreatorService {
     const project = await repository.findProjectById(projectId, userId)
 
     if (!project) {
-      throw new Error('Project not found')
+      throw new ResourceNotFoundError('Project', projectId)
     }
 
     return project
@@ -99,15 +105,28 @@ class AvatarCreatorService {
     // Verify project exists and user owns it
     await this.getProjectById(projectId, userId)
 
-    // Validate file
-    this.validateImageFile(file)
+    // SECURITY: Validate file with comprehensive security checks
+    // This replaces the vulnerable validateImageFile() method
+    const validated = await validateImageFile(file, {
+      maxSizeBytes: 10 * 1024 * 1024, // 10MB
+      minWidth: 256,
+      minHeight: 256,
+      maxWidth: 4096,
+      maxHeight: 4096,
+    })
 
-    // Process and save file
-    const fileBuffer = Buffer.from(await file.arrayBuffer())
+    // Log validation success for monitoring
+    console.log(`[AVATAR_UPLOAD] User ${userId} uploaded valid image`, {
+      dimensions: `${validated.metadata.width}x${validated.metadata.height}`,
+      format: validated.metadata.format,
+      size: validated.metadata.size,
+    })
+
+    // Process and save file using validated buffer and secure filename
     const { imagePath, thumbnailPath } = await this.saveImageWithThumbnail(
       userId,
-      fileBuffer,
-      file.name
+      validated.buffer,
+      validated.sanitizedFilename
     )
 
     // Create avatar record
@@ -147,7 +166,8 @@ class AvatarCreatorService {
   async generateAvatar(
     projectId: string,
     userId: string,
-    data: GenerateAvatarRequest
+    data: GenerateAvatarRequest,
+    creditCost = 10 // Default cost for text-to-image generation
   ): Promise<AvatarGeneration> {
     // Verify project exists and user owns it
     await this.getProjectById(projectId, userId)
@@ -194,6 +214,7 @@ class AvatarCreatorService {
               style: data.style,
             }
           : undefined,
+        creditCost, // Pass credit cost for accurate refunds on failure
       },
     }
 
@@ -203,11 +224,15 @@ class AvatarCreatorService {
     return generation
   }
 
-  async getGeneration(generationId: string, userId: string): Promise<AvatarGeneration | null> {
+  async getGeneration(generationId: string, userId: string): Promise<AvatarGeneration> {
     const generation = await repository.findGenerationById(generationId)
 
-    if (!generation || generation.userId !== userId) {
-      return null
+    if (!generation) {
+      throw new ResourceNotFoundError('Generation', generationId)
+    }
+
+    if (generation.userId !== userId) {
+      throw new ResourceNotFoundError('Generation', generationId)
     }
 
     return generation
@@ -221,7 +246,7 @@ class AvatarCreatorService {
     const avatar = await repository.findAvatarById(avatarId, userId)
 
     if (!avatar) {
-      throw new Error('Avatar not found')
+      throw new ResourceNotFoundError('Avatar', avatarId)
     }
 
     return avatar
@@ -337,7 +362,7 @@ class AvatarCreatorService {
   async getPresetById(presetId: string) {
     const preset = await repository.findPresetById(presetId)
     if (!preset) {
-      throw new Error('Preset not found')
+      throw new ResourceNotFoundError('Preset', presetId)
     }
     return preset
   }
@@ -346,7 +371,8 @@ class AvatarCreatorService {
     projectId: string,
     userId: string,
     presetId: string,
-    customName?: string
+    customName?: string,
+    creditCost = 8 // Default cost for preset-based generation
   ) {
     // Verify project ownership
     await this.getProjectById(projectId, userId)
@@ -397,6 +423,7 @@ class AvatarCreatorService {
           skinTone: preset.skinTone || undefined,
           style: preset.style || undefined,
         },
+        creditCost, // Pass credit cost for accurate refunds on failure
       },
     }
 
@@ -412,41 +439,33 @@ class AvatarCreatorService {
   // ========================================
   // Helper Methods - File Processing
   // ========================================
-
-  private validateImageFile(file: File): void {
-    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-
-    if (file.size > MAX_FILE_SIZE) {
-      throw new Error('File too large. Maximum size is 10MB')
-    }
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      throw new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed')
-    }
-  }
+  // Note: File validation is now handled by validateImageFile() from utils/file-validation.ts
 
   private async saveImageWithThumbnail(
     userId: string,
     imageBuffer: Buffer,
-    originalFilename: string
+    sanitizedFilename: string
   ): Promise<{ imagePath: string; thumbnailPath: string }> {
     // Create user directory
     const userDir = path.join(this.uploadBasePath, userId)
     await fs.mkdir(userDir, { recursive: true })
 
-    // Generate unique filename
-    const timestamp = Date.now()
-    const ext = path.extname(originalFilename)
-    const baseFilename = `${timestamp}${ext}`
-    const thumbnailFilename = `${timestamp}_thumb${ext}`
+    // SECURITY: Generate secure random filename instead of using user-provided name
+    // This prevents:
+    // - Filename collisions
+    // - Directory traversal attempts that may have bypassed sanitization
+    // - Predictable file locations
+    const secureFilename = generateSecureFilename(sanitizedFilename, 'avatar')
+    const ext = path.extname(secureFilename)
+    const baseName = path.basename(secureFilename, ext)
+    const thumbnailFilename = `${baseName}_thumb${ext}`
 
     // File paths
-    const imageFullPath = path.join(userDir, baseFilename)
+    const imageFullPath = path.join(userDir, secureFilename)
     const thumbnailFullPath = path.join(userDir, thumbnailFilename)
 
     // Relative paths for database
-    const imagePath = `/uploads/avatar-creator/${userId}/${baseFilename}`
+    const imagePath = `/uploads/avatar-creator/${userId}/${secureFilename}`
     const thumbnailPath = `/uploads/avatar-creator/${userId}/${thumbnailFilename}`
 
     // Save original image

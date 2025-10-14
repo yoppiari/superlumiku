@@ -2,10 +2,15 @@ import { Worker, Job } from 'bullmq'
 import { redis, isRedisEnabled } from '../../../lib/redis'
 import { AvatarGenerationJob } from '../../../lib/queue'
 import { fluxGenerator } from '../providers/flux-generator.provider'
+import { CreditService } from '../../../services/credit.service'
 import * as repository from '../repositories/avatar-creator.repository'
 import path from 'path'
 import fs from 'fs/promises'
 import sharp from 'sharp'
+import { BaseAppError, AIProviderError, InternalError } from '../../../core/errors'
+
+// Initialize credit service for refunds
+const creditService = new CreditService()
 
 /**
  * Avatar Generator Worker
@@ -133,15 +138,73 @@ class AvatarGeneratorWorker {
       await job.updateProgress(100)
 
       console.log(`✅ Avatar created successfully: ${avatar.id}`)
-    } catch (error: any) {
-      console.error(`❌ Generation failed for ${generationId}:`, error)
+    } catch (error) {
+      // Convert to structured error
+      const structuredError = error instanceof BaseAppError
+        ? error
+        : error instanceof Error
+        ? new AIProviderError('FLUX', error.message)
+        : new InternalError('Avatar generation failed')
+
+      console.error(`❌ Generation failed for ${generationId}:`, {
+        generationId,
+        userId,
+        projectId,
+        errorCode: structuredError.code,
+        errorMessage: structuredError.message,
+        errorCategory: structuredError.category,
+        stack: structuredError.stack,
+      })
 
       // Update generation status to failed
       await repository.updateGenerationStatus(generationId, 'failed', {
-        errorMessage: error.message || 'Generation failed',
+        errorMessage: structuredError.message,
       })
 
-      throw error // Re-throw to mark job as failed in queue
+      // CRITICAL: Refund credits to user since generation failed
+      // Credits were already deducted when the job was queued
+      // Get refund amount from job metadata (passed from route handler)
+      const refundAmount = metadata.creditCost || 10 // Default to 10 if not specified
+
+      // Only refund if cost > 0 (enterprise users have 0 cost)
+      if (refundAmount > 0) {
+        try {
+          // Refund credits
+          await creditService.addCredits({
+            userId,
+            amount: refundAmount,
+            type: 'refund',
+            description: `Avatar generation failed: ${structuredError.message}`,
+            paymentId: generationId, // Use generation ID as reference
+          })
+
+          console.log(`✅ Refunded ${refundAmount} credits to user ${userId} for failed generation ${generationId}`)
+        } catch (refundError) {
+          const refundStructuredError = refundError instanceof Error
+            ? refundError
+            : new InternalError('Credit refund failed')
+
+          // CRITICAL: If refund fails, log prominently for manual investigation
+          console.error('❌❌❌ CRITICAL: Failed to refund credits for failed generation ❌❌❌', {
+            userId,
+            generationId,
+            refundAmount,
+            originalError: structuredError.message,
+            refundError: refundStructuredError.message,
+            stack: refundStructuredError.stack,
+          })
+          console.error('⚠️  MANUAL INTERVENTION REQUIRED: User needs credit refund')
+
+          // TODO: Send alert to monitoring system (Sentry, PagerDuty, etc.)
+          // await sentryService.captureException(refundStructuredError, {
+          //   extra: { userId, generationId, refundAmount, originalError: structuredError.message }
+          // })
+        }
+      } else {
+        console.log(`ℹ️  No refund needed for enterprise user ${userId} (generation ${generationId})`)
+      }
+
+      throw structuredError // Re-throw to mark job as failed in queue
     }
   }
 

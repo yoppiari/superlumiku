@@ -416,6 +416,135 @@ export function accountRateLimiter(message?: string): MiddlewareHandler {
 }
 
 /**
+ * Create a user-based rate limiter for authenticated endpoints
+ *
+ * This rate limiter uses the authenticated user's ID from context instead of IP address.
+ * The user ID must be set in context by authMiddleware before this middleware runs.
+ *
+ * @param config - Rate limit configuration (excluding keyGenerator)
+ * @returns Hono middleware handler
+ *
+ * @example
+ * ```typescript
+ * // Limit avatar generation to 5 per minute per user
+ * const avatarGenerationLimiter = createUserRateLimiter({
+ *   windowMs: 60 * 1000,
+ *   max: 5,
+ *   keyPrefix: 'rl:avatar-gen',
+ *   message: 'Too many avatar generation requests. Please wait before trying again.'
+ * })
+ *
+ * app.post('/generate', authMiddleware, avatarGenerationLimiter, async (c) => {
+ *   // ... handler
+ * })
+ * ```
+ */
+export function createUserRateLimiter(
+  config: Omit<RateLimitConfig, 'keyGenerator'>
+): MiddlewareHandler {
+  return rateLimiter({
+    ...config,
+    keyGenerator: (c) => {
+      const userId = c.get('userId')
+      if (!userId) {
+        // Fallback to IP-based if userId is not available
+        // This should not happen if authMiddleware is used correctly
+        console.warn('[RATE_LIMITER] userId not found in context, falling back to IP-based limiting')
+        return defaultKeyGenerator(c, config.keyPrefix)
+      }
+      return `${config.keyPrefix}:user:${userId}`
+    },
+  })
+}
+
+/**
+ * Create a strict user-based rate limiter that blocks on errors
+ *
+ * @param config - Rate limit configuration (excluding keyGenerator)
+ * @returns Hono middleware handler
+ */
+export function createStrictUserRateLimiter(
+  config: Omit<RateLimitConfig, 'keyGenerator'>
+): MiddlewareHandler {
+  return strictRateLimiter({
+    ...config,
+    keyGenerator: (c) => {
+      const userId = c.get('userId')
+      if (!userId) {
+        console.warn('[STRICT_RATE_LIMITER] userId not found in context, falling back to IP-based limiting')
+        return defaultKeyGenerator(c, config.keyPrefix)
+      }
+      return `${config.keyPrefix}:user:${userId}`
+    },
+  })
+}
+
+/**
+ * Preset rate limiters for common use cases
+ */
+export const presetRateLimiters = {
+  /**
+   * For expensive AI operations (generation, processing)
+   * 5 requests per minute per user
+   */
+  expensiveAI: (keyPrefix: string, message?: string): MiddlewareHandler =>
+    createUserRateLimiter({
+      windowMs: 60 * 1000, // 1 minute
+      max: 5,
+      keyPrefix,
+      message: message || 'Too many requests. Please wait before trying again.',
+    }),
+
+  /**
+   * For file upload operations
+   * 10 requests per minute per user
+   */
+  fileUpload: (keyPrefix: string, message?: string): MiddlewareHandler =>
+    createUserRateLimiter({
+      windowMs: 60 * 1000, // 1 minute
+      max: 10,
+      keyPrefix,
+      message: message || 'Too many upload requests. Please wait before trying again.',
+    }),
+
+  /**
+   * For resource creation operations (projects, items)
+   * 20 requests per hour per user
+   */
+  resourceCreation: (keyPrefix: string, message?: string): MiddlewareHandler =>
+    createUserRateLimiter({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 20,
+      keyPrefix,
+      message: message || 'Too many creation requests. Please try again later.',
+    }),
+
+  /**
+   * For preset/template usage
+   * 8 requests per minute per user
+   */
+  presetUsage: (keyPrefix: string, message?: string): MiddlewareHandler =>
+    createUserRateLimiter({
+      windowMs: 60 * 1000, // 1 minute
+      max: 8,
+      keyPrefix,
+      message: message || 'Too many preset requests. Please wait before trying again.',
+    }),
+
+  /**
+   * For general API operations
+   * 100 requests per minute per user
+   */
+  general: (keyPrefix: string, message?: string): MiddlewareHandler =>
+    createUserRateLimiter({
+      windowMs: 60 * 1000, // 1 minute
+      max: 100,
+      keyPrefix,
+      message: message || 'Too many requests. Please slow down.',
+    }),
+}
+
+/**
  * Cleanup resources on shutdown
  */
 export function cleanup(): void {
