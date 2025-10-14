@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import api from '../lib/api'
+import { creditsService } from '../services'
+import { handleApiError } from '../lib/errorHandler'
 import {
   ArrowLeft,
   Coins,
@@ -138,19 +139,19 @@ export default function Credits() {
 
   const loadTransactions = async () => {
     try {
-      const response = await api.get('/api/credits/history')
+      const response = await creditsService.getHistory()
       // Map backend data to Transaction format
-      const mappedTransactions = response.data.map((t: any) => ({
+      const mappedTransactions = response.map((t: any) => ({
         id: t.id,
         amount: t.amount,
         credits: Math.abs(t.amount),
-        status: t.type === 'purchase' ? 'success' : 'pending',
+        status: (t.type === 'purchase' ? 'success' : 'pending') as 'success' | 'pending' | 'failed',
         paymentMethod: 'Duitku',
         createdAt: t.createdAt
       }))
       setTransactions(mappedTransactions)
     } catch (error) {
-      console.error('Failed to load transactions:', error)
+      handleApiError(error, 'Load transactions')
     }
   }
 
@@ -159,7 +160,7 @@ export default function Credits() {
     setSelectedPlan(plan.id)
 
     try {
-      const response = await api.post('/api/payment/duitku/create', {
+      const response = await creditsService.createPayment({
         packageId: plan.id,
         credits: plan.credits,
         amount: plan.price,
@@ -167,11 +168,12 @@ export default function Credits() {
         type: 'subscription'
       })
 
-      if (response.data.paymentUrl) {
-        window.location.href = response.data.paymentUrl
+      if (response.paymentUrl) {
+        window.location.href = response.paymentUrl
       }
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to create payment')
+    } catch (error) {
+      const errorDetails = handleApiError(error, 'Create subscription payment')
+      alert(errorDetails.message)
       setLoading(false)
       setSelectedPlan(null)
     }
@@ -182,7 +184,7 @@ export default function Credits() {
     setSelectedPlan(pkg.id)
 
     try {
-      const response = await api.post('/api/payment/duitku/create', {
+      const response = await creditsService.createPayment({
         packageId: pkg.id,
         credits: pkg.credits,
         amount: pkg.price,
@@ -190,11 +192,12 @@ export default function Credits() {
         type: 'topup'
       })
 
-      if (response.data.paymentUrl) {
-        window.location.href = response.data.paymentUrl
+      if (response.paymentUrl) {
+        window.location.href = response.paymentUrl
       }
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to create payment')
+    } catch (error) {
+      const errorDetails = handleApiError(error, 'Create top-up payment')
+      alert(errorDetails.message)
       setLoading(false)
       setSelectedPlan(null)
     }

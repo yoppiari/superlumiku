@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import { api } from '../lib/api'
+import { videoGeneratorService } from '../services'
+import { handleApiError } from '../lib/errorHandler'
 import ProfileDropdown from '../components/ProfileDropdown'
 import CreateProjectModal from '../components/CreateProjectModal'
+// UI components available if needed in future
+// import { LoadingSpinner, EmptyState } from '../components/ui'
 import {
   Film, Plus, ArrowLeft, Coins, Sparkles, Loader2, Download,
   Trash2, Play, AlertCircle, CheckCircle, Clock
@@ -116,10 +119,10 @@ export default function VideoGenerator() {
   const loadProjects = async () => {
     try {
       setIsLoadingProjects(true)
-      const res = await api.get('/api/apps/video-generator/projects')
-      setProjects(res.data.projects)
+      const response = await videoGeneratorService.getProjects()
+      setProjects(response.projects)
     } catch (error) {
-      console.error('Failed to load projects:', error)
+      handleApiError(error, 'Load video projects')
     } finally {
       setIsLoadingProjects(false)
     }
@@ -127,31 +130,32 @@ export default function VideoGenerator() {
 
   const loadModels = async () => {
     try {
-      const res = await api.get('/api/apps/video-generator/models')
-      setModels(res.data.models)
+      const response = await videoGeneratorService.getModels()
+      setModels(response.models)
     } catch (error) {
-      console.error('Failed to load models:', error)
+      handleApiError(error, 'Load video models')
     }
   }
 
   const selectProject = async (id: string) => {
     try {
-      const res = await api.get(`/api/apps/video-generator/projects/${id}`)
-      setCurrentProject(res.data.project)
+      const response = await videoGeneratorService.getProject(id)
+      setCurrentProject(response.project)
     } catch (error) {
-      console.error('Failed to load project:', error)
+      handleApiError(error, 'Load video project')
     }
   }
 
   const handleCreateProject = async (name: string, description?: string) => {
     try {
-      const res = await api.post('/api/apps/video-generator/projects', { name, description })
-      const project = res.data.project
+      const response = await videoGeneratorService.createProject({ name, description })
+      const project = response.project
       await loadProjects()
       navigate(`/apps/video-generator/${project.id}`)
       setShowCreateModal(false)
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to create project')
+    } catch (error) {
+      const errorDetails = handleApiError(error, 'Create video project')
+      alert(errorDetails.message)
     }
   }
 
@@ -171,13 +175,14 @@ export default function VideoGenerator() {
     if (!confirmed) return
 
     try {
-      await api.delete(`/api/apps/video-generator/projects/${id}`)
+      await videoGeneratorService.deleteProject(id)
       await loadProjects()
       if (currentProject?.id === id) {
         navigate('/apps/video-generator')
       }
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete project')
+    } catch (error) {
+      const errorDetails = handleApiError(error, 'Delete video project')
+      alert(errorDetails.message)
     }
   }
 
@@ -197,7 +202,7 @@ export default function VideoGenerator() {
     try {
       setIsGenerating(true)
 
-      await api.post('/api/apps/video-generator/generate', {
+      await videoGeneratorService.generateVideo({
         projectId: currentProject.id,
         modelId: model.id,
         prompt: prompt.trim(),
@@ -213,8 +218,9 @@ export default function VideoGenerator() {
       setPrompt('')
 
       alert('Video generation started! It will take a few minutes.')
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to start generation')
+    } catch (error) {
+      const errorDetails = handleApiError(error, 'Generate video')
+      alert(errorDetails.message)
     } finally {
       setIsGenerating(false)
     }
@@ -225,10 +231,10 @@ export default function VideoGenerator() {
 
     try {
       // Get latest project data
-      const res = await api.get(`/api/apps/video-generator/projects/${currentProject.id}`)
-      setCurrentProject(res.data.project)
+      const response = await videoGeneratorService.getProject(currentProject.id)
+      setCurrentProject(response.project)
     } catch (error) {
-      console.error('Failed to check generation status:', error)
+      handleApiError(error, 'Check generation status')
     }
   }
 

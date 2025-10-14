@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import api from '../lib/api'
+import { creditsService, dashboardService, generationService } from '../services'
+import { handleApiError } from '../lib/errorHandler'
 import ProfileDropdown from '../components/ProfileDropdown'
 import GenerationCard from '../components/GenerationCard'
+// UI components available if needed in future
+// import { LoadingSpinner, EmptyState } from '../components/ui'
 import type { GenerationItem } from '../types/generation'
 import {
   FileText,
@@ -76,47 +79,47 @@ export default function Dashboard() {
       return
     }
 
-    // Fetch credit balance
-    api
-      .get('/api/credits/balance')
-      .then((res) => setCreditBalance(res.data.balance))
-      .catch((err) => console.error('Failed to fetch balance:', err))
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch credit balance
+        const balanceData = await creditsService.getBalance()
+        setCreditBalance(balanceData.balance)
+      } catch (err) {
+        handleApiError(err, 'Fetch credit balance')
+      }
 
-    // Fetch apps
-    api
-      .get('/api/apps')
-      .then((res) => {
-        setApps(res.data.apps || [])
+      try {
+        // Fetch apps
+        const appsData = await dashboardService.getApps()
+        setApps(appsData.apps || [])
+      } catch (err) {
+        handleApiError(err, 'Fetch apps')
+      } finally {
         setLoadingApps(false)
-      })
-      .catch((err) => {
-        console.error('Failed to fetch apps:', err)
-        setLoadingApps(false)
-      })
+      }
 
-    // Fetch recent generations
-    api
-      .get('/api/generations/recent?limit=5')
-      .then((res) => {
-        setRecentGenerations(res.data.generations || [])
+      try {
+        // Fetch recent generations
+        const generationsData = await generationService.getRecentGenerations(5)
+        setRecentGenerations(generationsData.generations || [])
+      } catch (err) {
+        handleApiError(err, 'Fetch recent generations')
+      } finally {
         setLoadingGenerations(false)
-      })
-      .catch((err) => {
-        console.error('Failed to fetch recent generations:', err)
-        setLoadingGenerations(false)
-      })
+      }
 
-    // Fetch dashboard stats
-    api
-      .get('/api/stats/dashboard')
-      .then((res) => {
-        setStats(res.data)
+      try {
+        // Fetch dashboard stats
+        const statsData = await dashboardService.getStats()
+        setStats(statsData)
+      } catch (err) {
+        handleApiError(err, 'Fetch dashboard stats')
+      } finally {
         setLoadingStats(false)
-      })
-      .catch((err) => {
-        console.error('Failed to fetch dashboard stats:', err)
-        setLoadingStats(false)
-      })
+      }
+    }
+
+    fetchDashboardData()
   }, [isAuthenticated, navigate])
 
   const formatLastLogin = (dateStr: string) => {

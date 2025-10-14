@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import api from '../lib/api'
+import { creditsService, generationService } from '../services'
+import { handleApiError } from '../lib/errorHandler'
 import ProfileDropdown from '../components/ProfileDropdown'
 import GenerationCard from '../components/GenerationCard'
+// UI components available if needed in future
+// import { LoadingSpinner, EmptyState } from '../components/ui'
 import type { GenerationItem } from '../types/generation'
 import {
   Search,
@@ -39,27 +42,34 @@ export default function MyWork() {
       return
     }
 
-    // Fetch credit balance
-    api
-      .get('/api/credits/balance')
-      .then((res) => setCreditBalance(res.data.balance))
-      .catch((err) => console.error('Failed to fetch balance:', err))
+    const fetchData = async () => {
+      // Fetch credit balance
+      try {
+        const balanceData = await creditsService.getBalance()
+        setCreditBalance(balanceData.balance)
+      } catch (err) {
+        handleApiError(err, 'Fetch credit balance')
+      }
 
-    fetchGenerations()
+      // Fetch generations
+      await fetchGenerations()
+    }
+
+    fetchData()
   }, [isAuthenticated, navigate, filterApp, sortOption])
 
   const fetchGenerations = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (filterApp !== 'all') params.append('app', filterApp)
-      params.append('sort', sortOption)
-      params.append('limit', '100')
+      const params: any = { limit: 100, sort: sortOption }
+      if (filterApp !== 'all') {
+        params.app = filterApp
+      }
 
-      const res = await api.get(`/api/generations?${params.toString()}`)
-      setGenerations(res.data.generations || [])
+      const response = await generationService.getGenerations(params)
+      setGenerations(response.generations || [])
     } catch (err) {
-      console.error('Failed to fetch generations:', err)
+      handleApiError(err, 'Fetch generations')
     } finally {
       setLoading(false)
     }
@@ -83,10 +93,10 @@ export default function MyWork() {
     }
 
     try {
-      await api.delete(`/api/generations/${generation.id}?appId=${generation.appId}`)
+      await generationService.deleteGeneration(generation.id, generation.appId)
       setGenerations(generations.filter((g) => g.id !== generation.id))
     } catch (error) {
-      console.error('Failed to delete generation:', error)
+      handleApiError(error, 'Delete generation')
       alert('Failed to delete generation')
     }
   }
@@ -106,13 +116,13 @@ export default function MyWork() {
       for (const id of selectedItems) {
         const generation = generations.find((g) => g.id === id)
         if (generation) {
-          await api.delete(`/api/generations/${id}?appId=${generation.appId}`)
+          await generationService.deleteGeneration(id, generation.appId)
         }
       }
       setGenerations(generations.filter((g) => !selectedItems.has(g.id)))
       setSelectedItems(new Set())
     } catch (error) {
-      console.error('Failed to delete generations:', error)
+      handleApiError(error, 'Bulk delete generations')
       alert('Failed to delete some items')
     }
   }
