@@ -8,6 +8,6 @@ export function getImageUrl(path: string | undefined): string | undefined {
   }
 
   // Otherwise prepend backend URL
-  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const backendUrl = import.meta.env['VITE_API_URL'] || 'http://localhost:3001'
   return `${backendUrl}${path}`
 }

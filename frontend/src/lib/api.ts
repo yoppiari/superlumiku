@@ -3,8 +3,8 @@ import axios from 'axios'
 // Use root path in production (Nginx will proxy /api/...), localhost in development
 // Function to get API base URL
 const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL
+  if (import.meta.env['VITE_API_URL']) {
+    return import.meta.env['VITE_API_URL']
   }
 
   // Server-side rendering check

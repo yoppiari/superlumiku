@@ -248,7 +248,7 @@ export default function LoopingFlow() {
       const durationInSeconds = targetDuration * 60
       const res = await api.post('/api/apps/looping-flow/generate', {
         projectId: currentProject.id,
-        videoId: currentProject.videos[0].id,
+        videoId: currentProject.videos[0]?.id,
         targetDuration: durationInSeconds,
         // Package 1: Loop settings
         loopStyle,
@@ -321,7 +321,7 @@ export default function LoopingFlow() {
     if (!file || !currentProject || currentProject.generations.length === 0) return
 
     const lastGeneration = currentProject.generations[0]
-    if (lastGeneration.status !== 'pending') {
+    if (!lastGeneration || lastGeneration.status !== 'pending') {
       alert('Can only add audio layers to pending generations')
       return
     }

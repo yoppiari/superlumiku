@@ -38,9 +38,11 @@ export function SlidePositionSection({ position, projectId }: SlidePositionSecti
     try {
       // Upload all files sequentially
       for (let i = 0; i < files.length; i++) {
-        console.log(`Uploading file ${i + 1}/${files.length}: ${files[i].name} to position ${position}`)
-        await uploadSlide(projectId, files[i], position)
-        console.log(`✓ Uploaded: ${files[i].name}`)
+        const file = files[i]
+        if (!file) continue
+        console.log(`Uploading file ${i + 1}/${files.length}: ${file.name} to position ${position}`)
+        await uploadSlide(projectId, file, position)
+        console.log(`✓ Uploaded: ${file.name}`)
       }
       e.target.value = ''
       console.log('All uploads completed successfully')

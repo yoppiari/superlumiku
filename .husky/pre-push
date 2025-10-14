@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "Running pre-push checks..."
+
+# Run tests
+echo "🧪 Running tests..."
+bun run test || {
+  echo "❌ Tests failed. Fix failing tests before pushing."
+  exit 1
+}
+
+# Check for TODOs and FIXMEs
+echo "🔍 Checking for TODOs and FIXMEs..."
+if git diff --cached --name-only | xargs grep -l "TODO\|FIXME" > /dev/null 2>&1; then
+  echo "⚠️  Warning: Found TODO or FIXME comments in staged files."
+  echo "Consider addressing them before pushing."
+fi
+
+echo "✅ Pre-push checks passed!"

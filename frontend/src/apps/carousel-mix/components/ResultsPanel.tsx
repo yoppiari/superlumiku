@@ -100,13 +100,14 @@ export function ResultsPanel({}: ResultsPanelProps) {
         // Generate sample for each position
         for (let i = 0; i < numSamples; i++) {
           const position = positions[i]
-          const slidesAtPosition = slidesByPosition[position] || []
-          const textsAtPosition = textsByPosition[position] || []
+          const slidesAtPosition = (position !== undefined && slidesByPosition[position]) ? slidesByPosition[position] : []
+          const textsAtPosition = (position !== undefined && textsByPosition[position]) ? textsByPosition[position] : []
 
           if (slidesAtPosition.length === 0) continue
 
           // Pick random slide from THIS position
           const randomSlide = slidesAtPosition[Math.floor(Math.random() * slidesAtPosition.length)]
+          if (!randomSlide) continue
 
           // Pick random text from THIS position (if available)
           const randomText = textsAtPosition.length > 0

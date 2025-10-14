@@ -528,92 +528,934 @@ bun prisma migrate deploy
 
 ## Troubleshooting
 
-### Backend Won't Start
+This comprehensive troubleshooting section covers common issues you may encounter during development. For production issues, see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-```bash
-# Check port 3000
-netstat -ano | findstr :3000
+### Table of Contents
+- [Backend Issues](#backend-issues)
+- [Frontend Issues](#frontend-issues)
+- [Database Issues](#database-issues)
+- [Environment & Configuration](#environment--configuration)
+- [Redis & Caching](#redis--caching)
+- [FFmpeg & Video Processing](#ffmpeg--video-processing)
+- [Credit System](#credit-system)
+- [Build & Deployment](#build--deployment)
 
-# Kill process if needed (Windows)
-taskkill /PID <PID> /F
+---
 
-# Regenerate Prisma client
-cd backend && bun prisma generate
+### Backend Issues
 
-# Check environment variables
-cat backend/.env
-```
+#### Backend Won't Start
 
-### Frontend Won't Start
+**Symptoms**: Server exits immediately or shows errors on startup
 
-```bash
-# Check port 5173
-netstat -ano | findstr :5173
+**Common Causes & Solutions**:
 
-# Clear cache and reinstall
-cd frontend
-rm -rf node_modules .vite
-bun install
-```
-
-### Database Migration Errors
-
-```bash
-# Reset database (development only)
-bun prisma migrate reset
-
-# Check migration history
-ls backend/prisma/migrations/
-
-# Manually fix if needed
-# Then: bun prisma migrate dev
-```
-
-### Plugin Not Showing on Dashboard
-
-1. Check backend console for plugin load messages:
-   ```
-   ✅ Plugin registered: Video Mixer (video-mixer)
-   📦 Loaded 1 plugins
-   🔌 Mounted: Video Mixer at /api/apps/video-mixer
-   ```
-
-2. Verify plugin is enabled:
-   ```typescript
-   features: { enabled: true }
-   ```
-
-3. Check `/api/apps` endpoint:
+1. **Port Already in Use**
    ```bash
-   curl http://localhost:3000/api/apps
+   # Error: listen EADDRINUSE :::3000
+
+   # Windows
+   netstat -ano | findstr :3000
+   taskkill /PID <PID> /F
+
+   # Mac/Linux
+   lsof -ti:3000 | xargs kill -9
+
+   # Or change port in .env
+   PORT=3001
    ```
 
-4. Check frontend console for errors
+2. **Environment Variables Missing/Invalid**
+   ```bash
+   # Check validation errors on startup
+   # Fix any reported issues in backend/.env
 
-### Credit Deduction Not Working
+   # Common issues:
+   # - JWT_SECRET too short (must be 32+ characters)
+   # - DATABASE_URL not set
+   # - Invalid URL formats for CORS_ORIGIN or DUITKU_*_URL
 
-1. Verify middleware order:
+   # Generate new JWT secret:
+   openssl rand -base64 32
+   ```
+
+3. **Prisma Client Not Generated**
+   ```bash
+   # Error: Cannot find module '@prisma/client'
+
+   # Solution:
+   cd backend
+   bun prisma generate
+
+   # If still failing, clean and regenerate:
+   rm -rf node_modules/.prisma
+   rm -rf node_modules/@prisma
+   bun install
+   bun prisma generate
+   ```
+
+4. **Database Connection Failed**
+   ```bash
+   # Check DATABASE_URL format
+   # SQLite: file:./prisma/dev.db
+   # PostgreSQL: postgresql://user:pass@host:5432/db
+
+   # Test connection:
+   cd backend
+   bun prisma db pull
+   ```
+
+5. **Module Import Errors**
+   ```bash
+   # Clear Bun cache
+   rm -rf ~/.bun/install/cache
+
+   # Reinstall dependencies
+   rm -rf node_modules
+   bun install
+   ```
+
+#### API Returning 500 Errors
+
+**Diagnosis**:
+```bash
+# Check backend terminal for error stack traces
+# Look for:
+# - Database query errors
+# - Missing environment variables
+# - Unhandled exceptions
+# - Type mismatches
+```
+
+**Common Fixes**:
+1. Check Prisma Client is up to date: `bun prisma generate`
+2. Verify database schema matches code
+3. Check for null/undefined values in request body
+4. Ensure all required fields are validated
+
+#### Slow API Responses
+
+**Symptoms**: API calls taking >2 seconds
+
+**Diagnosis**:
+```typescript
+// Add timing logs to routes:
+console.time('operation')
+// ... operation
+console.timeEnd('operation')
+```
+
+**Common Causes**:
+1. **Missing Database Indexes**
+   ```bash
+   # Check schema.prisma for @@index annotations
+   # Add indexes for frequently queried fields
+   ```
+
+2. **N+1 Query Problem**
    ```typescript
+   // Bad: Multiple queries in loop
+   for (const project of projects) {
+     const videos = await prisma.video.findMany({
+       where: { projectId: project.id }
+     })
+   }
+
+   // Good: Single query with include
+   const projects = await prisma.project.findMany({
+     include: { videos: true }
+   })
+   ```
+
+3. **Large Response Payloads**
+   ```typescript
+   // Use pagination
+   const items = await prisma.item.findMany({
+     take: 20,
+     skip: page * 20
+   })
+
+   // Select only needed fields
+   const users = await prisma.user.findMany({
+     select: { id: true, name: true, email: true }
+   })
+   ```
+
+---
+
+### Frontend Issues
+
+#### Frontend Won't Start
+
+**Common Causes**:
+
+1. **Port 5173 Already in Use**
+   ```bash
+   # Windows
+   netstat -ano | findstr :5173
+   taskkill /PID <PID> /F
+
+   # Mac/Linux
+   lsof -ti:5173 | xargs kill -9
+   ```
+
+2. **Vite Cache Issues**
+   ```bash
+   cd frontend
+   rm -rf node_modules/.vite
+   rm -rf dist
+   bun install
+   bun run dev
+   ```
+
+3. **TypeScript Errors**
+   ```bash
+   # Check for type errors
+   cd frontend
+   bun run type-check
+
+   # Common fixes:
+   # - Update @types/* packages
+   # - Fix any | unknown types
+   # - Check for missing imports
+   ```
+
+#### CORS Errors in Browser
+
+**Symptoms**: Console shows "blocked by CORS policy"
+
+**Diagnosis**:
+```bash
+# Check browser console for specific error:
+# - "Access-Control-Allow-Origin header"
+# - "Response to preflight request"
+# - "Origin not allowed"
+```
+
+**Solutions**:
+1. **Verify CORS_ORIGIN in backend/.env**
+   ```bash
+   # Must exactly match frontend URL (including protocol)
+   CORS_ORIGIN="http://localhost:5173"
+
+   # Restart backend after changes
+   ```
+
+2. **Check API Client Base URL**
+   ```typescript
+   // frontend/src/lib/api.ts
+   const api = axios.create({
+     baseURL: 'http://localhost:3000', // Must match backend
+   })
+   ```
+
+3. **Try Incognito Mode**
+   ```bash
+   # Sometimes browser cache causes issues
+   # Open in incognito/private window to test
+   ```
+
+4. **Check for Preflight Issues**
+   ```bash
+   # Look for OPTIONS requests in Network tab
+   # Ensure backend handles OPTIONS method
+   ```
+
+#### Authentication Issues
+
+**Symptoms**: User not staying logged in, random logouts
+
+**Common Causes**:
+
+1. **JWT Token Expiry**
+   ```bash
+   # Check JWT_EXPIRES_IN in backend/.env
+   JWT_EXPIRES_IN="7d"  # Increase if too short
+   ```
+
+2. **LocalStorage Not Persisting**
+   ```typescript
+   // Check browser console for storage errors
+   // Verify token is being saved:
+   console.log(localStorage.getItem('token'))
+   ```
+
+3. **Token Not Sent with Requests**
+   ```typescript
+   // Check API client has interceptor:
+   api.interceptors.request.use(config => {
+     const token = localStorage.getItem('token')
+     if (token) {
+       config.headers.Authorization = `Bearer ${token}`
+     }
+     return config
+   })
+   ```
+
+#### Component Not Rendering/Updating
+
+**Common Causes**:
+
+1. **State Not Triggering Re-render**
+   ```typescript
+   // Bad: Mutating state directly
+   items.push(newItem)  // Won't trigger re-render
+
+   // Good: Create new array
+   setItems([...items, newItem])  // Triggers re-render
+   ```
+
+2. **Missing Dependencies in useEffect**
+   ```typescript
+   // Add all dependencies
+   useEffect(() => {
+     fetchData()
+   }, [userId, projectId])  // Don't forget dependencies!
+   ```
+
+3. **Conditional Rendering Logic**
+   ```typescript
+   // Check conditions are correct
+   {user && <Component />}  // Only renders if user exists
+   {loading ? <Spinner /> : <Content />}
+   ```
+
+---
+
+### Database Issues
+
+#### Migration Failed
+
+**Symptoms**: Error when running `bun prisma migrate dev`
+
+**Common Causes & Solutions**:
+
+1. **Schema Syntax Error**
+   ```bash
+   # Check schema.prisma for typos
+   # Run format to catch issues:
+   bun prisma format
+
+   # Validate schema:
+   bun prisma validate
+   ```
+
+2. **Migration Conflicts**
+   ```bash
+   # Check migration status:
+   bun prisma migrate status
+
+   # If out of sync, options:
+
+   # Option 1: Reset (dev only - DESTRUCTIVE!)
+   bun prisma migrate reset
+   bun seed
+
+   # Option 2: Resolve manually
+   bun prisma migrate resolve --applied <migration-name>
+   bun prisma migrate deploy
+   ```
+
+3. **Database Already Has Conflicting Data**
+   ```bash
+   # Migration adding NOT NULL column to table with data
+
+   # Solutions:
+   # - Add default value to column
+   # - Make column nullable
+   # - Clear data first (dev only)
+   ```
+
+4. **Foreign Key Constraint Violations**
+   ```bash
+   # Check for:
+   # - Orphaned records
+   # - Wrong cascade behavior
+   # - Missing indexes on FK columns
+   ```
+
+#### Prisma Studio Won't Open
+
+**Solutions**:
+```bash
+# Port 5555 in use
+netstat -ano | findstr :5555
+
+# Database file locked (SQLite)
+# Close all connections and try again
+
+# Permission issues
+chmod 644 backend/prisma/dev.db  # Unix
+```
+
+#### Database Queries Slow
+
+**Diagnosis**:
+```typescript
+// Enable query logging
+// backend/src/db/client.ts
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+})
+```
+
+**Common Fixes**:
+1. **Add Missing Indexes**
+   ```prisma
+   model User {
+     id String @id
+     email String @unique
+     name String
+
+     @@index([email])  // Add index for frequent queries
+     @@index([createdAt])
+   }
+   ```
+
+2. **Use Efficient Queries**
+   ```typescript
+   // Bad: Loading unnecessary data
+   const users = await prisma.user.findMany()  // Gets all fields
+
+   // Good: Select only needed fields
+   const users = await prisma.user.findMany({
+     select: { id: true, name: true }
+   })
+   ```
+
+3. **Batch Operations**
+   ```typescript
+   // Bad: Multiple individual operations
+   for (const item of items) {
+     await prisma.item.create({ data: item })
+   }
+
+   // Good: Single batch operation
+   await prisma.item.createMany({ data: items })
+   ```
+
+#### Data Integrity Issues
+
+**Symptoms**: Inconsistent data, missing relations, orphaned records
+
+**Diagnosis**:
+```bash
+# Open Prisma Studio and inspect data
+bun prisma:studio
+
+# Check for:
+# - NULL values in required fields
+# - Foreign keys pointing to non-existent records
+# - Duplicate entries when should be unique
+```
+
+**Fixes**:
+1. **Add Database Constraints**
+   ```prisma
+   model Video {
+     projectId String
+     project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   }
+   ```
+
+2. **Use Transactions for Related Operations**
+   ```typescript
+   await prisma.$transaction(async (tx) => {
+     const project = await tx.project.create({ data: {...} })
+     await tx.video.create({
+       data: { projectId: project.id, ... }
+     })
+   })
+   ```
+
+---
+
+### Environment & Configuration
+
+#### Environment Variables Not Loading
+
+**Symptoms**: App behaves as if env vars are undefined
+
+**Solutions**:
+```bash
+# 1. Check file location
+ls -la backend/.env  # Must be in backend/ directory
+
+# 2. Check file format (no quotes around values in Bun)
+# Bad:
+DATABASE_URL="file:./prisma/dev.db"
+
+# Good:
+DATABASE_URL=file:./prisma/dev.db
+
+# 3. Restart server after changes
+# Env vars are loaded on startup only
+
+# 4. Check for typos in variable names
+# Use exact names from env.ts validation
+```
+
+#### JWT Secret Validation Error
+
+**Error**: `JWT_SECRET: String must contain at least 32 character(s)`
+
+**Solution**:
+```bash
+# Generate secure secret
+openssl rand -base64 32
+
+# Update backend/.env
+JWT_SECRET=<paste-generated-secret>
+
+# Ensure NO spaces or quotes
+```
+
+#### HTTPS Required in Production
+
+**Error**: `CORS_ORIGIN must use HTTPS in production`
+
+**Solution**:
+```bash
+# Ensure all URLs use HTTPS in production:
+CORS_ORIGIN=https://app.example.com
+DUITKU_CALLBACK_URL=https://api.example.com/api/payment/callback
+DUITKU_RETURN_URL=https://app.example.com/dashboard
+
+# Set NODE_ENV correctly:
+NODE_ENV=production
+```
+
+---
+
+### Redis & Caching
+
+#### Redis Connection Failed
+
+**Error**: `Redis connection failed` or `ECONNREFUSED`
+
+**Solutions**:
+
+1. **Check Redis is Running**
+   ```bash
+   # Test connection
+   redis-cli ping
+   # Should return: PONG
+
+   # Start Redis if not running:
+   # Windows: Start redis-server.exe
+   # Mac: brew services start redis
+   # Linux: systemctl start redis
+   ```
+
+2. **Check Connection Settings**
+   ```bash
+   # In backend/.env
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   REDIS_PASSWORD=  # Leave empty if no password
+   ```
+
+3. **Redis Not Required in Development**
+   ```bash
+   # App will use in-memory store
+   # Warning message is normal in dev:
+   # "⚠️  WARNING: Running without Redis"
+   ```
+
+4. **Production Redis Required**
+   ```bash
+   # In production, Redis is mandatory
+   # App will exit if Redis unavailable
+   # Configure properly or app won't start
+   ```
+
+#### Rate Limiting Not Working
+
+**Symptoms**: Can make unlimited requests despite limits
+
+**Diagnosis**:
+```bash
+# Check if Redis is connected
+# Look for startup message:
+# "✅ Redis connected successfully"
+
+# Test rate limit:
+# Make multiple rapid requests to /api/auth/login
+# Should get 429 Too Many Requests after limit
+```
+
+**Fixes**:
+1. Ensure Redis is running
+2. Check rate limit configuration in backend/.env
+3. Verify rate limiting middleware is applied to routes
+
+---
+
+### FFmpeg & Video Processing
+
+#### FFmpeg Not Found
+
+**Error**: `FFmpeg not found` or `spawn ffmpeg ENOENT`
+
+**Solutions**:
+
+1. **Install FFmpeg**
+   ```bash
+   # Check if installed
+   ffmpeg -version
+
+   # Windows: Download from ffmpeg.org and add to PATH
+   # Mac:
+   brew install ffmpeg
+
+   # Linux:
+   sudo apt-get update
+   sudo apt-get install ffmpeg
+   ```
+
+2. **Configure FFmpeg Path**
+   ```bash
+   # If installed but not in PATH, set explicit path:
+   # backend/.env
+   FFMPEG_PATH=C:\path\to\ffmpeg.exe  # Windows
+   FFMPEG_PATH=/usr/local/bin/ffmpeg  # Mac/Linux
+   ```
+
+3. **Verify Installation**
+   ```bash
+   ffmpeg -version
+   ffprobe -version
+
+   # Should show version info
+   ```
+
+#### Video Processing Fails
+
+**Symptoms**: Generation status stuck on "processing" or "failed"
+
+**Diagnosis**:
+```bash
+# Check worker logs
+# Look for FFmpeg errors
+# Common issues:
+# - Invalid video format
+# - Corrupted video file
+# - Insufficient disk space
+# - FFmpeg process killed
+```
+
+**Solutions**:
+
+1. **Check Video Format**
+   ```bash
+   # Supported: MP4, MOV, AVI, WebM
+   # Use ffprobe to check file:
+   ffprobe video.mp4
+   ```
+
+2. **Check Disk Space**
+   ```bash
+   # Video processing needs temporary space
+   df -h  # Unix
+   # Ensure sufficient space in UPLOAD_PATH and OUTPUT_PATH
+   ```
+
+3. **Check File Permissions**
+   ```bash
+   # Ensure app can read/write to upload directories
+   chmod 755 backend/uploads  # Unix
+   ```
+
+4. **Memory Issues**
+   ```bash
+   # Large videos may cause OOM
+   # Increase Node memory limit:
+   NODE_OPTIONS="--max-old-space-size=4096" bun dev:backend
+   ```
+
+#### FFmpeg Process Hangs
+
+**Symptoms**: Video generation never completes
+
+**Diagnosis**:
+```bash
+# Check for zombie FFmpeg processes
+ps aux | grep ffmpeg  # Unix
+tasklist | findstr ffmpeg  # Windows
+```
+
+**Solutions**:
+1. Kill hung processes
+2. Implement timeout in worker (see KNOWN_ISSUES.md)
+3. Add progress monitoring
+4. Set reasonable video duration limits
+
+---
+
+### Credit System
+
+#### Credit Deduction Not Working
+
+**Symptoms**: Credits not deducted after operations
+
+**Diagnosis**:
+```bash
+# Check middleware order in routes
+# Ensure deductCredits() before route handler
+# Check for errors in backend logs
+# Verify AppUsage records created
+```
+
+**Common Causes**:
+
+1. **Middleware Order Incorrect**
+   ```typescript
+   // Wrong:
+   routes.post('/generate', async (c) => {
+     await deductCredits(...)  // Too late!
+   })
+
+   // Correct:
    routes.post(
-     '/action',
-     authMiddleware,           // 1st
-     deductCredits(...),       // 2nd
-     async (c) => {            // 3rd
-       // ... action
-       await recordCreditUsage(...)  // After success
+     '/generate',
+     authMiddleware,
+     deductCredits(amount, 'action', 'app-id'),
+     async (c) => {
+       // Credits already deducted
      }
    )
    ```
 
-2. Check credit balance:
-   ```bash
-   curl -H "Authorization: Bearer <token>" \
-     http://localhost:3000/api/credits/balance
+2. **Missing recordCreditUsage() Call**
+   ```typescript
+   // After successful operation:
+   const deduction = c.get('creditDeduction')
+   await recordCreditUsage(
+     userId,
+     deduction.appId,
+     deduction.action,
+     deduction.amount
+   )
    ```
 
-3. Verify AppUsage records created:
-   - Open Prisma Studio
-   - Check `app_usages` table
+3. **Error Handling Not Refunding Credits**
+   ```typescript
+   try {
+     // Operation
+     await recordCreditUsage(...)
+   } catch (error) {
+     // Refund credits on failure
+     await refundCredits(userId, amount)
+     throw error
+   }
+   ```
+
+#### Negative Credit Balance
+
+**Symptoms**: User has negative credits
+
+**Cause**: Race condition in credit deduction (see KNOWN_ISSUES.md #1)
+
+**Immediate Fix**:
+```bash
+# Manually fix in Prisma Studio
+# Set balance to 0 or positive value
+
+# Long-term fix: Implement atomic transactions
+```
+
+#### Credit Balance Inconsistent
+
+**Diagnosis**:
+```bash
+# Compare credit transactions with actual balance
+# Open Prisma Studio
+# Check credits table for user
+# Sum amount column
+# Compare with current balance
+```
+
+**Fixes**:
+1. Rebuild balance from transaction history
+2. Implement transaction integrity checks
+3. Add database constraints
+
+---
+
+### Build & Deployment
+
+#### Frontend Build Fails
+
+**Common Errors**:
+
+1. **TypeScript Errors**
+   ```bash
+   # Check for type errors
+   cd frontend
+   bun run type-check
+
+   # Fix reported errors
+   # Common issues:
+   # - Unused variables
+   # - Type mismatches
+   # - Missing imports
+   ```
+
+2. **Memory Issues**
+   ```bash
+   # Increase memory limit
+   NODE_OPTIONS="--max-old-space-size=4096" bun run build
+   ```
+
+3. **Asset Loading Errors**
+   ```typescript
+   // Check vite.config.ts
+   // Ensure correct base path
+   export default defineConfig({
+     base: '/',  // Or your deployment path
+   })
+   ```
+
+#### Backend Build Fails
+
+**Solutions**:
+```bash
+# Clean build artifacts
+rm -rf backend/dist
+
+# Regenerate Prisma Client
+cd backend
+bun prisma generate
+
+# Rebuild
+bun run build
+```
+
+#### Production Deployment Issues
+
+**Common Problems**:
+
+1. **Environment Variables Not Set**
+   ```bash
+   # Check all required vars are set in production
+   # See ENVIRONMENT_VARIABLES.md for complete list
+   ```
+
+2. **Database Migrations Not Applied**
+   ```bash
+   # Apply migrations in production
+   cd backend
+   bun prisma migrate deploy
+   ```
+
+3. **Redis Not Configured**
+   ```bash
+   # Redis is REQUIRED in production
+   # App will exit if not available
+   # Configure REDIS_HOST and REDIS_PASSWORD
+   ```
+
+4. **HTTPS Not Configured**
+   ```bash
+   # All URLs must use HTTPS in production
+   # Check CORS_ORIGIN, DUITKU_CALLBACK_URL, etc.
+   ```
+
+5. **File Upload Permissions**
+   ```bash
+   # Ensure upload directories exist and are writable
+   mkdir -p /app/uploads /app/outputs
+   chmod 755 /app/uploads /app/outputs
+   ```
+
+---
+
+### General Debugging Tips
+
+1. **Enable Verbose Logging**
+   ```typescript
+   // backend/src/db/client.ts
+   const prisma = new PrismaClient({
+     log: ['query', 'info', 'warn', 'error'],
+   })
+   ```
+
+2. **Use Browser DevTools**
+   ```
+   - Network tab: Check API requests/responses
+   - Console tab: Check for errors
+   - Application tab: Check localStorage/cookies
+   - Sources tab: Set breakpoints in code
+   ```
+
+3. **Check Logs Systematically**
+   ```bash
+   # Backend logs (terminal)
+   # Frontend logs (browser console)
+   # Database logs (Prisma Studio)
+   # Redis logs (if applicable)
+   ```
+
+4. **Isolate the Problem**
+   ```bash
+   # Test components independently:
+   # - Database connection
+   # - API endpoints
+   # - Frontend components
+   # - External services (Redis, FFmpeg)
+   ```
+
+5. **Use Git Bisect for Regressions**
+   ```bash
+   # Find which commit introduced a bug
+   git bisect start
+   git bisect bad  # Current commit is bad
+   git bisect good <last-known-good-commit>
+   # Git will checkout commits to test
+   ```
+
+---
+
+### Getting More Help
+
+If issues persist after trying these solutions:
+
+1. **Check Documentation**
+   - [KNOWN_ISSUES.md](KNOWN_ISSUES.md) - Known bugs and security issues
+   - [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) - Configuration reference
+   - [API_REFERENCE.md](../api/README.md) - API documentation
+
+2. **Gather Debug Information**
+   ```bash
+   # System info
+   bun --version
+   node --version
+   ffmpeg -version
+
+   # Check logs
+   # Backend terminal output
+   # Browser console output
+   # Prisma Studio data
+
+   # Environment
+   cat backend/.env | grep -v SECRET | grep -v PASSWORD
+   ```
+
+3. **Create Minimal Reproduction**
+   - Isolate the issue
+   - Remove unrelated code
+   - Document steps to reproduce
+
+4. **Search Existing Issues**
+   - Check GitHub issues
+   - Search error messages
+   - Look for similar problems
+
+5. **Ask for Help**
+   - Provide complete error messages
+   - Include reproduction steps
+   - Share relevant code snippets
+   - Mention what you've already tried
 
 ---
 

@@ -38,6 +38,7 @@ export default function CarouselMix() {
       // Hide saved indicator when starting new save
       setShowSaved(false)
     }
+    return undefined
   }, [isSaving, lastSaved])
 
   // Load projects on mount

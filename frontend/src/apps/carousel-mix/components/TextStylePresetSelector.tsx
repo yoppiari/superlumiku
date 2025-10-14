@@ -10,8 +10,12 @@ interface TextStylePresetSelectorProps {
 
 export function TextStylePresetSelector({ onSelect, currentPresetId }: TextStylePresetSelectorProps) {
   const [showPresets, setShowPresets] = useState(false)
-  const [selectedPresetId, setSelectedPresetId] = useState(currentPresetId || TEXT_STYLE_PRESETS[0].id)
+  const [selectedPresetId, setSelectedPresetId] = useState(currentPresetId || TEXT_STYLE_PRESETS[0]?.id || '')
   const selectedPreset = TEXT_STYLE_PRESETS.find(p => p.id === selectedPresetId) || TEXT_STYLE_PRESETS[0]
+
+  if (!selectedPreset) {
+    return null // Safety check in case TEXT_STYLE_PRESETS is empty
+  }
 
   const handleSelectPreset = (preset: TextStylePreset) => {
     console.log('Preset selected:', preset.name)

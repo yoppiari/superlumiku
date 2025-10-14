@@ -120,7 +120,12 @@
       "Bash(source:*)",
       "Bash(echo \"JWT_SECRET length: $#JWT_SECRET\")",
       "Bash(echo \"REDIS_PASSWORD length: $#REDIS_PASSWORD\")",
-      "Bash(where tsc)"
+      "Bash(where tsc)",
+      "Bash(ls:*)",
+      "Bash(xargs rm:*)",
+      "Bash(awk:*)",
+      "Bash(tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc:*)"
     ],
     "deny": [],
     "ask": []

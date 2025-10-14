@@ -19,11 +19,29 @@
     "prisma:studio": "cd backend && bun prisma studio",
     "seed": "cd backend && bun run prisma:seed",
     "test": "bun test",
-    "clean": "rm -rf node_modules frontend/node_modules backend/node_modules"
+    "clean": "rm -rf node_modules frontend/node_modules backend/node_modules",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "concurrently \"bun run type-check:frontend\" \"bun run type-check:backend\"",
+    "type-check:frontend": "cd frontend && tsc --noEmit",
+    "type-check:backend": "cd backend && tsc --noEmit",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@types/bun": "^1.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0",
     "concurrently": "^9.2.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-import-resolver-typescript": "^3.6.1",
+    "husky": "^8.0.3",
+    "prettier": "^3.1.1",
     "typescript": "^5.3.0"
   }
 }

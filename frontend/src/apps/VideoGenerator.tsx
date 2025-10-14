@@ -114,6 +114,7 @@ export default function VideoGenerator() {
         setPollingInterval(null)
       }
     }
+    return undefined
   }, [currentProject?.id])
 
   const loadProjects = async () => {
