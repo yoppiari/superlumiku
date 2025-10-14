@@ -9,7 +9,8 @@
  */
 
 import { AppError } from './AppError'
-import { ErrorSeverity, ErrorLogEntry } from './types'
+import type { ErrorLogEntry } from './types'
+import { ErrorSeverity } from './types'
 
 /**
  * Error logger configuration

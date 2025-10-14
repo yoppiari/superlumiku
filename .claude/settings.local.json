@@ -125,7 +125,8 @@
       "Bash(xargs rm:*)",
       "Bash(awk:*)",
       "Bash(tsc --noEmit)",
-      "Bash(node_modules/.bin/tsc:*)"
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []

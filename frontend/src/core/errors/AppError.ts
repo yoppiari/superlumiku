@@ -4,7 +4,8 @@
  * Provides structured error handling for the frontend application.
  */
 
-import { AppError as IAppError, ErrorCode, ErrorCategory, ErrorSeverity, ErrorMetadata } from './types'
+import type { AppError as IAppError, ErrorMetadata } from './types'
+import { ErrorCode, ErrorCategory, ErrorSeverity } from './types'
 import { AxiosError } from 'axios'
 
 export class AppError extends Error implements IAppError {
@@ -29,8 +30,8 @@ export class AppError extends Error implements IAppError {
     this.metadata = metadata
     this.timestamp = new Date()
 
-    // Maintain proper stack trace
-    if (Error.captureStackTrace) {
+    // Maintain proper stack trace (Node.js only)
+    if (typeof Error.captureStackTrace === 'function') {
       Error.captureStackTrace(this, AppError)
     }
   }

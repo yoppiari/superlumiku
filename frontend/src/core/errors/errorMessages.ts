@@ -182,12 +182,12 @@ export function formatErrorMessage(code: ErrorCode, details?: Record<string, any
 
   // Add specific details for certain error types
   if (details) {
-    if (code === ErrorCode.INSUFFICIENT_CREDITS && details.required && details.available) {
-      message += ` Required: ${details.required}, Available: ${details.available}`
+    if (code === ErrorCode.INSUFFICIENT_CREDITS && details['required'] && details['available']) {
+      message += ` Required: ${details['required']}, Available: ${details['available']}`
     }
 
-    if (details.field) {
-      message += ` Field: ${details.field}`
+    if (details['field']) {
+      message += ` Field: ${details['field']}`
     }
   }
 

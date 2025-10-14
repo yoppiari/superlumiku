@@ -621,7 +621,7 @@ export default function VideoMixer() {
       completed: { bg: 'bg-green-100', text: 'text-green-700', icon: '✅', label: 'Completed' },
       failed: { bg: 'bg-red-100', text: 'text-red-700', icon: '❌', label: 'Failed' },
     }
-    return configs[status] || configs.pending
+    return configs[status] || configs['pending']
   }
 
   if (loading) {

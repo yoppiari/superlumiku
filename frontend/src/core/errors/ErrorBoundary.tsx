@@ -9,10 +9,10 @@
  * - Reset and retry functionality
  */
 
-import { Component, ReactNode, ErrorInfo } from 'react'
+import { Component, type ReactNode, type ErrorInfo } from 'react'
 import { AppError } from './AppError'
 import { errorLogger } from './ErrorLogger'
-import { ErrorCode, ErrorCategory, ErrorSeverity } from './types'
+import { ErrorCategory, ErrorSeverity } from './types'
 
 /**
  * Error boundary props
@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Convert to AppError
     const appError = AppError.fromRenderError(error, this.getComponentName())
 
@@ -88,7 +88,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   }
 
-  componentDidUpdate(prevProps: ErrorBoundaryProps): void {
+  override componentDidUpdate(prevProps: ErrorBoundaryProps): void {
     // Reset on resetKeys change
     if (this.props.resetKeys && prevProps.resetKeys) {
       const hasChanged = this.props.resetKeys.some(
@@ -101,7 +101,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   }
 
-  componentWillUnmount(): void {
+  override componentWillUnmount(): void {
     if (this.resetTimeout !== undefined) {
       window.clearTimeout(this.resetTimeout)
     }
@@ -186,7 +186,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    */
   private renderFallback(): ReactNode {
     const { fallback, level = 'component' } = this.props
-    const { error, errorInfo } = this.state
+    const { error } = this.state
 
     if (!error) return null
 
@@ -290,7 +290,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    * Render page-level error (inline banner)
    */
   private renderPageLevelError(): ReactNode {
-    const { error, errorInfo } = this.state
+    const { error } = this.state
 
     return (
       <div className="p-6 bg-red-50 border border-red-200 rounded-lg m-4">
@@ -373,7 +373,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     )
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       return this.renderFallback()
     }

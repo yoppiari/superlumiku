@@ -6,6 +6,7 @@
 
 import { AxiosError } from 'axios'
 import { AppError } from './AppError'
+import { getErrorMessage } from './errorMessages'
 
 /**
  * Extract user-friendly error message from various error types
@@ -154,8 +155,6 @@ export function formatErrorForDisplay(error: unknown): {
   action?: string
 } {
   const appError = parseError(error)
-  const { getErrorMessage } = require('./errorMessages')
-
   return getErrorMessage(appError.code)
 }
 
