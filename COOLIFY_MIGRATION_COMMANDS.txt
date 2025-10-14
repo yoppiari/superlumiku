@@ -1,0 +1,281 @@
+========================================
+COOLIFY TERMINAL COMMANDS
+Avatar Creator Migration - Production Database
+========================================
+
+STEP 1: BACKUP DATABASE (REQUIRED - 2 minutes)
+----------------------------------------
+pg_dump $DATABASE_URL > /app/backups/backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Verify backup created
+ls -lh /app/backups/
+
+STEP 2: NAVIGATE TO BACKEND
+----------------------------------------
+cd /app/backend
+
+STEP 3: CHECK MIGRATION STATUS
+----------------------------------------
+npx prisma migrate status
+
+# Expected output:
+# Following migration have not been applied:
+# 20251014_add_avatar_creator_complete
+
+STEP 4: DEPLOY MIGRATION (1-2 minutes)
+----------------------------------------
+npx prisma migrate deploy
+
+# This will:
+# - Create avatar_projects table
+# - Create avatars table (with personaName, personaAge, personaPersonality, personaBackground)
+# - Create avatar_presets table
+# - Create persona_examples table
+# - Create avatar_usage_history table
+# - Create avatar_generations table
+# - Create all Pose Generator tables
+
+STEP 5: GENERATE PRISMA CLIENT
+----------------------------------------
+npx prisma generate
+
+STEP 6: RESTART BACKEND
+----------------------------------------
+pm2 restart backend
+
+STEP 7: VERIFY TABLES CREATED
+----------------------------------------
+psql $DATABASE_URL -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND (table_name LIKE 'avatar%' OR table_name LIKE 'pose%') ORDER BY table_name;"
+
+# Expected output:
+# table_name
+# --------------------------
+# avatar_generations
+# avatar_presets
+# avatar_projects
+# avatar_usage_history
+# avatars
+# generated_poses
+# persona_examples
+# pose_categories
+# pose_generator_projects
+# pose_generations
+# pose_library
+# pose_requests
+# pose_selections
+
+STEP 8: VERIFY AVATARS TABLE SCHEMA
+----------------------------------------
+psql $DATABASE_URL -c "\d avatars"
+
+# Check that personaName, personaAge, personaPersonality, personaBackground columns exist
+
+STEP 9: TEST API ENDPOINTS
+----------------------------------------
+# Test GET (should work - already working)
+curl -X GET https://dev.lumiku.com/api/apps/avatar-creator/projects \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+
+# Expected: 200 OK, []
+
+# Test POST (should now work!)
+curl -X POST https://dev.lumiku.com/api/apps/avatar-creator/projects \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Migration Test","description":"Testing database migration"}'
+
+# Expected: 201 Created, {id: "...", name: "Migration Test", ...}
+
+STEP 10: CHECK APPLICATION LOGS
+----------------------------------------
+pm2 logs backend --lines 50
+
+# Look for:
+# - No Prisma client errors
+# - No "column does not exist" errors
+# - Successful API requests
+
+========================================
+ROLLBACK PLAN (If Something Goes Wrong)
+========================================
+
+OPTION 1: RESTORE FROM BACKUP
+----------------------------------------
+# Find backup file
+ls -lh /app/backups/
+
+# Restore database
+psql $DATABASE_URL < /app/backups/backup_[TIMESTAMP].sql
+
+# Restart backend
+pm2 restart backend
+
+OPTION 2: DROP TABLES MANUALLY
+----------------------------------------
+psql $DATABASE_URL
+
+-- Drop tables in reverse order (child tables first)
+DROP TABLE IF EXISTS "pose_requests" CASCADE;
+DROP TABLE IF EXISTS "pose_selections" CASCADE;
+DROP TABLE IF EXISTS "generated_poses" CASCADE;
+DROP TABLE IF EXISTS "pose_generations" CASCADE;
+DROP TABLE IF EXISTS "pose_generator_projects" CASCADE;
+DROP TABLE IF EXISTS "pose_library" CASCADE;
+DROP TABLE IF EXISTS "pose_categories" CASCADE;
+DROP TABLE IF EXISTS "avatar_generations" CASCADE;
+DROP TABLE IF EXISTS "avatar_usage_history" CASCADE;
+DROP TABLE IF EXISTS "avatars" CASCADE;
+DROP TABLE IF EXISTS "persona_examples" CASCADE;
+DROP TABLE IF EXISTS "avatar_presets" CASCADE;
+DROP TABLE IF EXISTS "avatar_projects" CASCADE;
+
+\q
+
+-- Mark migration as rolled back
+psql $DATABASE_URL -c "UPDATE \"_prisma_migrations\" SET rolled_back_at = NOW() WHERE migration_name = '20251014_add_avatar_creator_complete';"
+
+-- Restart backend
+pm2 restart backend
+
+========================================
+TROUBLESHOOTING
+========================================
+
+ERROR: "relation 'avatars' already exists"
+----------------------------------------
+# Check what tables exist
+psql $DATABASE_URL -c "\dt avatar*"
+
+# If tables are incomplete/broken, drop them first
+psql $DATABASE_URL -c "DROP TABLE IF EXISTS avatars CASCADE;"
+
+# Then re-run migration
+npx prisma migrate deploy
+
+ERROR: "Migration failed"
+----------------------------------------
+# Check detailed error
+npx prisma migrate status
+
+# Check database connection
+psql $DATABASE_URL -c "SELECT 1;"
+
+# Check migration file exists
+ls -la prisma/migrations/20251014_add_avatar_creator_complete/
+
+ERROR: "Prisma Client not generated"
+----------------------------------------
+npx prisma generate
+pm2 restart backend
+
+ERROR: POST still returns 500 after migration
+----------------------------------------
+# 1. Check Prisma Client was regenerated
+npx prisma generate
+
+# 2. Check backend was restarted
+pm2 restart backend
+
+# 3. Check tables actually exist
+psql $DATABASE_URL -c "\dt avatars"
+
+# 4. Check column exists
+psql $DATABASE_URL -c "\d avatars" | grep persona
+
+# Expected output:
+# personaName          | text                        |
+# personaAge           | integer                     |
+# personaPersonality   | text                        |
+# personaBackground    | text                        |
+
+========================================
+MONITORING AFTER MIGRATION
+========================================
+
+# Watch logs for 5 minutes
+pm2 logs backend --lines 100 --follow
+
+# Check for errors
+pm2 logs backend --err
+
+# Test full workflow:
+# 1. Login to dev.lumiku.com
+# 2. Navigate to Avatar Creator
+# 3. Create new project
+# 4. Upload avatar image
+# 5. View project list
+# 6. Delete project
+
+========================================
+QUICK REFERENCE - ALL COMMANDS IN ORDER
+========================================
+
+# 1. Backup
+pg_dump $DATABASE_URL > /app/backups/backup_$(date +%Y%m%d_%H%M%S).sql
+
+# 2. Navigate
+cd /app/backend
+
+# 3. Check status
+npx prisma migrate status
+
+# 4. Deploy migration
+npx prisma migrate deploy
+
+# 5. Generate client
+npx prisma generate
+
+# 6. Restart
+pm2 restart backend
+
+# 7. Verify
+psql $DATABASE_URL -c "\dt avatar*"
+psql $DATABASE_URL -c "\d avatars" | grep persona
+
+# 8. Test
+curl -X POST https://dev.lumiku.com/api/apps/avatar-creator/projects \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test","description":"Migration test"}'
+
+# 9. Monitor
+pm2 logs backend --lines 50
+
+========================================
+EXPECTED TIMELINE
+========================================
+
+1. Backup database: 2 minutes
+2. Deploy migration: 1-2 minutes
+3. Generate Prisma client: 30 seconds
+4. Restart backend: 10 seconds
+5. Verification: 2 minutes
+6. Testing: 3 minutes
+
+TOTAL: ~10 minutes
+
+========================================
+SUCCESS CRITERIA
+========================================
+
+✓ Database backup created successfully
+✓ Migration deployed without errors
+✓ Prisma Client regenerated
+✓ Backend restarted successfully
+✓ All avatar_* and pose_* tables exist
+✓ avatars table has persona columns (personaName, personaAge, personaPersonality, personaBackground)
+✓ GET /api/apps/avatar-creator/projects returns 200 OK
+✓ POST /api/apps/avatar-creator/projects returns 201 Created
+✓ No Prisma errors in application logs
+✓ Avatar Creator functional in dashboard
+
+========================================
+CONTACT & SUPPORT
+========================================
+
+If migration fails:
+1. Check this document's Rollback Plan
+2. Review application logs: pm2 logs backend
+3. Check database logs: psql $DATABASE_URL
+4. Take screenshots of error messages
+5. Note migration timestamp: 20251014_add_avatar_creator_complete
