@@ -152,25 +152,26 @@ app.post('/projects/:projectId/avatars/upload', authMiddleware, async (c) => {
     const body = await c.req.parseBody()
 
     // Get uploaded file
-    const file = body.image as File
+    const file = body['image'] as File
     if (!file) {
       return c.json({ error: 'Image file is required' }, 400)
     }
 
     // Get form data
-    const name = body.name as string
+    const name = body['name'] as string
     if (!name || name.trim().length === 0) {
       return c.json({ error: 'Avatar name is required' }, 400)
     }
 
     // Parse personality array if string
     let personaPersonality: string[] | undefined
-    if (body.personaPersonality) {
+    if (body['personaPersonality']) {
       try {
-        personaPersonality =
-          typeof body.personaPersonality === 'string'
-            ? JSON.parse(body.personaPersonality)
-            : body.personaPersonality
+        if (typeof body['personaPersonality'] === 'string') {
+          personaPersonality = JSON.parse(body['personaPersonality'])
+        } else if (Array.isArray(body['personaPersonality'])) {
+          personaPersonality = body['personaPersonality'] as string[]
+        }
       } catch {
         personaPersonality = undefined
       }
@@ -180,20 +181,20 @@ app.post('/projects/:projectId/avatars/upload', authMiddleware, async (c) => {
     const uploadData: UploadAvatarRequest = {
       name,
       // Persona
-      personaName: body.personaName as string | undefined,
-      personaAge: body.personaAge ? parseInt(body.personaAge as string) : undefined,
+      personaName: body['personaName'] as string | undefined,
+      personaAge: body['personaAge'] ? parseInt(body['personaAge'] as string) : undefined,
       personaPersonality,
-      personaBackground: body.personaBackground as string | undefined,
+      personaBackground: body['personaBackground'] as string | undefined,
       // Visual attributes
-      gender: body.gender as string | undefined,
-      ageRange: body.ageRange as string | undefined,
-      ethnicity: body.ethnicity as string | undefined,
-      bodyType: body.bodyType as string | undefined,
-      hairStyle: body.hairStyle as string | undefined,
-      hairColor: body.hairColor as string | undefined,
-      eyeColor: body.eyeColor as string | undefined,
-      skinTone: body.skinTone as string | undefined,
-      style: body.style as string | undefined,
+      gender: body['gender'] as string | undefined,
+      ageRange: body['ageRange'] as string | undefined,
+      ethnicity: body['ethnicity'] as string | undefined,
+      bodyType: body['bodyType'] as string | undefined,
+      hairStyle: body['hairStyle'] as string | undefined,
+      hairColor: body['hairColor'] as string | undefined,
+      eyeColor: body['eyeColor'] as string | undefined,
+      skinTone: body['skinTone'] as string | undefined,
+      style: body['style'] as string | undefined,
     }
 
     const avatar = await avatarCreatorService.uploadAvatar(projectId, userId, file, uploadData)

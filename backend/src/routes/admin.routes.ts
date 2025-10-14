@@ -75,52 +75,6 @@ app.post(
         beta: false,
       },
 
-      // Avatar Generator (HuggingFace only)
-      {
-        appId: 'avatar-generator',
-        modelId: 'controlnet-openpose-sd15',
-        modelKey: 'avatar-generator:controlnet-openpose-sd15',
-        name: 'ControlNet OpenPose SD 1.5 (Free)',
-        description: 'Pose-guided avatar generation using Stable Diffusion 1.5',
-        provider: 'huggingface',
-        tier: 'free',
-        creditCost: 3,
-        quotaCost: 1,
-        capabilities:
-          '{"model":"lllyasviel/control_v11p_sd15_openpose","baseModel":"runwayml/stable-diffusion-v1-5","quality":"sd","resolution":"512x512","poseControl":true}',
-        enabled: true,
-        beta: true,
-      },
-      {
-        appId: 'avatar-generator',
-        modelId: 'controlnet-openpose-sdxl',
-        modelKey: 'avatar-generator:controlnet-openpose-sdxl',
-        name: 'ControlNet OpenPose SDXL',
-        description: 'High quality pose-guided generation using Stable Diffusion XL',
-        provider: 'huggingface',
-        tier: 'basic',
-        creditCost: 5,
-        quotaCost: 1,
-        capabilities:
-          '{"model":"thibaud/controlnet-openpose-sdxl-1.0","baseModel":"stabilityai/stable-diffusion-xl-base-1.0","quality":"hd","resolution":"1024x1024","poseControl":true}',
-        enabled: true,
-        beta: true,
-      },
-      {
-        appId: 'avatar-generator',
-        modelId: 'controlnet-openpose-sdxl-ultra',
-        modelKey: 'avatar-generator:controlnet-openpose-sdxl-ultra',
-        name: 'ControlNet OpenPose SDXL Ultra',
-        description: 'Ultra high quality with xinsir SOTA model',
-        provider: 'huggingface',
-        tier: 'pro',
-        creditCost: 8,
-        quotaCost: 2,
-        capabilities:
-          '{"model":"xinsir/controlnet-openpose-sdxl-1.0","baseModel":"stabilityai/stable-diffusion-xl-base-1.0","quality":"ultra","resolution":"1024x1024","poseControl":true,"priorityQueue":true,"sota":true}',
-        enabled: true,
-        beta: true,
-      },
     ]
 
     let inserted = 0

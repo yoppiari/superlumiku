@@ -75,6 +75,20 @@ export interface AvatarPreset {
   usageCount: number
   createdAt: Date
   updatedAt: Date
+  // Optional individual fields (for easy access without parsing JSON)
+  personaName?: string | null
+  personaAge?: number | null
+  personaPersonality?: string | null
+  personaBackground?: string | null
+  gender?: string | null
+  ageRange?: string | null
+  ethnicity?: string | null
+  bodyType?: string | null
+  hairStyle?: string | null
+  hairColor?: string | null
+  eyeColor?: string | null
+  skinTone?: string | null
+  style?: string | null
 }
 
 export interface PersonaExample {

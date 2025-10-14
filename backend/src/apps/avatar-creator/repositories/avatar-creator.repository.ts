@@ -20,7 +20,7 @@ import type {
 // ========================================
 
 export async function findProjectsByUserId(userId: string): Promise<AvatarProject[]> {
-  return prisma.avatarProject.findMany({
+  const projects = await prisma.avatarProject.findMany({
     where: { userId },
     include: {
       avatars: {
@@ -29,10 +29,11 @@ export async function findProjectsByUserId(userId: string): Promise<AvatarProjec
     },
     orderBy: { createdAt: 'desc' },
   })
+  return projects as AvatarProject[]
 }
 
 export async function findProjectById(projectId: string, userId: string): Promise<AvatarProject | null> {
-  return prisma.avatarProject.findFirst({
+  const project = await prisma.avatarProject.findFirst({
     where: {
       id: projectId,
       userId,
@@ -43,6 +44,7 @@ export async function findProjectById(projectId: string, userId: string): Promis
       },
     },
   })
+  return project as AvatarProject | null
 }
 
 export async function createProject(data: {
@@ -50,7 +52,7 @@ export async function createProject(data: {
   name: string
   description?: string
 }): Promise<AvatarProject> {
-  return prisma.avatarProject.create({
+  const project = await prisma.avatarProject.create({
     data: {
       userId: data.userId,
       name: data.name,
@@ -60,6 +62,7 @@ export async function createProject(data: {
       avatars: true,
     },
   })
+  return project as AvatarProject
 }
 
 export async function updateProject(
@@ -70,7 +73,7 @@ export async function updateProject(
     description?: string
   }
 ): Promise<AvatarProject> {
-  return prisma.avatarProject.update({
+  const project = await prisma.avatarProject.update({
     where: {
       id: projectId,
       userId,
@@ -80,6 +83,7 @@ export async function updateProject(
       description: data.description,
     },
   })
+  return project as AvatarProject
 }
 
 export async function deleteProject(projectId: string, userId: string): Promise<void> {
@@ -96,7 +100,7 @@ export async function deleteProject(projectId: string, userId: string): Promise<
 // ========================================
 
 export async function findAvatarById(avatarId: string, userId: string): Promise<Avatar | null> {
-  return prisma.avatar.findFirst({
+  const avatar = await prisma.avatar.findFirst({
     where: {
       id: avatarId,
       userId,
@@ -105,16 +109,18 @@ export async function findAvatarById(avatarId: string, userId: string): Promise<
       project: true,
     },
   })
+  return avatar as Avatar | null
 }
 
 export async function findAvatarsByProjectId(projectId: string, userId: string): Promise<Avatar[]> {
-  return prisma.avatar.findMany({
+  const avatars = await prisma.avatar.findMany({
     where: {
       projectId,
       userId,
     },
     orderBy: { createdAt: 'desc' },
   })
+  return avatars as Avatar[]
 }
 
 export async function findAvatarsByUserId(
@@ -122,7 +128,7 @@ export async function findAvatarsByUserId(
   limit: number = 20,
   offset: number = 0
 ): Promise<{ avatars: Avatar[]; total: number }> {
-  const [avatars, total] = await Promise.all([
+  const [avatarsData, total] = await Promise.all([
     prisma.avatar.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -137,7 +143,7 @@ export async function findAvatarsByUserId(
     }),
   ])
 
-  return { avatars, total }
+  return { avatars: avatarsData as Avatar[], total }
 }
 
 export async function createAvatar(data: {
@@ -165,7 +171,7 @@ export async function createAvatar(data: {
   skinTone?: string
   style?: string
 }): Promise<Avatar> {
-  return prisma.avatar.create({
+  const avatar = await prisma.avatar.create({
     data: {
       userId: data.userId,
       projectId: data.projectId,
@@ -195,6 +201,7 @@ export async function createAvatar(data: {
       project: true,
     },
   })
+  return avatar as Avatar
 }
 
 export async function updateAvatar(
@@ -221,13 +228,14 @@ export async function updateAvatar(
     style: string
   }>
 ): Promise<Avatar> {
-  return prisma.avatar.update({
+  const avatar = await prisma.avatar.update({
     where: {
       id: avatarId,
       userId,
     },
     data,
   })
+  return avatar as Avatar
 }
 
 export async function deleteAvatar(avatarId: string, userId: string): Promise<void> {
@@ -254,19 +262,21 @@ export async function incrementAvatarUsage(avatarId: string): Promise<void> {
 // ========================================
 
 export async function findAllPresets(category?: string): Promise<AvatarPreset[]> {
-  return prisma.avatarPreset.findMany({
+  const presets = await prisma.avatarPreset.findMany({
     where: {
       isPublic: true,
       ...(category && { category }),
     },
     orderBy: [{ usageCount: 'desc' }, { createdAt: 'desc' }],
   })
+  return presets as AvatarPreset[]
 }
 
 export async function findPresetById(presetId: string): Promise<AvatarPreset | null> {
-  return prisma.avatarPreset.findUnique({
+  const preset = await prisma.avatarPreset.findUnique({
     where: { id: presetId },
   })
+  return preset as AvatarPreset | null
 }
 
 export async function incrementPresetUsage(presetId: string): Promise<void> {
@@ -283,19 +293,21 @@ export async function incrementPresetUsage(presetId: string): Promise<void> {
 // ========================================
 
 export async function findAllPersonaExamples(category?: string): Promise<PersonaExample[]> {
-  return prisma.personaExample.findMany({
+  const examples = await prisma.personaExample.findMany({
     where: {
       isActive: true,
       ...(category && { category }),
     },
     orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
   })
+  return examples as PersonaExample[]
 }
 
 export async function findPersonaExampleById(exampleId: string): Promise<PersonaExample | null> {
-  return prisma.personaExample.findUnique({
+  const example = await prisma.personaExample.findUnique({
     where: { id: exampleId },
   })
+  return example as PersonaExample | null
 }
 
 // ========================================
@@ -312,7 +324,7 @@ export async function createUsageHistory(data: {
   referenceType?: string
   metadata?: string
 }): Promise<AvatarUsageHistory> {
-  return prisma.avatarUsageHistory.create({
+  const history = await prisma.avatarUsageHistory.create({
     data: {
       avatarId: data.avatarId,
       userId: data.userId,
@@ -324,6 +336,7 @@ export async function createUsageHistory(data: {
       metadata: data.metadata || null,
     },
   })
+  return history as AvatarUsageHistory
 }
 
 export async function findUsageHistoryByAvatarId(
@@ -331,7 +344,7 @@ export async function findUsageHistoryByAvatarId(
   userId: string,
   limit: number = 50
 ): Promise<AvatarUsageHistory[]> {
-  return prisma.avatarUsageHistory.findMany({
+  const history = await prisma.avatarUsageHistory.findMany({
     where: {
       avatarId,
       userId,
@@ -339,6 +352,7 @@ export async function findUsageHistoryByAvatarId(
     orderBy: { createdAt: 'desc' },
     take: limit,
   })
+  return history as AvatarUsageHistory[]
 }
 
 export async function getUsageSummaryByAvatarId(avatarId: string, userId: string) {
@@ -374,7 +388,7 @@ export async function createGeneration(data: {
   prompt: string
   options?: string
 }): Promise<AvatarGeneration> {
-  return prisma.avatarGeneration.create({
+  const generation = await prisma.avatarGeneration.create({
     data: {
       userId: data.userId,
       projectId: data.projectId,
@@ -383,6 +397,7 @@ export async function createGeneration(data: {
       status: 'pending',
     },
   })
+  return generation as AvatarGeneration
 }
 
 export async function updateGenerationStatus(
@@ -393,7 +408,7 @@ export async function updateGenerationStatus(
     errorMessage?: string
   }
 ): Promise<AvatarGeneration> {
-  return prisma.avatarGeneration.update({
+  const generation = await prisma.avatarGeneration.update({
     where: { id: generationId },
     data: {
       status,
@@ -404,12 +419,14 @@ export async function updateGenerationStatus(
         : {}),
     },
   })
+  return generation as AvatarGeneration
 }
 
 export async function findGenerationById(generationId: string): Promise<AvatarGeneration | null> {
-  return prisma.avatarGeneration.findUnique({
+  const generation = await prisma.avatarGeneration.findUnique({
     where: { id: generationId },
   })
+  return generation as AvatarGeneration | null
 }
 
 // ========================================

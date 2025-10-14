@@ -527,6 +527,10 @@ async function seedSubscriptions(users: any[]) {
   const enterpriseUser = users.find(u => u.email === 'sub-enterprise@lumiku.test')
   const adminUser = users.find(u => u.email === 'admin@lumiku.test')
 
+  if (!basicUser || !proUser || !enterpriseUser || !adminUser) {
+    throw new Error('Required users not found for subscription seeding')
+  }
+
   // Basic subscription (active)
   await prisma.subscription.create({
     data: {
@@ -593,7 +597,8 @@ async function seedSubscriptions(users: any[]) {
 async function seedQuotaUsages(users: any[]) {
   log('QUOTA', 'Seeding quota usages...')
 
-  const today = new Date().toISOString().split('T')[0]
+  const todayParts = new Date().toISOString().split('T')
+  const today = todayParts[0] || new Date().toISOString().substring(0, 10)
   const tomorrow = addDays(new Date(), 1)
   tomorrow.setHours(0, 0, 0, 0)
 
@@ -708,7 +713,7 @@ async function seedVideoMixerProjects(users: any[]) {
   })
 
   // Project 2: Pro user project
-  const project2 = await prisma.videoMixerProject.create({
+  await prisma.videoMixerProject.create({
     data: {
       userId: proUser.id,
       name: 'Tutorial Series',
@@ -724,7 +729,6 @@ async function seedCarouselProjects(users: any[]) {
   log('CAROUSEL', 'Seeding carousel projects...')
 
   const activeUser = users.find(u => u.email === 'payg-active@lumiku.test')
-  const basicUser = users.find(u => u.email === 'sub-basic@lumiku.test')
 
   // Project 1: Marketing carousel
   const project1 = await prisma.carouselProject.create({
@@ -891,7 +895,6 @@ async function seedAvatarProjects(users: any[]) {
   log('AVATAR', 'Seeding avatar projects...')
 
   const enterpriseUser = users.find(u => u.email === 'sub-enterprise@lumiku.test')
-  const proUser = users.find(u => u.email === 'sub-pro@lumiku.test')
 
   // Project 1: Enterprise user avatars
   const project1 = await prisma.avatarProject.create({
@@ -937,31 +940,34 @@ async function seedAvatarProjects(users: any[]) {
     ]
   })
 
-  // Add avatar presets
-  await prisma.avatarPreset.createMany({
-    data: [
-      {
-        name: 'Business Professional',
-        previewImageUrl: '/presets/business.jpg',
-        category: 'business',
-        personaTemplate: JSON.stringify({ formal: true, professional: true }),
-        visualAttributes: JSON.stringify({ attire: 'suit', background: 'office' }),
-        generationPrompt: 'Professional business person in formal attire',
-        isPublic: true,
-        usageCount: 150
-      },
-      {
-        name: 'Creative Designer',
-        previewImageUrl: '/presets/creative.jpg',
-        category: 'creative',
-        personaTemplate: JSON.stringify({ creative: true, modern: true }),
-        visualAttributes: JSON.stringify({ attire: 'casual', background: 'studio' }),
-        generationPrompt: 'Creative designer in modern casual wear',
-        isPublic: true,
-        usageCount: 89
-      }
-    ]
-  })
+  // Add avatar presets (if not already created by seed-avatar-presets.ts)
+  const existingPresets = await prisma.avatarPreset.count()
+  if (existingPresets === 0) {
+    await prisma.avatarPreset.createMany({
+      data: [
+        {
+          name: 'Business Professional',
+          previewImageUrl: '/presets/business.jpg',
+          category: 'business',
+          personaTemplate: JSON.stringify({ formal: true, professional: true }),
+          visualAttributes: JSON.stringify({ attire: 'suit', background: 'office' }),
+          generationPrompt: 'Professional business person in formal attire',
+          isPublic: true,
+          usageCount: 150
+        },
+        {
+          name: 'Creative Designer',
+          previewImageUrl: '/presets/creative.jpg',
+          category: 'creative',
+          personaTemplate: JSON.stringify({ creative: true, modern: true }),
+          visualAttributes: JSON.stringify({ attire: 'casual', background: 'studio' }),
+          generationPrompt: 'Creative designer in modern casual wear',
+          isPublic: true,
+          usageCount: 89
+        }
+      ]
+    })
+  }
 
   log('AVATAR', '✓ Created avatar projects, avatars, and presets')
 }

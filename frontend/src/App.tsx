@@ -20,7 +20,6 @@ const CarouselMix = lazy(() => import('./apps/CarouselMix'))
 const LoopingFlow = lazy(() => import('./apps/LoopingFlow'))
 const VideoGenerator = lazy(() => import('./apps/VideoGenerator'))
 const PosterEditor = lazy(() => import('./apps/PosterEditor').then((m) => ({ default: m.PosterEditor })))
-const AvatarGenerator = lazy(() => import('./apps/AvatarGenerator'))
 const AvatarCreator = lazy(() => import('./apps/AvatarCreator'))
 const PoseGenerator = lazy(() => import('./apps/PoseGenerator'))
 
@@ -154,14 +153,6 @@ function AppContent() {
           element={
             <ErrorBoundary level="page">
               <PosterEditor />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/apps/avatar-generator"
-          element={
-            <ErrorBoundary level="page">
-              <AvatarGenerator />
             </ErrorBoundary>
           }
         />

@@ -40,7 +40,6 @@ export type ResourceType =
   | 'LoopingFlowVideo'
   | 'LoopingFlowGeneration'
   | 'LoopingFlowAudioLayer'
-  | 'AvatarGeneratorGeneration'
 
 interface AuthorizationOptions {
   /**
