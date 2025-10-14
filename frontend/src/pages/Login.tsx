@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import api from '../lib/api'
+import { authService } from '../services'
+import { handleApiError } from '../lib/errorHandler'
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true)
@@ -21,25 +22,17 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
-      const payload = isLogin
-        ? { email, password }
-        : { email, password, name }
+      const response = isLogin
+        ? await authService.login({ email, password })
+        : await authService.register({ email, password, name })
 
-      console.log('🔵 Sending request to:', endpoint)
-      console.log('🔵 Payload:', { ...payload, password: '***' })
-
-      const response = await api.post(endpoint, payload)
-      console.log('✅ Response:', response.data)
-
-      const { user, token } = response.data
+      const { user, token } = response
 
       setAuth(user, token)
       navigate('/dashboard')
-    } catch (err: any) {
-      console.error('❌ Login error:', err)
-      console.error('❌ Error response:', err.response)
-      setError(err.response?.data?.error || 'Authentication failed')
+    } catch (err) {
+      const errorDetails = handleApiError(err, 'Login')
+      setError(errorDetails.message)
     } finally {
       setLoading(false)
     }

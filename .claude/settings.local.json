@@ -119,7 +119,8 @@
       "Bash(bash:*)",
       "Bash(source:*)",
       "Bash(echo \"JWT_SECRET length: $#JWT_SECRET\")",
-      "Bash(echo \"REDIS_PASSWORD length: $#REDIS_PASSWORD\")"
+      "Bash(echo \"REDIS_PASSWORD length: $#REDIS_PASSWORD\")",
+      "Bash(where tsc)"
     ],
     "deny": [],
     "ask": []
