@@ -1,13 +1,28 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth.middleware'
+import { AuthVariables } from '../types/hono'
 import prisma from '../db/client'
+import { sendSuccess } from '../utils/api-response'
+import { asyncHandler } from '../utils/error-handler'
+import { logger } from '../utils/logger'
+import { AuthContext, DashboardStatsResponse } from '../types/routes'
 
-const statsRoutes = new Hono()
+const statsRoutes = new Hono<{ Variables: AuthVariables }>()
 
-// Get dashboard stats for current user
-statsRoutes.get('/dashboard', authMiddleware, async (c) => {
-  try {
+/**
+ * GET /api/stats/dashboard
+ * Get dashboard statistics for authenticated user
+ * Includes monthly spending, works, projects, and last login
+ *
+ * @returns {DashboardStatsResponse} Dashboard statistics for current month
+ */
+statsRoutes.get(
+  '/dashboard',
+  authMiddleware,
+  asyncHandler(async (c: AuthContext) => {
     const userId = c.get('userId')
+
+    logger.info('Fetching dashboard stats', { userId })
 
     // Get current month start and end dates
     const now = new Date()
@@ -92,18 +107,19 @@ statsRoutes.get('/dashboard', authMiddleware, async (c) => {
       },
     })
 
-    return c.json({
+    const stats: DashboardStatsResponse = {
       totalSpending: Math.abs(monthlySpending._sum.amount || 0),
       totalWorks,
       totalProjects,
       lastLogin: lastSession?.createdAt || new Date(),
       periodStart: monthStart,
       periodEnd: monthEnd,
-    })
-  } catch (error) {
-    console.error('Failed to fetch dashboard stats:', error)
-    return c.json({ error: 'Failed to fetch stats' }, 500)
-  }
-})
+    }
+
+    logger.debug('Dashboard stats retrieved', { userId, stats })
+
+    return sendSuccess<DashboardStatsResponse>(c, stats)
+  }, 'Get Dashboard Stats')
+)
 
 export default statsRoutes
