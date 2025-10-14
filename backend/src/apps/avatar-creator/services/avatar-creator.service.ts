@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
 import sharp from 'sharp'
+import prisma from '../../../db/client'
 import * as repository from '../repositories/avatar-creator.repository'
 import { addAvatarGenerationJob } from '../../../lib/queue'
 import {
@@ -22,6 +23,7 @@ import type {
   PersonaData,
   VisualAttributes,
 } from '../types'
+import type { AIModel } from '@prisma/client'
 
 /**
  * Avatar Creator Service
@@ -163,14 +165,114 @@ class AvatarCreatorService {
   // Avatar - AI Generation
   // ========================================
 
+  /**
+   * Select the best AI model for avatar generation
+   * Based on user tier, quality preference, and model availability
+   */
+  private async selectAIModel(
+    userTier: string = 'free',
+    preferRealism: boolean = true,
+    preferHD: boolean = false
+  ): Promise<AIModel> {
+    // Get available models for Avatar Creator
+    const models = await prisma.aIModel.findMany({
+      where: {
+        appId: 'avatar-creator',
+        enabled: true,
+      },
+      orderBy: [
+        { tier: 'asc' }, // free < basic < pro < enterprise
+        { creditCost: 'asc' }, // Cheaper first
+      ],
+    })
+
+    if (models.length === 0) {
+      throw new ResourceNotFoundError('AIModel', 'No AI models available for Avatar Creator')
+    }
+
+    // Tier hierarchy for access control
+    const tierHierarchy: Record<string, string[]> = {
+      free: ['free'],
+      basic: ['free', 'basic'],
+      pro: ['free', 'basic', 'pro'],
+      enterprise: ['free', 'basic', 'pro', 'enterprise'],
+    }
+
+    // Filter models by user's tier access
+    const accessibleModels = models.filter((model) =>
+      tierHierarchy[userTier]?.includes(model.tier)
+    )
+
+    if (accessibleModels.length === 0) {
+      // Fallback to free tier model
+      const freeModel = models.find((m) => m.tier === 'free')
+      if (freeModel) return freeModel
+      throw new ResourceNotFoundError('AIModel', 'No accessible AI models for user tier')
+    }
+
+    // Strategy 1: Prefer Realism LoRA models
+    if (preferRealism) {
+      const realismModels = accessibleModels.filter((model) => {
+        const caps = model.capabilities ? JSON.parse(model.capabilities as string) : {}
+        return caps.loraModel?.includes('Realism') || caps.ultraRealistic === true
+      })
+
+      if (realismModels.length > 0) {
+        // If prefer HD, select highest resolution
+        if (preferHD) {
+          return realismModels.reduce((best, current) => {
+            const bestCaps = JSON.parse(best.capabilities as string)
+            const currentCaps = JSON.parse(current.capabilities as string)
+            return (currentCaps.width || 0) > (bestCaps.width || 0) ? current : best
+          })
+        }
+        return realismModels[0] // First realism model (cheapest)
+      }
+    }
+
+    // Strategy 2: Fast mode - select FLUX.1-schnell
+    const fastModel = accessibleModels.find((model) => {
+      const caps = model.capabilities ? JSON.parse(model.capabilities as string) : {}
+      return caps.fastMode === true
+    })
+
+    if (fastModel && !preferRealism) {
+      return fastModel
+    }
+
+    // Strategy 3: Default - return first accessible model
+    return accessibleModels[0]
+  }
+
   async generateAvatar(
     projectId: string,
     userId: string,
     data: GenerateAvatarRequest,
-    creditCost = 10 // Default cost for text-to-image generation
+    userTier: string = 'free' // Pass from auth middleware
   ): Promise<AvatarGeneration> {
     // Verify project exists and user owns it
     await this.getProjectById(projectId, userId)
+
+    // Select optimal AI model based on user tier and preferences
+    const aiModel = await this.selectAIModel(
+      userTier,
+      true, // Prefer realism for avatars
+      data.width ? data.width >= 1024 : false // Prefer HD if requested
+    )
+
+    // Parse model capabilities
+    const capabilities = aiModel.capabilities ? JSON.parse(aiModel.capabilities as string) : {}
+
+    // Use model's default settings if not specified
+    const width = data.width || capabilities.width || 1024
+    const height = data.height || capabilities.height || 1024
+
+    // Get credit cost from model
+    const creditCost = aiModel.creditCost
+
+    console.log(`🎨 Selected AI model: ${aiModel.name} (${aiModel.modelKey})`)
+    console.log(`💰 Credit cost: ${creditCost}`)
+    console.log(`📐 Resolution: ${width}x${height}`)
 
     // Create generation record
     const generation = await repository.createGeneration({
@@ -178,21 +280,23 @@ class AvatarCreatorService {
       projectId,
       prompt: data.prompt,
       options: JSON.stringify({
-        width: data.width,
-        height: data.height,
+        width,
+        height,
         seed: data.seed,
+        modelKey: aiModel.modelKey,
+        modelName: aiModel.name,
       }),
     })
 
-    // Prepare job data
+    // Prepare job data with model configuration
     const jobData = {
       generationId: generation.id,
       userId,
       projectId,
       prompt: data.prompt,
       options: {
-        width: data.width,
-        height: data.height,
+        width,
+        height,
         seed: data.seed,
       },
       metadata: {
@@ -215,6 +319,16 @@ class AvatarCreatorService {
             }
           : undefined,
         creditCost, // Pass credit cost for accurate refunds on failure
+        // AI Model Configuration (NEW)
+        aiModel: {
+          modelKey: aiModel.modelKey,
+          modelId: capabilities.modelId || aiModel.modelId,
+          loraModel: capabilities.loraModel || null,
+          loraScale: capabilities.loraScale || 0,
+          useLoRA: capabilities.useLoRA || false,
+          numInferenceSteps: capabilities.numInferenceSteps || 30,
+          guidanceScale: capabilities.guidanceScale || 3.5,
+        },
       },
     }
 
@@ -372,7 +486,7 @@ class AvatarCreatorService {
     userId: string,
     presetId: string,
     customName?: string,
-    creditCost = 8 // Default cost for preset-based generation
+    userTier: string = 'free'
   ) {
     // Verify project ownership
     await this.getProjectById(projectId, userId)
@@ -380,27 +494,45 @@ class AvatarCreatorService {
     // Get preset
     const preset = await this.getPresetById(presetId)
 
+    // Select optimal AI model for preset generation
+    const aiModel = await this.selectAIModel(
+      userTier,
+      true, // Presets always use realism
+      true // Presets prefer HD quality
+    )
+
+    // Parse model capabilities
+    const capabilities = aiModel.capabilities ? JSON.parse(aiModel.capabilities as string) : {}
+    const width = capabilities.width || 1024
+    const height = capabilities.height || 1024
+    const creditCost = aiModel.creditCost
+
+    console.log(`🎨 Selected AI model for preset: ${aiModel.name}`)
+    console.log(`💰 Credit cost: ${creditCost}`)
+
     // Create generation record for tracking
     const generation = await repository.createGeneration({
       userId,
       projectId,
       prompt: preset.generationPrompt,
       options: JSON.stringify({
-        width: 1024,
-        height: 1024,
+        width,
+        height,
         seed: undefined,
+        modelKey: aiModel.modelKey,
+        modelName: aiModel.name,
       }),
     })
 
-    // Prepare job data
+    // Prepare job data with model configuration
     const jobData = {
       generationId: generation.id,
       userId,
       projectId,
       prompt: preset.generationPrompt,
       options: {
-        width: 1024,
-        height: 1024,
+        width,
+        height,
         seed: undefined,
       },
       metadata: {
@@ -424,6 +556,16 @@ class AvatarCreatorService {
           style: preset.style || undefined,
         },
         creditCost, // Pass credit cost for accurate refunds on failure
+        // AI Model Configuration
+        aiModel: {
+          modelKey: aiModel.modelKey,
+          modelId: capabilities.modelId || aiModel.modelId,
+          loraModel: capabilities.loraModel || null,
+          loraScale: capabilities.loraScale || 0,
+          useLoRA: capabilities.useLoRA || false,
+          numInferenceSteps: capabilities.numInferenceSteps || 30,
+          guidanceScale: capabilities.guidanceScale || 3.5,
+        },
       },
     }
 

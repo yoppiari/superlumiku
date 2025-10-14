@@ -70,6 +70,16 @@ export interface AvatarGenerationJob {
       skinTone?: string
       style?: string
     }
+    creditCost?: number
+    aiModel?: {
+      modelKey: string
+      modelId: string
+      loraModel?: string | null
+      loraScale?: number
+      useLoRA?: boolean
+      numInferenceSteps?: number
+      guidanceScale?: number
+    }
   }
 }
 

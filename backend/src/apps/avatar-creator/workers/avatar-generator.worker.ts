@@ -71,6 +71,23 @@ class AvatarGeneratorWorker {
       console.log(`\n📸 Generating avatar for user ${userId}`)
       console.log(`📝 Prompt: ${prompt}`)
 
+      // Extract AI model configuration from metadata
+      const aiModelConfig = metadata.aiModel || {
+        modelId: 'black-forest-labs/FLUX.1-dev',
+        modelKey: 'avatar-creator:flux-dev-base',
+        loraModel: null,
+        loraScale: 0,
+        useLoRA: false,
+        numInferenceSteps: 30,
+        guidanceScale: 3.5,
+      }
+
+      console.log(`🤖 AI Model: ${aiModelConfig.modelId || 'FLUX.1-dev (default)'}`)
+      if (aiModelConfig.loraModel) {
+        console.log(`🎨 LoRA: ${aiModelConfig.loraModel} (scale: ${aiModelConfig.loraScale})`)
+      }
+      console.log(`⚙️  Steps: ${aiModelConfig.numInferenceSteps || 30}, Guidance: ${aiModelConfig.guidanceScale || 3.5}`)
+
       // Update status to processing
       await repository.updateGenerationStatus(generationId, 'processing')
 
@@ -81,15 +98,16 @@ class AvatarGeneratorWorker {
       const persona = metadata.persona
       const attributes = metadata.attributes
 
-      // Generate image with FLUX
+      // Generate image with FLUX using model configuration
       await job.updateProgress(20)
-      const imageBuffer = await fluxGenerator.generateAvatar({
+      const imageBuffer = await this.generateWithModelConfig({
         prompt,
         persona,
         attributes,
         seed: options.seed,
         width: options.width || 1024,
         height: options.height || 1024,
+        modelConfig: aiModelConfig,
       })
 
       await job.updateProgress(70)
@@ -206,6 +224,71 @@ class AvatarGeneratorWorker {
 
       throw structuredError // Re-throw to mark job as failed in queue
     }
+  }
+
+  /**
+   * Generate avatar using model configuration from database
+   * This method replaces the hardcoded FLUX generation
+   */
+  private async generateWithModelConfig(params: {
+    prompt: string
+    persona?: any
+    attributes?: any
+    seed?: number
+    width: number
+    height: number
+    modelConfig: {
+      modelId?: string
+      loraModel?: string | null
+      loraScale?: number
+      useLoRA?: boolean
+      numInferenceSteps?: number
+      guidanceScale?: number
+    }
+  }): Promise<Buffer> {
+    const { prompt, persona, attributes, seed, width, height, modelConfig } = params
+
+    // Build enhanced prompt using FLUX generator's prompt builder
+    const promptResult = fluxGenerator.buildPrompt(prompt, persona, attributes)
+
+    console.log('📝 Enhanced prompt:', promptResult.enhancedPrompt)
+    console.log('🚫 Negative prompt:', promptResult.negativePrompt)
+
+    // Use HuggingFace client directly with model configuration
+    const { hfClient } = await import('../../../lib/huggingface-client')
+
+    // Determine which model to use
+    const modelId = modelConfig.modelId || 'black-forest-labs/FLUX.1-dev'
+    const isSchnell = modelId.includes('schnell')
+
+    // Check if we should use LoRA
+    const useLoRA = modelConfig.useLoRA !== false && modelConfig.loraModel !== null
+
+    console.log(`🎨 Generating with ${modelId}`)
+    if (useLoRA) {
+      console.log(`   + LoRA: ${modelConfig.loraModel} (${modelConfig.loraScale || 0.9})`)
+    }
+
+    // Generate with FLUX using configured parameters
+    const imageBuffer = await hfClient.withRetry(
+      () =>
+        hfClient.fluxTextToImage({
+          prompt: promptResult.enhancedPrompt,
+          negativePrompt: promptResult.negativePrompt,
+          width,
+          height,
+          numInferenceSteps: modelConfig.numInferenceSteps || (isSchnell ? 4 : 30),
+          guidanceScale: modelConfig.guidanceScale || (isSchnell ? 0 : 3.5),
+          useLoRA,
+          loraScale: modelConfig.loraScale || 0.9,
+          seed,
+        }),
+      3, // max retries
+      5000 // base delay
+    )
+
+    console.log('✅ Avatar generated successfully with model configuration')
+    return imageBuffer
   }
 
   /**

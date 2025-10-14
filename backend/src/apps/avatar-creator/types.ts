@@ -362,5 +362,14 @@ export interface AvatarGenerationJob {
     persona?: PersonaData
     attributes?: VisualAttributes
     creditCost?: number // Cost of this generation for accurate refunds on failure
+    aiModel?: {
+      modelKey: string
+      modelId: string
+      loraModel?: string | null
+      loraScale?: number
+      useLoRA?: boolean
+      numInferenceSteps?: number
+      guidanceScale?: number
+    }
   }
 }
