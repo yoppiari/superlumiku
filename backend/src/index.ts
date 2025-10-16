@@ -44,12 +44,23 @@ if (process.env.REDIS_ENABLED !== 'false') {
  * Check database connectivity
  */
 async function checkDatabase(): Promise<void> {
+  const isProduction = env.NODE_ENV === 'production'
+
   try {
     await prisma.$connect()
     logger.info('Database connected successfully')
   } catch (error) {
     logger.error('Database connection failed', { error })
-    process.exit(1)
+
+    if (isProduction) {
+      logger.error('FATAL: Database is required for production deployment')
+      process.exit(1)
+    } else {
+      logger.warn('Running without database connection', {
+        notice: 'Application will start but features requiring DB will fail',
+        solution: 'Start local PostgreSQL or fix DATABASE_URL in .env'
+      })
+    }
   }
 }
 

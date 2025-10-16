@@ -35,6 +35,14 @@ loadPlugins()
 app.use('*', honoLogger())
 app.use('*', corsMiddleware)
 
+// Cache control middleware - prevent stale API responses
+app.use('/api/*', async (c, next) => {
+  await next()
+  c.header('Cache-Control', 'no-cache, no-store, must-revalidate')
+  c.header('Pragma', 'no-cache')
+  c.header('Expires', '0')
+})
+
 // Serve static files from uploads directory
 app.use('/uploads/*', serveStatic({ root: './' }))
 
