@@ -208,6 +208,98 @@ export const seedAIModels = async () => {
     },
 
     // ==========================================
+    // POSE GENERATOR MODELS (ControlNet + Background)
+    // ==========================================
+    {
+      appId: 'pose-generator',
+      modelId: 'flux-controlnet-standard',
+      modelKey: 'pose-generator:flux-controlnet-standard',
+      name: 'FLUX ControlNet Standard',
+      description: 'Standard quality pose-to-avatar generation using FLUX.1-dev with ControlNet for pose guidance',
+      provider: 'huggingface',
+      tier: 'basic',
+      creditCost: 30,
+      creditPerPixel: null,
+      quotaCost: 2,
+      capabilities: JSON.stringify({
+        modelId: 'black-forest-labs/FLUX.1-dev',
+        controlnetModel: 'InstantX/FLUX.1-dev-Controlnet-Union',
+        controlnetType: 'openpose',
+        width: 768,
+        height: 768,
+        numInferenceSteps: 28,
+        guidanceScale: 3.5,
+        controlnetConditioningScale: 0.8,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 'standard',
+        processingTime: '45-60s',
+        poseGuidance: true,
+        features: ['pose-to-avatar', 'controlnet', 'basic-quality', 'openpose']
+      }),
+      enabled: true,
+      beta: false
+    },
+    {
+      appId: 'pose-generator',
+      modelId: 'flux-controlnet-pro',
+      modelKey: 'pose-generator:flux-controlnet-pro',
+      name: 'FLUX ControlNet Pro',
+      description: 'Premium high-resolution pose-to-avatar with FLUX.1-dev ControlNet for professional results',
+      provider: 'huggingface',
+      tier: 'pro',
+      creditCost: 40,
+      creditPerPixel: null,
+      quotaCost: 3,
+      capabilities: JSON.stringify({
+        modelId: 'black-forest-labs/FLUX.1-dev',
+        controlnetModel: 'InstantX/FLUX.1-dev-Controlnet-Union',
+        controlnetType: 'openpose',
+        width: 1024,
+        height: 1024,
+        numInferenceSteps: 35,
+        guidanceScale: 3.5,
+        controlnetConditioningScale: 0.85,
+        maxWidth: 1536,
+        maxHeight: 1536,
+        quality: 'premium',
+        processingTime: '60-90s',
+        poseGuidance: true,
+        highResolution: true,
+        features: ['pose-to-avatar', 'controlnet', 'pro-quality', 'high-res', 'openpose']
+      }),
+      enabled: true,
+      beta: false
+    },
+    {
+      appId: 'pose-generator',
+      modelId: 'background-changer-sam',
+      modelKey: 'pose-generator:background-changer-sam',
+      name: 'Background Changer (SAM)',
+      description: 'AI-powered background replacement using Segment Anything Model for precise subject extraction',
+      provider: 'meta',
+      tier: 'basic',
+      creditCost: 10,
+      creditPerPixel: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        modelId: 'facebook/sam-vit-huge',
+        segmentationType: 'automatic',
+        width: 1024,
+        height: 1024,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        quality: 'high',
+        processingTime: '15-30s',
+        backgroundRemoval: true,
+        preciseSegmentation: true,
+        features: ['background-removal', 'segmentation', 'sam-model', 'precise-cutout']
+      }),
+      enabled: true,
+      beta: false
+    },
+
+    // ==========================================
     // AVATAR CREATOR MODELS (FLUX.1-dev + Realism LoRA)
     // ==========================================
     {

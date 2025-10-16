@@ -13,6 +13,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "bun prisma/seed.ts",
+    "seed:ai-models": "bun prisma/seeds/ai-models.seed.ts",
     "seed:pose-generator": "bun prisma/seeds/pose-generator.seed.ts",
     "validate:pose-seed": "bun prisma/seeds/validate-seed-data.ts",
     "pm2:start": "pm2 start ecosystem.config.js",
