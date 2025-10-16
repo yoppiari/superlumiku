@@ -102,24 +102,33 @@ export async function deleteProject(projectId: string, userId: string): Promise<
     const avatarIds = avatars.map((a) => a.id)
 
     if (avatarIds.length > 0) {
-      // Step 1: Delete GeneratedPoses that reference these avatars
-      // via PoseGeneration.avatarId
-      await tx.generatedPose.deleteMany({
+      // Step 1: Get all PoseGenerations for these avatars first
+      const poseGenerations = await tx.poseGeneration.findMany({
         where: {
-          generation: {
-            avatarId: { in: avatarIds },
-          },
+          avatarId: { in: avatarIds },
         },
+        select: { id: true },
       })
 
-      // Step 2: Delete PoseGenerations that reference these avatars
+      const poseGenerationIds = poseGenerations.map((p) => p.id)
+
+      // Step 2: Delete GeneratedPoses that reference these PoseGenerations
+      if (poseGenerationIds.length > 0) {
+        await tx.generatedPose.deleteMany({
+          where: {
+            generationId: { in: poseGenerationIds },
+          },
+        })
+      }
+
+      // Step 3: Delete PoseGenerations
       await tx.poseGeneration.deleteMany({
         where: {
           avatarId: { in: avatarIds },
         },
       })
 
-      // Step 3: Delete PoseGeneratorProjects that reference these avatars
+      // Step 4: Update PoseGeneratorProjects (set avatarId to null)
       await tx.poseGeneratorProject.updateMany({
         where: {
           avatarId: { in: avatarIds },
@@ -129,14 +138,22 @@ export async function deleteProject(projectId: string, userId: string): Promise<
         },
       })
 
-      // Step 4: Delete AvatarUsageHistory
+      // Step 5: Delete AvatarUsageHistory
       await tx.avatarUsageHistory.deleteMany({
         where: {
           avatarId: { in: avatarIds },
         },
       })
 
-      // Step 5: Delete Avatars (cascade will handle AvatarGenerations)
+      // Step 6: Delete AvatarGenerations that reference these avatars
+      // Must be done before deleting avatars due to foreign key
+      await tx.avatarGeneration.deleteMany({
+        where: {
+          avatarId: { in: avatarIds },
+        },
+      })
+
+      // Step 7: Delete Avatars
       await tx.avatar.deleteMany({
         where: {
           id: { in: avatarIds },
@@ -144,14 +161,14 @@ export async function deleteProject(projectId: string, userId: string): Promise<
       })
     }
 
-    // Step 6: Delete AvatarGenerations that reference this project directly
+    // Step 8: Delete AvatarGenerations that reference this project directly
     await tx.avatarGeneration.deleteMany({
       where: {
         projectId,
       },
     })
 
-    // Step 7: Finally delete the project
+    // Step 9: Finally delete the project
     await tx.avatarProject.delete({
       where: {
         id: projectId,
