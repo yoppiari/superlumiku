@@ -28,8 +28,17 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       setAuth: (user, token) => {
+        // Set token in localStorage first (synchronous)
         localStorage.setItem('token', token)
+
+        // Then update Zustand state
         set({ user, token, isAuthenticated: true })
+
+        // Verify token was actually saved
+        const savedToken = localStorage.getItem('token')
+        if (savedToken !== token) {
+          console.error('[AUTH] Token storage verification failed')
+        }
       },
 
       logout: () => {

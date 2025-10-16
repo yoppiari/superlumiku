@@ -95,13 +95,25 @@ export default function Dashboard() {
       return
     }
 
+    // Verify token exists before making API calls
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.warn('[Dashboard] No token found, redirecting to login')
+      navigate('/login')
+      return
+    }
+
     const fetchDashboardData = async () => {
       try {
         // Fetch credit balance
         const balanceData = await creditsService.getBalance()
         setCreditBalance(balanceData?.balance ?? 0)
       } catch (err) {
-        handleApiError(err, 'Fetch credit balance')
+        const error = err as any
+        // Only log error if it's not a 401 (401 will be handled by interceptor)
+        if (error?.response?.status !== 401) {
+          handleApiError(err, 'Fetch credit balance')
+        }
         setCreditBalance(0)
       }
 
@@ -110,7 +122,10 @@ export default function Dashboard() {
         const appsData = await dashboardService.getApps()
         setApps(appsData.apps || [])
       } catch (err) {
-        handleApiError(err, 'Fetch apps')
+        const error = err as any
+        if (error?.response?.status !== 401) {
+          handleApiError(err, 'Fetch apps')
+        }
       } finally {
         setLoadingApps(false)
       }
@@ -120,7 +135,10 @@ export default function Dashboard() {
         const generationsData = await generationService.getRecentGenerations(5)
         setRecentGenerations(generationsData.generations || [])
       } catch (err) {
-        handleApiError(err, 'Fetch recent generations')
+        const error = err as any
+        if (error?.response?.status !== 401) {
+          handleApiError(err, 'Fetch recent generations')
+        }
       } finally {
         setLoadingGenerations(false)
       }
@@ -135,7 +153,10 @@ export default function Dashboard() {
           lastLogin: statsData?.lastLogin ?? new Date().toISOString(),
         })
       } catch (err) {
-        handleApiError(err, 'Fetch dashboard stats')
+        const error = err as any
+        if (error?.response?.status !== 401) {
+          handleApiError(err, 'Fetch dashboard stats')
+        }
         // Keep default values on error
       } finally {
         setLoadingStats(false)

@@ -28,8 +28,14 @@ export default function Login() {
 
       const { user, token } = response
 
+      // Ensure token is set in auth store before navigation
       setAuth(user, token)
-      navigate('/dashboard')
+
+      // Wait for next tick to ensure localStorage and state are synchronized
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      // Navigate to dashboard
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       const errorDetails = handleApiError(err, 'Login')
       setError(errorDetails.message)

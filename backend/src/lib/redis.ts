@@ -1,14 +1,15 @@
 import Redis from 'ioredis'
 
 // Check if Redis is configured
-// For development: Allow localhost without password
-// For production: Require proper host or password
-const REDIS_ENABLED = true // Always try to connect in development
+// For development: Allow disabling Redis for auth-only testing
+const REDIS_ENABLED = process.env.REDIS_ENABLED !== 'false'
 
 let redis: Redis | null = null
 
 if (REDIS_ENABLED) {
-  // Redis connection
+  // Redis connection with MAX_RETRIES limit
+  const MAX_RETRIES = 3  // Stop after 3 attempts
+
   redis = new Redis({
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -16,7 +17,12 @@ if (REDIS_ENABLED) {
     password: process.env.REDIS_PASSWORD || undefined,
     maxRetriesPerRequest: null, // Required for BullMQ
     enableReadyCheck: false,
+    lazyConnect: true, // Don't connect immediately
     retryStrategy: (times) => {
+      if (times > MAX_RETRIES) {
+        console.error(`❌ Redis connection failed after ${MAX_RETRIES} attempts - giving up`)
+        return null  // Stop retrying
+      }
       const delay = Math.min(times * 50, 2000)
       return delay
     },
@@ -44,8 +50,8 @@ if (REDIS_ENABLED) {
     await redis?.quit()
   })
 } else {
-  console.log('⚠️  Redis NOT configured - Video processing disabled')
-  console.log('   See TODO_REDIS_SETUP.md for setup instructions')
+  console.log('⚠️  Redis DISABLED - Background jobs will not work')
+  console.log('   Auth and core features still available')
 }
 
 export { redis }

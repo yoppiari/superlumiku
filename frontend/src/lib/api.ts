@@ -48,9 +48,17 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Prevent infinite redirect loop - only redirect if not already on login page
+      const currentPath = window.location.pathname
+      if (currentPath !== '/login' && currentPath !== '/') {
+        // Token expired or invalid
+        localStorage.removeItem('token')
+
+        // Use setTimeout to prevent race condition with other requests
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 100)
+      }
     }
     return Promise.reject(error)
   }
