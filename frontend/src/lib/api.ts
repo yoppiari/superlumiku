@@ -56,4 +56,14 @@ api.interceptors.response.use(
   }
 )
 
+// Helper function to convert relative image URLs to absolute
+export const getAbsoluteImageUrl = (relativePath: string | null | undefined): string | null => {
+  if (!relativePath) return null
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath // Already absolute
+  }
+  const baseURL = getApiBaseUrl()
+  return `${baseURL}${relativePath}`
+}
+
 export default api

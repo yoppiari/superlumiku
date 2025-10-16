@@ -1,4 +1,5 @@
 import prisma from '../db/client'
+import { InsufficientCreditsError } from '../core/errors/errors'
 
 export interface DeductCreditsInput {
   userId: string
@@ -6,6 +7,7 @@ export interface DeductCreditsInput {
   description: string
   referenceId?: string
   referenceType?: string
+  metadata?: Record<string, any>
 }
 
 export interface AddCreditsInput {
@@ -14,6 +16,14 @@ export interface AddCreditsInput {
   type: 'purchase' | 'bonus' | 'refund'
   description: string
   paymentId?: string
+}
+
+export interface RefundCreditsInput {
+  userId: string
+  amount: number
+  description: string
+  referenceId?: string
+  referenceType?: string
 }
 
 export class CreditService {
@@ -53,7 +63,7 @@ export class CreditService {
       const currentBalance = latestCredit?.balance || 0
 
       if (currentBalance < input.amount) {
-        throw new Error('Insufficient credits')
+        throw new InsufficientCreditsError(input.amount, currentBalance)
       }
 
       const newBalance = currentBalance - input.amount
@@ -137,12 +147,25 @@ export class CreditService {
    * Check and deduct credits atomically
    */
   async checkAndDeduct(input: DeductCreditsInput) {
-    const hasEnough = await this.hasEnoughCredits(input.userId, input.amount)
+    const currentBalance = await this.getBalance(input.userId)
 
-    if (!hasEnough) {
-      throw new Error('Insufficient credits')
+    if (currentBalance < input.amount) {
+      throw new InsufficientCreditsError(input.amount, currentBalance)
     }
 
     return this.deductCredits(input)
+  }
+
+  /**
+   * Refund credits to user
+   * Convenience method that wraps addCredits with type 'refund'
+   */
+  async refundCredits(input: RefundCreditsInput) {
+    return this.addCredits({
+      userId: input.userId,
+      amount: input.amount,
+      type: 'refund',
+      description: input.description,
+    })
   }
 }

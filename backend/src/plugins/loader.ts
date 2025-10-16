@@ -13,6 +13,9 @@ import loopingFlowRoutes from '../apps/looping-flow/routes'
 import avatarCreatorConfig from '../apps/avatar-creator/plugin.config'
 import avatarCreatorRoutes from '../apps/avatar-creator/routes'
 
+import poseGeneratorConfig from '../apps/pose-generator/plugin.config'
+import poseGeneratorRoutes from '../apps/pose-generator/routes'
+
 /**
  * Load all plugins into registry
  */
@@ -22,6 +25,7 @@ export function loadPlugins() {
   pluginRegistry.register(carouselMixConfig, carouselMixRoutes)
   pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
   pluginRegistry.register(avatarCreatorConfig, avatarCreatorRoutes)
+  pluginRegistry.register(poseGeneratorConfig, poseGeneratorRoutes)
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)

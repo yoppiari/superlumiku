@@ -126,7 +126,17 @@
       "Bash(awk:*)",
       "Bash(tsc --noEmit)",
       "Bash(node_modules/.bin/tsc:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(echo:*)",
+      "Bash(npx prisma validate:*)",
+      "Bash(docker-compose:*)",
+      "Bash(npx prisma format:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(./node_modules/.bin/tsc.exe:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(node_modules.bintsc --noEmit)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(pm2 logs:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import api from '../lib/api'
+import api, { getAbsoluteImageUrl } from '../lib/api'
 
 // ===== Types =====
 
@@ -181,8 +181,19 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
 
       try {
         const res = await api.get('/api/apps/avatar-creator/projects')
+
+        // Transform image URLs to absolute
+        const projects = res.data.projects.map((project: AvatarProject) => ({
+          ...project,
+          avatars: project.avatars.map((avatar) => ({
+            ...avatar,
+            baseImageUrl: getAbsoluteImageUrl(avatar.baseImageUrl) || avatar.baseImageUrl,
+            thumbnailUrl: getAbsoluteImageUrl(avatar.thumbnailUrl) || avatar.thumbnailUrl,
+          }))
+        }))
+
         set((state) => {
-          state.projects = res.data.projects
+          state.projects = projects
           state.isLoadingProjects = false
         })
       } catch (error) {
@@ -219,8 +230,18 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
       try {
         const res = await api.get(`/api/apps/avatar-creator/projects/${projectId}`)
 
+        // Transform image URLs to absolute
+        const project = {
+          ...res.data.project,
+          avatars: res.data.project.avatars.map((avatar: Avatar) => ({
+            ...avatar,
+            baseImageUrl: getAbsoluteImageUrl(avatar.baseImageUrl) || avatar.baseImageUrl,
+            thumbnailUrl: getAbsoluteImageUrl(avatar.thumbnailUrl) || avatar.thumbnailUrl,
+          }))
+        }
+
         set((state) => {
-          state.currentProject = res.data.project
+          state.currentProject = project
         })
       } catch (error) {
         console.error('Failed to load project:', error)
@@ -311,7 +332,12 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
           { headers: { 'Content-Type': 'multipart/form-data' } }
         )
 
-        const newAvatar = res.data.avatar
+        // Transform image URLs to absolute
+        const newAvatar = {
+          ...res.data.avatar,
+          baseImageUrl: getAbsoluteImageUrl(res.data.avatar.baseImageUrl) || res.data.avatar.baseImageUrl,
+          thumbnailUrl: getAbsoluteImageUrl(res.data.avatar.thumbnailUrl) || res.data.avatar.thumbnailUrl,
+        }
 
         set((state) => {
           if (state.currentProject?.id === projectId) {
@@ -390,16 +416,36 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
             // Fetch the completed avatar
             api.get(`/api/apps/avatar-creator/avatars/${generation.avatarId}`)
               .then((avatarRes) => {
-                const avatar = avatarRes.data.avatar
+                // Transform image URLs to absolute
+                const avatar = {
+                  ...avatarRes.data.avatar,
+                  baseImageUrl: getAbsoluteImageUrl(avatarRes.data.avatar.baseImageUrl) || avatarRes.data.avatar.baseImageUrl,
+                  thumbnailUrl: getAbsoluteImageUrl(avatarRes.data.avatar.thumbnailUrl) || avatarRes.data.avatar.thumbnailUrl,
+                }
+
                 set((innerState) => {
                   if (innerState.currentProject?.id === generation.projectId) {
-                    innerState.currentProject.avatars.unshift(avatar)
+                    // Check for duplicates before adding
+                    const exists = innerState.currentProject.avatars.some(a => a.id === avatar.id)
+                    if (!exists) {
+                      innerState.currentProject.avatars.unshift(avatar)
+                    }
                   }
                   innerState.activeGenerations.delete(generationId)
                 })
               })
               .catch((err) => {
                 console.error('Failed to fetch completed avatar:', err)
+
+                // Update generation with error so UI shows it
+                set((innerState) => {
+                  const gen = innerState.activeGenerations.get(generationId)
+                  if (gen) {
+                    gen.status = 'failed'
+                    gen.errorMessage = 'Generated but failed to load. Please refresh the page.'
+                    innerState.activeGenerations.set(generationId, gen)
+                  }
+                })
               })
           }
 

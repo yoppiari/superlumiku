@@ -24,16 +24,26 @@ model User {
   subscriptionTier String  @default("free") // "free" | "basic" | "pro" | "enterprise"
   userTags         String? // JSON array: ["enterprise_unlimited", "beta_tester"]
 
+  // Pose Generator Unlimited Tier
+  unlimitedPoseActive       Boolean   @default(false)
+  unlimitedPoseDailyQuota   Int       @default(100)
+  unlimitedPoseQuotaUsed    Int       @default(0)
+  unlimitedPoseQuotaResetAt DateTime?
+  unlimitedPoseExpiresAt    DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  credits      Credit[]
-  sessions     Session[]
-  devices      Device[]
-  appUsages    AppUsage[]
-  subscription Subscription? // NEW
-  quotaUsages  QuotaUsage[] // NEW
-  modelUsages  ModelUsage[] // NEW
+  credits               Credit[]
+  sessions              Session[]
+  devices               Device[]
+  appUsages             AppUsage[]
+  subscription          Subscription? // NEW
+  quotaUsages           QuotaUsage[] // NEW
+  modelUsages           ModelUsage[] // NEW
+  poseGeneratorProjects PoseGeneratorProject[]
+  poseGenerations       PoseGeneration[]
+  poseRequests          PoseRequest[]
 
   @@index([role]) // Query users by role (admin dashboard)
   @@index([accountType]) // Filter by account type
@@ -768,8 +778,8 @@ model AvatarProject {
 }
 
 model Avatar {
-  id       String  @id @default(cuid())
-  userId   String
+  id        String @id @default(cuid())
+  userId    String
   projectId String
 
   // Basic Info
@@ -806,8 +816,10 @@ model Avatar {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  project      AvatarProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  usageHistory AvatarUsageHistory[]
+  project               AvatarProject          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  usageHistory          AvatarUsageHistory[]
+  poseGeneratorProjects PoseGeneratorProject[]
+  poseGenerations       PoseGeneration[]
 
   @@index([userId]) // Find user's avatars
   @@index([projectId]) // FK index
@@ -819,15 +831,15 @@ model Avatar {
 }
 
 model AvatarPreset {
-  id              String  @id @default(cuid())
-  name            String
-  previewImageUrl String
-  category        String // business, casual, traditional, creative
-  personaTemplate String  @db.Text // JSON
-  visualAttributes String @db.Text // JSON
-  generationPrompt String @db.Text
-  isPublic        Boolean @default(true)
-  usageCount      Int     @default(0)
+  id               String  @id @default(cuid())
+  name             String
+  previewImageUrl  String
+  category         String // business, casual, traditional, creative
+  personaTemplate  String  @db.Text // JSON
+  visualAttributes String  @db.Text // JSON
+  generationPrompt String  @db.Text
+  isPublic         Boolean @default(true)
+  usageCount       Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -840,15 +852,15 @@ model AvatarPreset {
 }
 
 model PersonaExample {
-  id       String  @id @default(cuid())
+  id       String @id @default(cuid())
   name     String
   category String // business, creative, lifestyle, healthcare
 
   // Persona fields
   personaName        String
   personaAge         Int
-  personaPersonality String  @db.Text // JSON array
-  personaBackground  String  @db.Text
+  personaPersonality String @db.Text // JSON array
+  personaBackground  String @db.Text
 
   // Visual suggestions (optional)
   suggestedAttributes String? @db.Text // JSON
@@ -890,13 +902,13 @@ model AvatarUsageHistory {
 }
 
 model AvatarGeneration {
-  id        String   @id @default(cuid())
-  userId    String
-  avatarId  String? // null until completed
-  projectId String
-  status    String   @default("pending") // pending, processing, completed, failed
-  prompt    String   @db.Text
-  options   String?  @db.Text // JSON
+  id           String  @id @default(cuid())
+  userId       String
+  avatarId     String? // null until completed
+  projectId    String
+  status       String  @default("pending") // pending, processing, completed, failed
+  prompt       String  @db.Text
+  options      String? @db.Text // JSON
   errorMessage String? @db.Text
 
   createdAt   DateTime  @default(now())
@@ -911,4 +923,299 @@ model AvatarGeneration {
   @@index([status, createdAt]) // Composite: process pending jobs in order
   @@index([projectId, createdAt(sort: Desc)]) // Composite: project's recent generations
   @@map("avatar_generations")
+}
+
+// ========================================
+// Pose Generator App Models
+// ========================================
+
+model PoseCategory {
+  id          String  @id @default(cuid())
+  name        String
+  displayName String
+  description String?
+  slug        String  @unique
+  parentId    String?
+
+  // Display
+  icon         String @default("folder")
+  displayOrder Int    @default(0)
+  color        String @default("#3b82f6")
+
+  // Stats
+  poseCount Int @default(0)
+
+  // Status
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  parent       PoseCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     PoseCategory[] @relation("CategoryHierarchy")
+  poses        PoseLibrary[]
+  poseRequests PoseRequest[]
+
+  @@index([parentId])
+  @@index([isActive, displayOrder])
+  @@index([slug])
+  @@map("pose_categories")
+}
+
+model PoseLibrary {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  categoryId  String
+
+  // Media
+  previewImageUrl    String
+  referenceImageUrl  String
+  controlnetImageUrl String // Pre-computed ControlNet pose map
+  thumbnailUrl       String?
+
+  // Metadata
+  difficulty        String   @default("medium") // beginner, intermediate, advanced
+  genderSuitability String   @default("unisex") // male, female, unisex
+  tags              String[] // Standing, professional, full-body
+
+  // Source
+  sourceType   String  @default("curated") // curated, user_contributed, ai_generated
+  sourceCredit String?
+  licenseType  String  @default("platform")
+
+  // Popularity
+  usageCount      Int   @default(0)
+  favoriteCount   Int   @default(0)
+  ratingAvg       Float @default(0.0)
+  popularityScore Int   @default(0) // Computed: usageCount + favoriteCount
+
+  // Status
+  isPublic   Boolean @default(true)
+  isFeatured Boolean @default(false)
+  isPremium  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  category       PoseCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  generatedPoses GeneratedPose[]
+  poseSelections PoseSelection[]
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
+  @@index([difficulty])
+  @@index([isPublic, popularityScore])
+  @@index([isFeatured, usageCount(sort: Desc)])
+  @@index([tags], type: Gin)
+  @@map("pose_library")
+}
+
+model PoseGeneratorProject {
+  id          String  @id @default(cuid())
+  userId      String
+  projectName String
+  description String?
+
+  // Avatar Integration
+  avatarImageUrl String?
+  avatarSource   String  @default("upload") // AVATAR_CREATOR | UPLOAD
+  avatarId       String?
+
+  // Stats
+  totalGenerations    Int @default(0)
+  totalPosesGenerated Int @default(0)
+
+  // Status
+  status String @default("active") // active, archived, deleted
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatar      Avatar?          @relation(fields: [avatarId], references: [id], onDelete: SetNull)
+  generations PoseGeneration[]
+
+  @@index([userId])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([avatarId])
+  @@index([status])
+  @@map("pose_generator_projects")
+}
+
+model PoseGeneration {
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
+
+  // Input Mode
+  generationType         String // GALLERY_REFERENCE | TEXT_DESCRIPTION
+  textPrompt             String? @db.Text
+  generatedPoseStructure String? @db.Text // AI-generated pose description (for text mode)
+
+  // Avatar Context
+  avatarId         String?
+  avatarAttributes String? @db.Text // JSON: {gender, age, ethnicity, style}
+
+  // Generation Settings
+  batchSize          Int // Variations per pose
+  totalExpectedPoses Int
+
+  // Background Changer (optional add-on)
+  useBackgroundChanger Boolean @default(false)
+  backgroundPrompt     String? @db.Text
+  backgroundMode       String? // ai_generate, solid_color, upload
+
+  // Output Settings
+  exportFormats String[] // instagram_story, tiktok, shopee
+
+  // Status Tracking
+  status         String @default("pending") // pending, processing, completed, failed, partial
+  progress       Int    @default(0) // 0-100
+  posesCompleted Int    @default(0)
+  posesFailed    Int    @default(0)
+
+  // Credit Tracking (uses unified Credit service)
+  creditCharged  Int
+  creditRefunded Int @default(0)
+
+  // Queue Management
+  queueJobId String? // BullMQ job ID
+
+  // Results
+  errorMessage String? @db.Text
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Performance Metrics
+  avgGenerationTime   Float? // Seconds per pose
+  totalProcessingTime Float? // Total seconds
+
+  // SECURITY FIX: Recovery tracking fields (P0 - Race Condition)
+  recoveryAttempts Int       @default(0)
+  lastRecoveryAt   DateTime?
+
+  // Relations
+  project        PoseGeneratorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatar         Avatar?              @relation(fields: [avatarId], references: [id], onDelete: SetNull)
+  poses          GeneratedPose[]
+  poseSelections PoseSelection[]
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([status, createdAt, queueJobId]) // Worker job selection
+  @@index([status, startedAt]) // NEW: Worker recovery queries
+  @@index([status, startedAt, queueJobId]) // NEW: Comprehensive worker recovery
+  @@index([queueJobId])
+  @@map("pose_generations")
+}
+
+model GeneratedPose {
+  id            String  @id @default(cuid())
+  generationId  String
+  poseLibraryId String? // NULL for text-to-pose mode
+
+  // Output
+  outputImageUrl   String
+  thumbnailUrl     String
+  originalImageUrl String? // Before background change
+
+  // Export Formats
+  exportFormats Json // {instagram_story: "url", tiktok: "url", shopee: "url"}
+
+  // Background Changer
+  backgroundChanged Boolean @default(false)
+  backgroundPrompt  String? @db.Text
+
+  // AI Parameters
+  promptUsed       String @db.Text
+  seedUsed         Int?
+  controlnetWeight Float  @default(0.75)
+
+  // Quality Metrics
+  generationTime    Float? // Seconds
+  aiConfidenceScore Float? // 0.0-1.0
+
+  // User Actions
+  isFavorite    Boolean @default(false)
+  downloadCount Int     @default(0)
+
+  // Status
+  status       String  @default("completed") // completed, failed
+  errorMessage String? @db.Text
+
+  // Recovery: Variation tracking
+  variationKey String? // "poseId-v0", "poseId-v1", "text-v0" for duplicate detection
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  generation  PoseGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  poseLibrary PoseLibrary?   @relation(fields: [poseLibraryId], references: [id], onDelete: SetNull)
+
+  @@unique([generationId, variationKey])
+  @@index([generationId])
+  @@index([poseLibraryId])
+  @@index([status])
+  @@index([isFavorite])
+  @@index([generationId, variationKey])
+  @@map("generated_poses")
+}
+
+model PoseSelection {
+  id            String   @id @default(cuid())
+  generationId  String
+  poseLibraryId String
+  createdAt     DateTime @default(now())
+
+  // Relations
+  generation  PoseGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  poseLibrary PoseLibrary    @relation(fields: [poseLibraryId], references: [id], onDelete: Cascade)
+
+  @@unique([generationId, poseLibraryId]) // Prevent duplicate selections
+  @@index([generationId])
+  @@index([poseLibraryId])
+  @@map("pose_selections")
+}
+
+model PoseRequest {
+  id                String  @id @default(cuid())
+  userId            String
+  poseName          String
+  description       String  @db.Text
+  referenceImageUrl String?
+  categoryId        String?
+  useCase           String? // e-commerce, professional, social
+
+  // Voting
+  votesCount Int @default(0)
+
+  // Status
+  status     String  @default("pending") // pending, approved, in_progress, completed, rejected
+  adminNotes String? @db.Text
+
+  // Completion
+  completedPoseId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category PoseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([votesCount(sort: Desc)])
+  @@index([status, votesCount(sort: Desc)])
+  @@map("pose_requests")
 }

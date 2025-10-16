@@ -6,10 +6,25 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
+    "worker:pose-generator": "bun src/apps/pose-generator/worker.ts",
+    "worker:pose-generator:dev": "bun --watch src/apps/pose-generator/worker.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "bun prisma/seed.ts",
+    "seed:pose-generator": "bun prisma/seeds/pose-generator.seed.ts",
+    "validate:pose-seed": "bun prisma/seeds/validate-seed-data.ts",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:start:prod": "pm2 start ecosystem.config.js --env production",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js",
+    "pm2:reload": "pm2 reload ecosystem.config.js",
+    "pm2:delete": "pm2 delete ecosystem.config.js",
+    "pm2:logs": "pm2 logs",
+    "pm2:status": "pm2 status",
+    "pm2:monit": "pm2 monit",
+    "pm2:flush": "pm2 flush",
     "lint": "eslint src --ext .ts --max-warnings 0",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -17,6 +32,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.908.0",
     "@hono/node-server": "^1.19.5",
     "@huggingface/inference": "^4.11.1",
     "@paralleldrive/cuid2": "^2.2.2",
@@ -25,6 +41,7 @@
     "@types/node": "^24.7.0",
     "@types/sharp": "^0.32.0",
     "archiver": "^7.0.1",
+    "async-mutex": "^0.5.0",
     "axios": "^1.12.2",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
@@ -41,6 +58,7 @@
     "multer": "^2.0.2",
     "node-cron": "^3.0.3",
     "sharp": "^0.34.4",
+    "socket.io": "^4.8.1",
     "tesseract.js": "^6.0.1",
     "zod": "^3.22.4",
     "zxcvbn": "^4.4.2"
@@ -53,6 +71,6 @@
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jsonwebtoken": "^9.0.5",
     "prisma": "^5.7.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.3"
   }
 }
