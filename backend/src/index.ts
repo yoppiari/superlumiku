@@ -91,13 +91,15 @@ async function start() {
   await checkRedis()
   await initStorage()
 
-  // Initialize pose storage (Phase 4A)
-  try {
-    const { poseStorageService } = await import('./apps/pose-generator/services/storage.service')
-    await poseStorageService.initializeLocalStorage()
-  } catch (error) {
-    console.error('Failed to initialize pose storage:', error)
-  }
+  // TEMPORARILY DISABLED: Pose Generator storage initialization
+  // This is disabled along with the pose-generator plugin due to Redis connection at import time
+  // TODO: Re-enable after refactoring pose-generator queue initialization
+  // try {
+  //   const { poseStorageService } = await import('./apps/pose-generator/services/storage.service')
+  //   await poseStorageService.initializeLocalStorage()
+  // } catch (error) {
+  //   console.error('Failed to initialize pose storage:', error)
+  // }
 
   // Initialize cron jobs for subscription & quota management
   initializeScheduler()
