@@ -139,7 +139,10 @@
       "Bash(pm2 logs:*)",
       "Bash(where:*)",
       "Bash(https://cf.avolut.com/api/v1/applications/d8ggwoo484k8ok48g8k8cgwk/envs )",
-      "Bash(npm run test:*)"
+      "Bash(npm run test:*)",
+      "Bash(do echo \"Check $i/12 (waiting 30 seconds)...\")",
+      "Bash(git rev-parse:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
