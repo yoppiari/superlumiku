@@ -4,12 +4,18 @@ import { initStorage } from './lib/storage'
 import { initializeScheduler } from './jobs/scheduler'
 import { redis, isRedisEnabled } from './lib/redis'
 import { createServer } from 'http'
-import { setupPoseWebSocket, shutdownWebSocket } from './apps/pose-generator/websocket/pose-websocket'
+// TEMPORARY: Commented out to fix deployment - will enable after deployment succeeds
+// import { setupPoseWebSocket, shutdownWebSocket } from './apps/pose-generator/websocket/pose-websocket'
 
-// Import workers
-import './workers/video-mixer.worker'
-import './workers/carousel-mix.worker'
-import './workers/looping-flow.worker'
+// Import workers only if Redis is enabled
+if (process.env.REDIS_ENABLED !== 'false') {
+  import('./workers/video-mixer.worker')
+  import('./workers/carousel-mix.worker')
+  import('./workers/looping-flow.worker')
+  console.log('✅ Workers initialized (Redis enabled)')
+} else {
+  console.log('⚠️  Workers DISABLED (Redis disabled)')
+}
 
 /**
  * Import environment config (validation happens on import)
@@ -123,16 +129,17 @@ async function start() {
     res.end()
   })
 
-  // Setup WebSocket server for Pose Generator
-  const io = setupPoseWebSocket(httpServer)
-  console.log('✅ WebSocket server initialized for Pose Generator')
+  // TEMPORARY: Disabled WebSocket to fix deployment
+  // const io = setupPoseWebSocket(httpServer)
+  // console.log('✅ WebSocket server initialized for Pose Generator')
 
   // Start HTTP server
   httpServer.listen(env.PORT, () => {
     console.log(`🚀 Server running on http://localhost:${env.PORT}`)
     console.log(`📝 Environment: ${env.NODE_ENV}`)
     console.log(`🔗 CORS Origin: ${env.CORS_ORIGIN}`)
-    console.log(`🔌 WebSocket available at ws://localhost:${env.PORT}/pose-generator`)
+    // TEMPORARY: WebSocket disabled
+    // console.log(`🔌 WebSocket available at ws://localhost:${env.PORT}/pose-generator`)
   })
 
   return httpServer
@@ -149,8 +156,8 @@ start().then((server) => {
 process.on('SIGINT', async () => {
   console.log('\n👋 Shutting down gracefully...')
 
-  // Shutdown WebSocket connections
-  await shutdownWebSocket()
+  // TEMPORARY: Disabled WebSocket shutdown
+  // await shutdownWebSocket()
 
   // Close HTTP server
   if (serverInstance) {
@@ -169,8 +176,8 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('\n👋 Shutting down gracefully...')
 
-  // Shutdown WebSocket connections
-  await shutdownWebSocket()
+  // TEMPORARY: Disabled WebSocket shutdown
+  // await shutdownWebSocket()
 
   // Close HTTP server
   if (serverInstance) {
