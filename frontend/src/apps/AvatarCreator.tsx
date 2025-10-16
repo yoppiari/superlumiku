@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import ProfileDropdown from '../components/ProfileDropdown'
 import CreateProjectModal from '../components/CreateProjectModal'
 import UsageHistoryModal from '../components/UsageHistoryModal'
+import { handleError } from '../utils/errorHandler'
 import { UserCircle, Plus, ArrowLeft, Coins, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar, Grid } from 'lucide-react'
 
 export default function AvatarCreator() {
@@ -529,7 +530,7 @@ function UploadAvatarModal({
       alert('Avatar uploaded successfully!')
       onClose()
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to upload avatar')
+      handleError('Avatar Upload', error, 'Failed to upload avatar')
     }
   }
 
@@ -686,7 +687,7 @@ function GenerateAvatarModal({
       alert('Avatar generation started! It will appear in 30-60 seconds.')
       onClose()
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to start generation')
+      handleError('Avatar Generation', error, 'Failed to start generation')
     }
   }
 
@@ -832,7 +833,7 @@ function PresetsGalleryModal({
     try {
       await onSelect(selectedPresetId, customName || undefined)
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to create avatar from preset')
+      handleError('Preset Avatar Creation', error, 'Failed to create avatar from preset')
     }
   }
 

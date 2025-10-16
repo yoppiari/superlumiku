@@ -199,6 +199,12 @@ class AvatarCreatorService {
     preferRealism: boolean = true,
     preferHD: boolean = false
   ): Promise<AIModel> {
+    console.log(`[Avatar Creator] Selecting AI model:`, {
+      userTier,
+      preferRealism,
+      preferHD
+    })
+
     // Get available models for Avatar Creator
     const models = await prisma.aIModel.findMany({
       where: {
@@ -211,9 +217,20 @@ class AvatarCreatorService {
       ],
     })
 
+    console.log(`[Avatar Creator] Found ${models.length} enabled models for avatar-creator`)
+
     if (models.length === 0) {
+      console.error('[Avatar Creator] CRITICAL: No AI models found in database! User cannot generate avatars.')
+      console.error('[Avatar Creator] Please run seed command: bunx prisma db seed')
       throw new ResourceNotFoundError('AIModel', 'No AI models available for Avatar Creator')
     }
+
+    console.log(`[Avatar Creator] Available models:`, models.map(m => ({
+      name: m.name,
+      tier: m.tier,
+      creditCost: m.creditCost,
+      enabled: m.enabled
+    })))
 
     // Tier hierarchy for access control
     const tierHierarchy: Record<string, string[]> = {
@@ -228,10 +245,18 @@ class AvatarCreatorService {
       tierHierarchy[userTier]?.includes(model.tier)
     )
 
+    console.log(`[Avatar Creator] User tier '${userTier}' has access to tiers:`, tierHierarchy[userTier])
+    console.log(`[Avatar Creator] Accessible models after tier filtering: ${accessibleModels.length}`)
+
     if (accessibleModels.length === 0) {
+      console.warn(`[Avatar Creator] No models accessible for tier '${userTier}', falling back to free tier`)
       // Fallback to free tier model
       const freeModel = models.find((m) => m.tier === 'free')
-      if (freeModel) return freeModel
+      if (freeModel) {
+        console.log(`[Avatar Creator] Using fallback free model: ${freeModel.name}`)
+        return freeModel
+      }
+      console.error('[Avatar Creator] CRITICAL: No free tier model available for fallback!')
       throw new ResourceNotFoundError('AIModel', 'No accessible AI models for user tier')
     }
 
@@ -243,14 +268,18 @@ class AvatarCreatorService {
       })
 
       if (realismModels.length > 0) {
+        console.log(`[Avatar Creator] Found ${realismModels.length} realism models`)
         // If prefer HD, select highest resolution
         if (preferHD) {
-          return realismModels.reduce((best, current) => {
+          const selectedModel = realismModels.reduce((best, current) => {
             const bestCaps = JSON.parse(best.capabilities as string)
             const currentCaps = JSON.parse(current.capabilities as string)
             return (currentCaps.width || 0) > (bestCaps.width || 0) ? current : best
           })
+          console.log(`[Avatar Creator] Selected HD realism model: ${selectedModel.name} (Strategy 1 - HD)`)
+          return selectedModel
         }
+        console.log(`[Avatar Creator] Selected cheapest realism model: ${realismModels[0].name} (Strategy 1 - Realism)`)
         return realismModels[0] // First realism model (cheapest)
       }
     }
@@ -262,10 +291,12 @@ class AvatarCreatorService {
     })
 
     if (fastModel && !preferRealism) {
+      console.log(`[Avatar Creator] Selected fast model: ${fastModel.name} (Strategy 2 - Fast)`)
       return fastModel
     }
 
     // Strategy 3: Default - return first accessible model
+    console.log(`[Avatar Creator] Using default first accessible model: ${accessibleModels[0].name} (Strategy 3 - Default)`)
     return accessibleModels[0]
   }
 

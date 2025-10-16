@@ -331,12 +331,18 @@ app.post(
     // Get credit deduction info from context
     const deduction = c.get('creditDeduction')
 
-    // Start generation (queues job) - pass credit cost for accurate refunds
+    // Get user's subscription tier for AI model selection
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { subscriptionTier: true },
+    })
+
+    // Start generation (queues job) - pass user tier for model selection
     const generation = await avatarCreatorService.generateAvatar(
       projectId,
       userId,
       body,
-      deduction.amount // Pass actual cost (0 for enterprise, 10 for regular users)
+      user?.subscriptionTier || 'free' // Pass tier string for AI model selection
     )
 
     // Deduct credits after successful queuing (so we don't charge if queuing fails)
@@ -563,13 +569,19 @@ app.post(
     // Get credit deduction info from context
     const deduction = c.get('creditDeduction')
 
-    // Create avatar from preset (queues generation) - pass credit cost for accurate refunds
+    // Get user's subscription tier for AI model selection
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { subscriptionTier: true },
+    })
+
+    // Create avatar from preset (queues generation) - pass user tier for model selection
     const generation = await avatarCreatorService.createAvatarFromPreset(
       projectId,
       userId,
       body.presetId,
       body.customName,
-      deduction.amount // Pass actual cost (0 for enterprise, 8 for regular users)
+      user?.subscriptionTier || 'free' // Pass tier string for AI model selection
     )
 
     // Deduct credits after successful queuing

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import api, { getAbsoluteImageUrl } from '../lib/api'
+import { extractErrorMessage, logError } from '../utils/errorHandler'
 
 // ===== Types =====
 
@@ -392,12 +393,19 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
         useAvatarCreatorStore.getState().startGenerationPolling(generation.id)
 
         return generation
-      } catch (error) {
+      } catch (error: any) {
         set((state) => {
           state.isGenerating = false
         })
-        console.error('Failed to generate avatar:', error)
-        throw error
+
+        // Extract and log proper error message
+        const errorMessage = extractErrorMessage(error, 'Failed to generate avatar')
+        logError('Avatar Generation (Store)', error)
+
+        // Create user-friendly error to throw
+        const userError = new Error(errorMessage)
+        ;(userError as any).cause = error
+        throw userError
       }
     },
 
