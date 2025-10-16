@@ -23,6 +23,24 @@ import { rateLimiter } from '../middleware/rate-limiter.middleware'
 const health = new Hono()
 
 /**
+ * CRITICAL: Root Health Check (No Rate Limiting, No Dependencies)
+ *
+ * This is the PRIMARY endpoint used by Coolify and other deployment platforms.
+ * MUST respond immediately with 200 OK - no database checks, no Redis, no rate limiting.
+ *
+ * Purpose: Allow load balancer/orchestrator to verify process is alive.
+ */
+health.get('/', (c) => {
+  return c.json({
+    status: 'ok',
+    service: 'lumiku-backend',
+    version: process.env.npm_package_version || '1.0.0',
+    environment: env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  })
+})
+
+/**
  * P2 PERFORMANCE: Health Check Rate Limiting
  *
  * Prevents health check abuse and DDoS attacks on monitoring endpoints.
@@ -106,7 +124,7 @@ health.get('/readiness', readinessLimiter, async (c) => {
  *
  * Used by monitoring dashboards and alerting systems.
  */
-health.get('/health', detailedHealthLimiter, async (c) => {
+health.get('/detailed', detailedHealthLimiter, async (c) => {
   const startTime = Date.now()
 
   const checks = {
