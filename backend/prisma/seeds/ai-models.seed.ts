@@ -210,6 +210,39 @@ export const seedAIModels = async () => {
     // ==========================================
     // POSE GENERATOR MODELS (ControlNet + Background)
     // ==========================================
+    // FREE TIER - Basic pose generation for all users
+    {
+      appId: 'pose-generator',
+      modelId: 'flux-controlnet-free',
+      modelKey: 'pose-generator:flux-controlnet-free',
+      name: 'FLUX ControlNet Free',
+      description: 'Basic pose generation with FLUX.1-schnell for free tier users (fast, 512x512)',
+      provider: 'huggingface',
+      tier: 'free',
+      creditCost: 15,
+      creditPerPixel: null,
+      quotaCost: 1,
+      capabilities: JSON.stringify({
+        modelId: 'black-forest-labs/FLUX.1-schnell',
+        controlnetModel: 'InstantX/FLUX.1-dev-Controlnet-Union',
+        controlnetType: 'openpose',
+        width: 512,
+        height: 512,
+        numInferenceSteps: 4,
+        guidanceScale: 0,
+        controlnetConditioningScale: 0.7,
+        maxWidth: 768,
+        maxHeight: 768,
+        quality: 'basic',
+        processingTime: '15-30s',
+        poseGuidance: true,
+        fastMode: true,
+        features: ['pose-to-avatar', 'controlnet', 'free-tier', 'fast-generation']
+      }),
+      enabled: true,
+      beta: false
+    },
+    // BASIC TIER - Standard quality
     {
       appId: 'pose-generator',
       modelId: 'flux-controlnet-standard',
