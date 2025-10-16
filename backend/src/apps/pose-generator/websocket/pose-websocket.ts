@@ -63,6 +63,17 @@ redis.on('error', (error) => {
 })
 
 // ========================================
+// Memory Leak Fix: Track Redis Subscribers
+// ========================================
+
+/**
+ * SECURITY FIX: WeakMap to track Redis subscribers for automatic cleanup
+ * WeakMap allows garbage collection when socket is disconnected
+ * This prevents memory leaks from orphaned Redis connections
+ */
+const socketSubscribers = new WeakMap<any, Redis>()
+
+// ========================================
 // WebSocket Setup
 // ========================================
 
@@ -96,11 +107,15 @@ export function setupPoseWebSocket(httpServer: HTTPServer): SocketIOServer {
 
     try {
       // 1. Authenticate via JWT token
-      const token =
-        socket.handshake.auth.token || socket.handshake.query.token
+      // SECURITY FIX: Only accept token from auth header, NOT query params
+      // Query params are visible in URLs and logs (CSRF vulnerability)
+      const token = socket.handshake.auth.token
 
       if (!token) {
-        console.warn('[WebSocket] Connection rejected: No token provided')
+        console.warn('[WebSocket] Connection rejected: No token provided (must use auth.token, not query param)')
+        socket.emit('error', {
+          message: 'Authentication required. Please provide token via socket.auth.token'
+        })
         socket.disconnect()
         return
       }
@@ -177,12 +192,15 @@ export function setupPoseWebSocket(httpServer: HTTPServer): SocketIOServer {
         }
       })
 
-      // Store subscriber reference for cleanup
+      // Store subscriber reference for cleanup using WeakMap
       const socketData: SocketData = {
         userId,
         subscriber,
       }
       socket.data = socketData
+
+      // Track subscriber in WeakMap for automatic GC
+      socketSubscribers.set(socket, subscriber)
 
       // 5. Send connection success message
       socket.emit('connected', {
@@ -191,7 +209,7 @@ export function setupPoseWebSocket(httpServer: HTTPServer): SocketIOServer {
       })
 
       // ========================================
-      // Disconnect Handler
+      // Disconnect Handler (with Memory Leak Fix)
       // ========================================
 
       socket.on('disconnect', async (reason) => {
@@ -199,18 +217,29 @@ export function setupPoseWebSocket(httpServer: HTTPServer): SocketIOServer {
           `[WebSocket] User ${userId} disconnected: ${reason}`
         )
 
-        // Cleanup Redis subscriber
-        if (socketData.subscriber) {
-          await socketData.subscriber.unsubscribe(channel)
-          await socketData.subscriber.quit()
-          console.log(
-            `[WebSocket] Unsubscribed and closed Redis connection for user ${userId}`
-          )
+        // SECURITY FIX: Proper cleanup to prevent memory leak
+        const subscriber = socketSubscribers.get(socket)
+        if (subscriber) {
+          try {
+            await subscriber.unsubscribe(channel)
+            await subscriber.quit()
+            socketSubscribers.delete(socket)
+            console.log(
+              `[WebSocket] Cleaned up Redis subscriber for user ${userId}`
+            )
+          } catch (error) {
+            console.error(
+              `[WebSocket] Error cleaning up subscriber for user ${userId}:`,
+              error
+            )
+            // Force disconnect on error
+            subscriber.disconnect()
+          }
         }
       })
 
       // ========================================
-      // Error Handler
+      // Error Handler (with Cleanup)
       // ========================================
 
       socket.on('error', (error) => {
@@ -218,6 +247,14 @@ export function setupPoseWebSocket(httpServer: HTTPServer): SocketIOServer {
           `[WebSocket] Socket error for user ${userId}:`,
           error
         )
+
+        // Clean up subscriber on error to prevent leak
+        const subscriber = socketSubscribers.get(socket)
+        if (subscriber) {
+          subscriber.unsubscribe(channel).catch(() => {})
+          subscriber.quit().catch(() => {})
+          socketSubscribers.delete(socket)
+        }
       })
 
       // ========================================

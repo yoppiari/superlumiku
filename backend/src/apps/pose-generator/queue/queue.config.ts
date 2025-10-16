@@ -104,6 +104,19 @@ poseGenerationQueue.on('error', (error) => {
   console.error('[Queue] Error:', error)
 })
 
+/**
+ * Background changer queue
+ *
+ * Separate queue for background changing operations.
+ * This is a lighter operation than full pose generation.
+ */
+export const backgroundChangerQueue = new Queue('background-changer', queueOptions)
+
+// Handle queue events
+backgroundChangerQueue.on('error', (error) => {
+  console.error('[Background Changer Queue] Error:', error)
+})
+
 // ========================================
 // Job Type Definitions
 // ========================================
@@ -186,6 +199,9 @@ export interface BackgroundChangeJob {
 /**
  * Add pose generation job to queue
  *
+ * SECURITY FIX: Implements deduplication to prevent duplicate job processing
+ * Checks if job already exists before creating new one
+ *
  * @param data Job data
  * @param priority Priority level (10 = high, 5 = normal, 1 = low)
  * @returns Job instance
@@ -194,9 +210,36 @@ export async function enqueuePoseGeneration(
   data: PoseGenerationJob,
   priority: number = 5
 ) {
+  // Create unique job ID based on generation ID
+  const jobId = `gen-${data.generationId}`
+
+  // Check if job already exists in any active state
+  const existingJob = await poseGenerationQueue.getJob(jobId)
+
+  if (existingJob) {
+    const state = await existingJob.getState()
+
+    // If job is still active (waiting, active, or delayed), return existing job
+    if (['waiting', 'active', 'delayed'].includes(state)) {
+      console.log(`[Queue] Job ${jobId} already exists in state ${state}, skipping duplicate`)
+      return existingJob
+    }
+
+    // If job is completed or failed, allow re-queueing
+    console.log(`[Queue] Job ${jobId} exists but in state ${state}, creating new job`)
+  }
+
+  // Add job with unique ID to prevent duplicates at Redis level
   const job = await poseGenerationQueue.add('generate-poses', data, {
     priority,
-    jobId: `gen-${data.generationId}`, // Prevent duplicate jobs
+    jobId,  // Unique job ID prevents duplicates
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 10000  // 10s, 20s, 40s
+    },
+    removeOnComplete: 100,
+    removeOnFail: 500
   })
 
   console.log(`[Queue] Enqueued pose generation job: ${job.id}`)
@@ -213,6 +256,27 @@ export async function enqueuePoseGeneration(
 export async function getGenerationJob(generationId: string) {
   const jobId = `gen-${generationId}`
   const job = await poseGenerationQueue.getJob(jobId)
+
+  return job
+}
+
+/**
+ * Add background change job to queue
+ *
+ * @param data Background change job data
+ * @param priority Priority level (10 = high, 5 = normal, 1 = low)
+ * @returns Job instance
+ */
+export async function enqueueBackgroundChange(
+  data: BackgroundChangeJob,
+  priority: number = 5
+) {
+  const job = await backgroundChangerQueue.add('change-background', data, {
+    priority,
+    jobId: `bg-${data.poseId}`, // Prevent duplicate jobs
+  })
+
+  console.log(`[Queue] Enqueued background change job: ${job.id}`)
 
   return job
 }

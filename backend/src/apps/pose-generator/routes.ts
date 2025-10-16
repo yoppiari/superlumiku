@@ -61,6 +61,16 @@ import type {
 
 const app = new Hono<{ Variables: AuthVariables }>()
 
+// Mount admin routes with middleware protection
+import adminRoutes from './routes-admin'
+import { adminMiddleware } from '../../middleware/admin.middleware'
+import { presetRateLimiters } from '../../middleware/rate-limiter.middleware'
+
+// Apply auth + admin middleware to ALL admin routes at mount point
+// This prevents authorization bypass by enforcing checks at route level
+app.use('/admin/*', authMiddleware, adminMiddleware)
+app.route('/admin', adminRoutes)
+
 // ========================================
 // POSE LIBRARY ENDPOINTS
 // ========================================
@@ -306,6 +316,7 @@ app.delete(
 app.post(
   '/generate',
   authMiddleware,
+  presetRateLimiters.expensiveAI('rl:pose-gen', 'Pose generation rate limit exceeded. Please wait before generating more poses.'),
   asyncHandler(async (c) => {
     const userId = c.get('userId')
     const body = await c.req.json<GenerateRequest>()
@@ -419,22 +430,121 @@ app.post(
     const { poseId } = c.req.param()
     const body = await c.req.json<ChangeBackgroundRequest>()
 
-    // TODO: Change background
-    // 1. Validate request body (Zod schema)
-    // 2. Query pose from database
-    // 3. Verify user owns the generation/project
-    // 4. Check credit balance (10 credits)
-    // 5. Deduct credits atomically
-    // 6. Queue background change job (BullMQ)
-    // 7. Update pose record with new job reference
-    // 8. Return updated pose
+    // Step 1: Validate request body
+    validationService.validateBackgroundChangeRequest(body)
 
-    return c.json<BackgroundChangeResponse>({
-      poseId,
-      outputImageUrl: '',
-      creditCharged: 10,
-      creditBalance: 0,
+    // Step 2: Query pose from database
+    const prisma = (await import('../../db/client')).default
+    const pose = await prisma.generatedPose.findUnique({
+      where: { id: poseId },
+      include: {
+        generation: {
+          include: {
+            project: true,
+          },
+        },
+      },
     })
+
+    if (!pose) {
+      return c.json(
+        {
+          error: 'Not Found',
+          message: `Pose ${poseId} not found`,
+        },
+        404
+      )
+    }
+
+    // Step 3: Verify user owns the generation/project
+    if (pose.generation.project.userId !== userId) {
+      return c.json(
+        {
+          error: 'Forbidden',
+          message: 'You do not have permission to modify this pose',
+        },
+        403
+      )
+    }
+
+    // Step 4: Check credit balance (10 credits)
+    const { creditsService } = await import('../../services/credits.service')
+    const creditCheck = await creditsService.checkBalance(userId, 10, 'pose-generator')
+
+    if (!creditCheck.canProceed) {
+      return c.json(
+        {
+          error: 'Insufficient Credits',
+          message: `Background change requires 10 credits. Your balance: ${creditCheck.balance}`,
+          required: 10,
+          balance: creditCheck.balance,
+        },
+        403
+      )
+    }
+
+    // Step 5: Deduct credits atomically
+    const creditResult = await creditsService.deduct({
+      userId,
+      amount: 10,
+      action: 'change_background',
+      appId: 'pose-generator',
+      metadata: {
+        poseId,
+        generationId: pose.generationId,
+        backgroundMode: body.backgroundMode,
+      },
+    })
+
+    // Step 6: Queue background change job (BullMQ)
+    const { enqueueBackgroundChange } = await import('./queue/queue.config')
+
+    try {
+      const job = await enqueueBackgroundChange({
+        poseId,
+        userId,
+        generationId: pose.generationId,
+        backgroundMode: body.backgroundMode,
+        backgroundPrompt: body.backgroundPrompt,
+        backgroundColor: body.backgroundColor,
+        backgroundImageUrl: body.backgroundImageUrl,
+        originalImageUrl: pose.outputImageUrl,
+        creditCharged: creditResult.creditUsed,
+      })
+
+      console.log(`[Background Change] Queued job ${job.id} for pose ${poseId}`)
+
+      // Step 7: Return success response
+      return c.json<BackgroundChangeResponse>(
+        {
+          poseId,
+          outputImageUrl: pose.outputImageUrl, // Will be updated when job completes
+          creditCharged: creditResult.creditUsed,
+          creditBalance: creditResult.newBalance,
+        },
+        202 // Accepted - processing in background
+      )
+    } catch (error) {
+      // If queueing fails, refund credits
+      if (creditResult.creditUsed > 0) {
+        await creditsService.refund({
+          userId,
+          amount: creditResult.creditUsed,
+          reason: `Background change job failed to queue for pose ${poseId}`,
+          referenceId: poseId,
+        })
+      }
+
+      console.error('[Background Change] Failed to queue job:', error)
+
+      return c.json(
+        {
+          error: 'Internal Server Error',
+          message: `Failed to queue background change: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        },
+        500
+      )
+    }
   }, 'Change Background')
 )
 
@@ -484,31 +594,15 @@ app.post(
     const userId = c.get('userId')
     const body = await c.req.json<CreatePoseRequestRequest>()
 
-    // TODO: Create pose request
-    // 1. Validate request body (Zod schema)
-    // 2. Verify category exists if provided
-    // 3. Create pose request in database
-    // 4. Send notification to admin (optional)
-    // 5. Return created request
+    // Create pose request using service
+    const { poseRequestService } = await import('./services/pose-request.service')
+
+    const request = await poseRequestService.createPoseRequest(userId, body)
 
     return c.json<PoseRequestResponse>(
       {
-        request: {
-          id: '',
-          userId,
-          poseName: body.poseName,
-          description: body.description,
-          referenceImageUrl: body.referenceImageUrl || null,
-          categoryId: body.categoryId || null,
-          useCase: body.useCase || null,
-          votesCount: 0,
-          status: 'pending',
-          adminNotes: null,
-          completedPoseId: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        message: 'Pose request submitted successfully',
+        request: request as any,
+        message: 'Pose request submitted successfully. Our team will review it soon!',
       },
       201
     )
@@ -533,25 +627,21 @@ app.get(
     const userId = c.get('userId')
     const { page = '1', limit = '10', status } = c.req.query()
 
-    // TODO: List user's pose requests
-    // 1. Parse pagination params
-    // 2. Build query:
-    //    - Filter by userId
-    //    - Filter by status if provided
-    //    - Sort by createdAt DESC
-    // 3. Apply pagination
-    // 4. Include category relation if applicable
-    // 5. Return paginated results
+    // Get user's pose requests using service
+    const { poseRequestService } = await import('./services/pose-request.service')
 
-    return c.json({
-      requests: [],
-      pagination: {
+    const result = await poseRequestService.getUserPoseRequests(
+      userId,
+      {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: 0,
-        totalPages: 0,
-        hasMore: false,
       },
+      status ? { status: status as any } : undefined
+    )
+
+    return c.json({
+      requests: result.requests,
+      pagination: result.pagination,
     })
   }, 'List Pose Requests')
 )

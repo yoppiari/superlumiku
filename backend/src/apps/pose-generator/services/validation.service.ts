@@ -408,6 +408,74 @@ export class ValidationService {
       'casual leaning pose',
     ]
   }
+
+  /**
+   * Validate background change request
+   *
+   * @throws ValidationError if request is invalid
+   */
+  validateBackgroundChangeRequest(data: any): void {
+    if (!data.backgroundMode) {
+      throw new ValidationError('Background mode is required')
+    }
+
+    const validModes = ['ai_generate', 'solid_color', 'upload']
+    if (!validModes.includes(data.backgroundMode)) {
+      throw new ValidationError(
+        `Invalid background mode. Must be one of: ${validModes.join(', ')}`
+      )
+    }
+
+    // Mode-specific validation
+    if (data.backgroundMode === 'ai_generate') {
+      if (!data.backgroundPrompt || data.backgroundPrompt.trim().length === 0) {
+        throw new ValidationError('Background prompt is required for AI generate mode')
+      }
+
+      if (data.backgroundPrompt.length > 300) {
+        throw new ValidationError(
+          'Background prompt too long. Maximum 300 characters allowed'
+        )
+      }
+
+      // Check for forbidden keywords in background prompt
+      const lowerPrompt = data.backgroundPrompt.toLowerCase()
+      for (const keyword of this.FORBIDDEN_KEYWORDS) {
+        if (lowerPrompt.includes(keyword.toLowerCase())) {
+          throw new ValidationError(
+            'Background prompt contains inappropriate or restricted content'
+          )
+        }
+      }
+    }
+
+    if (data.backgroundMode === 'solid_color') {
+      if (!data.backgroundColor) {
+        throw new ValidationError('Background color is required for solid color mode')
+      }
+
+      // Validate hex color format
+      if (!/^#[0-9A-Fa-f]{6}$/.test(data.backgroundColor)) {
+        throw new ValidationError('Invalid color format. Use hex format (e.g., #FF5733)')
+      }
+    }
+
+    if (data.backgroundMode === 'upload') {
+      if (!data.backgroundImageUrl || data.backgroundImageUrl.trim().length === 0) {
+        throw new ValidationError('Background image URL is required for upload mode')
+      }
+
+      // Basic URL validation
+      try {
+        new URL(data.backgroundImageUrl)
+      } catch {
+        // If not a full URL, check if it's a relative path
+        if (!data.backgroundImageUrl.startsWith('/uploads/')) {
+          throw new ValidationError('Invalid background image URL')
+        }
+      }
+    }
+  }
 }
 
 export const validationService = new ValidationService()
