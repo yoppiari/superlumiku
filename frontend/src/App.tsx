@@ -22,6 +22,7 @@ const VideoGenerator = lazy(() => import('./apps/VideoGenerator'))
 const PosterEditor = lazy(() => import('./apps/PosterEditor').then((m) => ({ default: m.PosterEditor })))
 const AvatarCreator = lazy(() => import('./apps/AvatarCreator'))
 const PoseGenerator = lazy(() => import('./apps/PoseGenerator'))
+const PoseGeneratorNew = lazy(() => import('./apps/pose-generator'))
 
 function AppContent() {
   const navigate = useNavigate()
@@ -173,10 +174,18 @@ function AppContent() {
           }
         />
         <Route
-          path="/apps/pose-generator"
+          path="/apps/pose-generator-old"
           element={
             <ErrorBoundary level="page">
               <PoseGenerator />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/pose-generator/*"
+          element={
+            <ErrorBoundary level="page">
+              <PoseGeneratorNew />
             </ErrorBoundary>
           }
         />
