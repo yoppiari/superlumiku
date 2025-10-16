@@ -87,11 +87,77 @@ export async function updateProject(
 }
 
 export async function deleteProject(projectId: string, userId: string): Promise<void> {
-  await prisma.avatarProject.delete({
-    where: {
-      id: projectId,
-      userId,
-    },
+  // Use transaction to delete all related data in correct order
+  // This prevents foreign key constraint violations
+  await prisma.$transaction(async (tx) => {
+    // Get all avatars in this project
+    const avatars = await tx.avatar.findMany({
+      where: {
+        projectId,
+        userId,
+      },
+      select: { id: true },
+    })
+
+    const avatarIds = avatars.map((a) => a.id)
+
+    if (avatarIds.length > 0) {
+      // Step 1: Delete GeneratedPoses that reference these avatars
+      // via PoseGeneration.avatarId
+      await tx.generatedPose.deleteMany({
+        where: {
+          generation: {
+            avatarId: { in: avatarIds },
+          },
+        },
+      })
+
+      // Step 2: Delete PoseGenerations that reference these avatars
+      await tx.poseGeneration.deleteMany({
+        where: {
+          avatarId: { in: avatarIds },
+        },
+      })
+
+      // Step 3: Delete PoseGeneratorProjects that reference these avatars
+      await tx.poseGeneratorProject.updateMany({
+        where: {
+          avatarId: { in: avatarIds },
+        },
+        data: {
+          avatarId: null, // SetNull since it's optional
+        },
+      })
+
+      // Step 4: Delete AvatarUsageHistory
+      await tx.avatarUsageHistory.deleteMany({
+        where: {
+          avatarId: { in: avatarIds },
+        },
+      })
+
+      // Step 5: Delete Avatars (cascade will handle AvatarGenerations)
+      await tx.avatar.deleteMany({
+        where: {
+          id: { in: avatarIds },
+        },
+      })
+    }
+
+    // Step 6: Delete AvatarGenerations that reference this project directly
+    await tx.avatarGeneration.deleteMany({
+      where: {
+        projectId,
+      },
+    })
+
+    // Step 7: Finally delete the project
+    await tx.avatarProject.delete({
+      where: {
+        id: projectId,
+        userId,
+      },
+    })
   })
 }
 

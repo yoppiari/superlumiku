@@ -77,21 +77,46 @@ class AvatarCreatorService {
   }
 
   async deleteProject(projectId: string, userId: string): Promise<void> {
-    // Verify ownership
+    // Verify ownership and get project with avatars
     const project = await this.getProjectById(projectId, userId)
 
-    // Delete all avatar files
+    console.log(`[AVATAR_PROJECT_DELETE] Starting deletion for project ${projectId}`, {
+      userId,
+      avatarCount: project.avatars?.length || 0,
+    })
+
+    // Delete all avatar files first (before database deletion)
     for (const avatar of project.avatars || []) {
       try {
         await this.deleteAvatarFiles(avatar)
+        console.log(`[AVATAR_PROJECT_DELETE] Deleted files for avatar ${avatar.id}`)
       } catch (error) {
-        console.error(`Failed to delete files for avatar ${avatar.id}:`, error)
+        console.error(`[AVATAR_PROJECT_DELETE] Failed to delete files for avatar ${avatar.id}:`, error)
         // Continue deletion even if file cleanup fails
       }
     }
 
-    // Delete from database (cascade will handle avatars)
-    await repository.deleteProject(projectId, userId)
+    try {
+      // Delete from database with transaction handling for foreign key constraints
+      await repository.deleteProject(projectId, userId)
+      console.log(`[AVATAR_PROJECT_DELETE] Successfully deleted project ${projectId}`)
+    } catch (error: any) {
+      // Log detailed error information
+      console.error(`[AVATAR_PROJECT_DELETE] Database deletion failed for project ${projectId}:`, {
+        error: error.message,
+        code: error.code,
+        meta: error.meta,
+      })
+
+      // Re-throw with more context for API layer
+      if (error.code === 'P2003') {
+        throw new Error(
+          `Cannot delete project due to foreign key constraint. This may indicate related data that needs to be cleaned up. Error: ${error.message}`
+        )
+      }
+
+      throw error
+    }
   }
 
   // ========================================
