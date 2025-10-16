@@ -23,7 +23,7 @@ const prisma = new PrismaClient()
  * Main seeding function
  */
 async function seedPoseGenerator() {
-  console.log('\n🌱 Starting Pose Generator Seed...\n')
+  console.log('\n🎭 Starting Pose Generator Seed...\n')
 
   try {
     // Step 1: Seed categories
@@ -233,14 +233,4 @@ function printStatistics(): void {
   console.log(`  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`)
 }
 
-/**
- * Run the seed script
- */
-seedPoseGenerator()
-  .catch((e) => {
-    console.error('❌ Seed script failed:', e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+export default seedPoseGenerator

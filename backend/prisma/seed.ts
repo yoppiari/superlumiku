@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt'
 import { seedSubscriptionPlans } from './seeds/subscription-plans.seed'
 import { seedAIModels } from './seeds/ai-models.seed'
 import { migrateExistingUsers } from './seeds/migrate-users.seed'
+import seedPoseGenerator from './seeds/pose-generator.seed'
 
 const prisma = new PrismaClient()
 
@@ -22,7 +23,11 @@ async function main() {
   await migrateExistingUsers()
   console.log('')
 
-  // 4. Create test user (existing logic)
+  // 4. Seed Pose Generator (Categories and Poses)
+  await seedPoseGenerator()
+  console.log('')
+
+  // 5. Create test user (existing logic)
   console.log('🌱 Creating test user...')
   const hashedPassword = await bcrypt.hash('password123', 10)
 
