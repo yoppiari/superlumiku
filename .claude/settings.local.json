@@ -142,7 +142,10 @@
       "Bash(npm run test:*)",
       "Bash(do echo \"Check $i/12 (waiting 30 seconds)...\")",
       "Bash(git rev-parse:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(rg:*)",
+      "Bash(cd:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [],
     "ask": []

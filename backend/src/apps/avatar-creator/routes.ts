@@ -42,6 +42,27 @@ import prisma from '../../db/client'
 const app = new Hono<{ Variables: AuthVariables }>()
 
 // ========================================
+// Debug Middleware - Log All Requests
+// ========================================
+
+app.use('*', async (c, next) => {
+  const path = c.req.path
+  const method = c.req.method
+
+  // Log all requests to avatar-creator to help debug hardcoded IDs
+  console.log(`[Avatar Creator] ${method} ${path}`)
+
+  // Check for suspicious patterns
+  if (path.includes('_') || path.match(/[a-z0-9]{20,}/)) {
+    console.warn(`[Avatar Creator] SUSPICIOUS REQUEST: ${method} ${path}`)
+    console.warn(`[Avatar Creator] Headers:`, c.req.header())
+    console.warn(`[Avatar Creator] Query:`, c.req.query())
+  }
+
+  await next()
+})
+
+// ========================================
 // Rate Limiter Definitions
 // ========================================
 

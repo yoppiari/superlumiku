@@ -105,8 +105,27 @@ for (const plugin of pluginRegistry.getEnabled()) {
   }
 }
 
-// 404 handler
+// 404 handler with detailed logging
 app.notFound((c) => {
+  const path = c.req.path
+  const method = c.req.method
+
+  // Log suspicious requests with hardcoded IDs or malformed URLs
+  if (path.includes('_') && path.includes('/api/apps/')) {
+    logger.warn({
+      path,
+      method,
+      headers: Object.fromEntries(c.req.header() as any),
+      query: c.req.query(),
+      issue: 'Malformed URL with underscore detected'
+    }, 'SUSPICIOUS 404: Underscore in API path')
+  } else {
+    logger.debug({
+      path,
+      method
+    }, 'Route not found')
+  }
+
   return c.json({ error: 'Not Found' }, 404)
 })
 
