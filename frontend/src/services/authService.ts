@@ -28,16 +28,20 @@ export const authService = {
    * Login user with email and password
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/api/auth/login', credentials)
-    return response.data
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/api/auth/login', credentials)
+    // Backend returns { success: true, data: { user, token } }
+    // Extract the nested data object
+    return response.data.data
   },
 
   /**
    * Register new user
    */
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/api/auth/register', data)
-    return response.data
+    const response = await api.post<{ success: boolean; data: AuthResponse }>('/api/auth/register', data)
+    // Backend returns { success: true, data: { user, token } }
+    // Extract the nested data object
+    return response.data.data
   },
 
   /**
