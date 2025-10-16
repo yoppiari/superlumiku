@@ -1,0 +1,91 @@
+========================================
+COPY THIS TO COOLIFY TERMINAL - FIX LOGIN NOW
+========================================
+
+Step 1: Connect to PostgreSQL
+------------------------------
+psql $DATABASE_URL
+
+
+Step 2: Add Missing Columns (Copy-Paste This Block)
+----------------------------------------------------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "unlimitedPoseActive" BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "unlimitedPoseDailyQuota" INTEGER DEFAULT 100;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "unlimitedPoseQuotaUsed" INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "unlimitedPoseQuotaResetAt" TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "unlimitedPoseExpiresAt" TIMESTAMP;
+
+
+Step 3: Verify (Copy-Paste This)
+---------------------------------
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_name = 'users'
+  AND column_name LIKE 'unlimited%'
+ORDER BY column_name;
+
+
+Step 4: Exit PostgreSQL
+------------------------
+\q
+
+
+Step 5: Mark Migration Resolved
+--------------------------------
+cd backend
+bunx prisma migrate resolve --applied 20251014_add_avatar_creator_complete
+bunx prisma migrate status
+
+
+Step 6: Test Login
+-------------------
+curl -X POST https://dev.lumiku.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "yourpassword"}'
+
+
+========================================
+EXPECTED RESULTS
+========================================
+
+After Step 2:
+-------------
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+
+After Step 3 (should show 5 rows):
+----------------------------------
+         column_name          |    data_type     | column_default
+------------------------------+------------------+----------------
+ unlimitedPoseActive          | boolean          | false
+ unlimitedPoseDailyQuota      | integer          | 100
+ unlimitedPoseExpiresAt       | timestamp        | NULL
+ unlimitedPoseQuotaResetAt    | timestamp        | NULL
+ unlimitedPoseQuotaUsed       | integer          | 0
+(5 rows)
+
+After Step 6:
+-------------
+HTTP 200 OK with user data and token
+
+
+========================================
+IF SOMETHING GOES WRONG
+========================================
+
+Error: "relation users does not exist"
+Solution: Wrong database - verify DATABASE_URL points to production
+
+Error: "column already exists"
+Solution: Good! Columns already added. Skip to Step 6 to test login.
+
+Error: "permission denied"
+Solution: Check DATABASE_URL has superuser privileges
+
+Login still fails:
+1. Check Prisma logs: pm2 logs backend --lines 50
+2. Restart backend: pm2 restart backend
+3. Regenerate Prisma client: cd backend && bunx prisma generate && pm2 restart backend

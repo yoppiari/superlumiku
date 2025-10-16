@@ -1,44 +1,54 @@
+/**
+ * Lumiku Backend - Main Entry Point
+ *
+ * Production-grade server initialization with:
+ * - Structured logging
+ * - Graceful shutdown
+ * - Health monitoring
+ * - Error handling
+ * - Resource cleanup
+ */
+
 import app from './app'
 import prisma from './db/client'
 import { initStorage } from './lib/storage'
 import { initializeScheduler } from './jobs/scheduler'
-import { redis, isRedisEnabled } from './lib/redis'
+import { redis, isRedisEnabled, disconnectRedis } from './lib/redis'
+import { logger } from './lib/logger'
 import { createServer } from 'http'
-// TEMPORARY: Commented out to fix deployment - will enable after deployment succeeds
-// import { setupPoseWebSocket, shutdownWebSocket } from './apps/pose-generator/websocket/pose-websocket'
+
+// Import environment config (validation happens on import)
+import { env } from './config/env'
+
+// CRITICAL FIX: Re-enabled after implementing lazyConnect in queue.config.ts
+import { setupPoseWebSocket, shutdownWebSocket } from './apps/pose-generator/websocket/pose-websocket'
+import { initializeRedisConnection } from './apps/pose-generator/queue/queue.config'
+
+// Log successful environment validation
+logger.info('Environment variables validated successfully', {
+  nodeEnv: env.NODE_ENV,
+  port: env.PORT
+})
 
 // Import workers only if Redis is enabled
 if (process.env.REDIS_ENABLED !== 'false') {
   import('./workers/video-mixer.worker')
   import('./workers/carousel-mix.worker')
   import('./workers/looping-flow.worker')
-  console.log('✅ Workers initialized (Redis enabled)')
+  logger.info('Workers initialized', { redisEnabled: true })
 } else {
-  console.log('⚠️  Workers DISABLED (Redis disabled)')
+  logger.warn('Workers DISABLED', { redisEnabled: false })
 }
 
 /**
- * Import environment config (validation happens on import)
- *
- * SECURITY: Environment variables are validated using Zod on import.
- * If any required variables are missing or invalid, the application
- * will fail immediately with clear error messages.
- *
- * This prevents the application from starting with invalid configuration,
- * eliminating runtime errors caused by missing or misconfigured environment variables.
+ * Check database connectivity
  */
-import { env } from './config/env'
-
-// Log successful environment validation
-console.log('✅ Environment variables validated successfully')
-
-// Test database connection
-async function checkDatabase() {
+async function checkDatabase(): Promise<void> {
   try {
     await prisma.$connect()
-    console.log('✅ Database connected successfully')
+    logger.info('Database connected successfully')
   } catch (error) {
-    console.error('❌ Database connection failed:', error)
+    logger.error('Database connection failed', { error })
     process.exit(1)
   }
 }
@@ -47,20 +57,21 @@ async function checkDatabase() {
  * Check Redis connectivity and enforce production requirements
  * SECURITY: Rate limiting requires Redis in production to work correctly across multiple instances
  */
-async function checkRedis() {
+async function checkRedis(): Promise<void> {
   const isProduction = env.NODE_ENV === 'production'
 
   if (!isRedisEnabled()) {
     if (isProduction) {
-      console.error('❌ FATAL: Redis is required for production deployment!')
-      console.error('❌ Rate limiting will NOT work correctly across multiple instances')
-      console.error('❌ Set REDIS_HOST and REDIS_PASSWORD in environment variables')
-      console.error('❌ Exiting to prevent security vulnerabilities...')
+      logger.error('FATAL: Redis is required for production deployment', {
+        reason: 'Rate limiting will NOT work correctly across multiple instances',
+        action: 'Set REDIS_HOST and REDIS_PASSWORD in environment variables'
+      })
       process.exit(1)
     } else {
-      console.warn('⚠️  WARNING: Running without Redis')
-      console.warn('⚠️  Rate limiting uses in-memory store')
-      console.warn('⚠️  NOT suitable for production or multi-instance deployments')
+      logger.warn('Running without Redis', {
+        rateLimiting: 'in-memory store',
+        notice: 'NOT suitable for production or multi-instance deployments'
+      })
     }
     return
   }
@@ -68,44 +79,63 @@ async function checkRedis() {
   // Test Redis connection
   try {
     await redis?.ping()
-    console.log('✅ Redis connected successfully')
-
-    // Log Redis configuration (without exposing credentials)
-    console.log(`📦 Redis host: ${process.env.REDIS_HOST}`)
-    console.log(`🔒 Rate limiting: Distributed (Redis-backed)`)
-  } catch (error: any) {
+    logger.info('Redis connected successfully', {
+      host: process.env.REDIS_HOST,
+      rateLimiting: 'Distributed (Redis-backed)'
+    })
+  } catch (error) {
     if (isProduction) {
-      console.error('❌ FATAL: Redis connection failed in production!', error.message)
-      console.error('❌ Rate limiting will NOT function properly')
+      logger.error('FATAL: Redis connection failed in production', {
+        error,
+        impact: 'Rate limiting will NOT function properly'
+      })
       process.exit(1)
     } else {
-      console.warn('⚠️  WARNING: Redis connection failed:', error.message)
-      console.warn('⚠️  Falling back to in-memory rate limiting')
+      logger.warn('Redis connection failed', {
+        error,
+        fallback: 'in-memory rate limiting'
+      })
     }
   }
 }
 
-// Start server
+/**
+ * Start server with all initialization
+ */
 async function start() {
+  logger.info('Starting Lumiku backend server...')
+
   await checkDatabase()
   await checkRedis()
   await initStorage()
 
-  // TEMPORARILY DISABLED: Pose Generator storage initialization
-  // This is disabled along with the pose-generator plugin due to Redis connection at import time
-  // TODO: Re-enable after refactoring pose-generator queue initialization
-  // try {
-  //   const { poseStorageService } = await import('./apps/pose-generator/services/storage.service')
-  //   await poseStorageService.initializeLocalStorage()
-  // } catch (error) {
-  //   console.error('Failed to initialize pose storage:', error)
-  // }
+  // CRITICAL FIX: Re-enabled Pose Generator storage and Redis initialization
+  try {
+    // Initialize Redis connection for Pose Generator queue
+    if (isRedisEnabled()) {
+      await initializeRedisConnection()
+      logger.info('Pose Generator queue initialized')
+    } else {
+      logger.warn('Pose Generator queue disabled', { reason: 'Redis not configured' })
+    }
+
+    // Initialize Pose Generator storage
+    const { poseStorageService } = await import('./apps/pose-generator/services/storage.service')
+    await poseStorageService.initializeLocalStorage()
+    logger.info('Pose Generator storage initialized')
+  } catch (error) {
+    logger.error('Failed to initialize Pose Generator', { error })
+    if (env.NODE_ENV === 'production') {
+      logger.error('FATAL: Pose Generator initialization failed in production')
+      process.exit(1)
+    }
+  }
 
   // Initialize cron jobs for subscription & quota management
   initializeScheduler()
+  logger.info('Scheduler initialized')
 
   // Create HTTP server for both Hono and Socket.IO
-  // We need to create a Node HTTP server that can handle both
   const httpServer = createServer(async (req, res) => {
     const response = await app.fetch(
       new Request(`http://${req.headers.host}${req.url}`, {
@@ -131,17 +161,22 @@ async function start() {
     res.end()
   })
 
-  // TEMPORARY: Disabled WebSocket to fix deployment
-  // const io = setupPoseWebSocket(httpServer)
-  // console.log('✅ WebSocket server initialized for Pose Generator')
+  // CRITICAL FIX: Re-enabled WebSocket for Pose Generator
+  if (isRedisEnabled()) {
+    const io = setupPoseWebSocket(httpServer)
+    logger.info('WebSocket server initialized for Pose Generator')
+  } else {
+    logger.warn('Pose Generator WebSocket disabled', { reason: 'Redis not configured' })
+  }
 
   // Start HTTP server
   httpServer.listen(env.PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${env.PORT}`)
-    console.log(`📝 Environment: ${env.NODE_ENV}`)
-    console.log(`🔗 CORS Origin: ${env.CORS_ORIGIN}`)
-    // TEMPORARY: WebSocket disabled
-    // console.log(`🔌 WebSocket available at ws://localhost:${env.PORT}/pose-generator`)
+    logger.info('Server started successfully', {
+      port: env.PORT,
+      environment: env.NODE_ENV,
+      corsOrigin: env.CORS_ORIGIN,
+      websocket: isRedisEnabled() ? `ws://localhost:${env.PORT}/pose-generator` : 'disabled'
+    })
   })
 
   return httpServer
@@ -149,48 +184,113 @@ async function start() {
 
 // Store server instance for graceful shutdown
 let serverInstance: ReturnType<typeof createServer> | null = null
+let isShuttingDown = false
 
 start().then((server) => {
   serverInstance = server
+}).catch((error) => {
+  logger.error('Failed to start server', { error })
+  process.exit(1)
 })
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n👋 Shutting down gracefully...')
-
-  // TEMPORARY: Disabled WebSocket shutdown
-  // await shutdownWebSocket()
-
-  // Close HTTP server
-  if (serverInstance) {
-    serverInstance.close(() => {
-      console.log('✅ HTTP server closed')
-    })
+/**
+ * Graceful Shutdown Handler
+ *
+ * Production-grade shutdown sequence:
+ * 1. Stop accepting new requests
+ * 2. Close WebSocket connections
+ * 3. Drain queue workers (wait for current jobs)
+ * 4. Close database connections
+ * 5. Disconnect from Redis
+ * 6. Exit process
+ */
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    logger.warn('Shutdown already in progress, forcing exit...')
+    process.exit(1)
   }
 
-  // Disconnect from database
-  await prisma.$disconnect()
+  isShuttingDown = true
+  logger.info('Graceful shutdown initiated', { signal })
 
-  console.log('✅ Graceful shutdown complete')
-  process.exit(0)
+  const shutdownTimeout = setTimeout(() => {
+    logger.error('Graceful shutdown timeout exceeded, forcing exit')
+    process.exit(1)
+  }, 30000) // 30 second timeout
+
+  try {
+    // 1. Close WebSocket connections
+    if (isRedisEnabled()) {
+      logger.info('Closing WebSocket connections...')
+      await shutdownWebSocket()
+      logger.info('WebSocket connections closed')
+    }
+
+    // 2. Stop accepting new HTTP requests
+    if (serverInstance) {
+      logger.info('Closing HTTP server...')
+      await new Promise<void>((resolve) => {
+        serverInstance?.close(() => {
+          logger.info('HTTP server closed')
+          resolve()
+        })
+      })
+    }
+
+    // 3. Drain queue workers (workers will complete current jobs)
+    // Workers have their own shutdown handlers, so we just give them time
+    if (isRedisEnabled()) {
+      logger.info('Waiting for queue workers to complete...')
+      await new Promise(resolve => setTimeout(resolve, 2000)) // 2 second grace period
+      logger.info('Queue workers shutdown complete')
+    }
+
+    // 4. Disconnect from database
+    logger.info('Closing database connection...')
+    await prisma.$disconnect()
+    logger.info('Database connection closed')
+
+    // 5. Disconnect from Redis
+    if (isRedisEnabled()) {
+      logger.info('Closing Redis connection...')
+      await disconnectRedis()
+      logger.info('Redis connection closed')
+    }
+
+    clearTimeout(shutdownTimeout)
+    logger.info('Graceful shutdown complete')
+    process.exit(0)
+  } catch (error) {
+    logger.error('Error during graceful shutdown', { error })
+    clearTimeout(shutdownTimeout)
+    process.exit(1)
+  }
+}
+
+// Signal handlers
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+
+// Unhandled rejection handler
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  logger.error('Unhandled Promise Rejection', {
+    reason,
+    promise: promise.toString()
+  })
+  // In production, we should exit to allow process manager to restart
+  if (env.NODE_ENV === 'production') {
+    gracefulShutdown('unhandledRejection')
+  }
 })
 
-process.on('SIGTERM', async () => {
-  console.log('\n👋 Shutting down gracefully...')
-
-  // TEMPORARY: Disabled WebSocket shutdown
-  // await shutdownWebSocket()
-
-  // Close HTTP server
-  if (serverInstance) {
-    serverInstance.close(() => {
-      console.log('✅ HTTP server closed')
-    })
+// Uncaught exception handler
+process.on('uncaughtException', (error: Error) => {
+  logger.error('Uncaught Exception', {
+    error: error.message,
+    stack: error.stack
+  })
+  // In production, we should exit to allow process manager to restart
+  if (env.NODE_ENV === 'production') {
+    gracefulShutdown('uncaughtException')
   }
-
-  // Disconnect from database
-  await prisma.$disconnect()
-
-  console.log('✅ Graceful shutdown complete')
-  process.exit(0)
 })

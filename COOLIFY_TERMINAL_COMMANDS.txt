@@ -1,0 +1,101 @@
+═══════════════════════════════════════════════════════════
+  COOLIFY TERMINAL COMMANDS - Copy & Paste
+═══════════════════════════════════════════════════════════
+
+🔹 STEP 1: Navigate to backend directory
+═══════════════════════════════════════════════════════════
+
+cd /app/backend
+
+
+🔹 STEP 2: Run seed command (OPTION A - Recommended)
+═══════════════════════════════════════════════════════════
+
+bun prisma/seed.ts
+
+
+🔹 STEP 2: Alternative command (OPTION B)
+═══════════════════════════════════════════════════════════
+
+bun run prisma:seed
+
+
+🔹 EXPECTED OUTPUT:
+═══════════════════════════════════════════════════════════
+
+🌱 Starting database seeding...
+=====================================
+
+✅ Seeding AI models...
+✅ Created/Updated AI model: FLUX.1-dev Base
+✅ Created/Updated AI model: FLUX.1-dev + Realism LoRA
+✅ Created/Updated AI model: FLUX.1-dev HD + Realism LoRA
+✅ Created/Updated AI model: FLUX.1-schnell Fast
+✅ Seeded 4 AI models for avatar-creator
+
+✅ Database seeding completed successfully!
+
+
+🔹 STEP 3: Verify models were created
+═══════════════════════════════════════════════════════════
+
+cd /app
+node verify-avatar-models.js
+
+
+🔹 STEP 4: Restart services (IN COOLIFY UI)
+═══════════════════════════════════════════════════════════
+
+Click the "Restart" button in Coolify interface
+
+
+🔹 STEP 5: Check backend logs (Optional)
+═══════════════════════════════════════════════════════════
+
+pm2 logs backend --lines 30
+
+
+🔹 STEP 6: Test the API
+═══════════════════════════════════════════════════════════
+
+Open: https://dev.lumiku.com/dashboard
+
+Should see:
+✅ No "Page Error"
+✅ 3 apps displayed: Video Mixer, Carousel Mix, Avatar Creator
+✅ Avatar Creator shows purple icon
+
+
+═══════════════════════════════════════════════════════════
+  TROUBLESHOOTING
+═══════════════════════════════════════════════════════════
+
+If "bun: command not found", try:
+
+  node /app/backend/prisma/seed.ts
+
+If "prisma not found", try:
+
+  cd /app/backend
+  npx prisma db seed
+
+If directory not found:
+
+  ls /app
+  ls /app/backend
+
+
+═══════════════════════════════════════════════════════════
+  QUICK CHECK DATABASE
+═══════════════════════════════════════════════════════════
+
+cd /app/backend
+bunx prisma studio
+
+Then open: http://localhost:5555
+Navigate to: AIModel table
+Filter: appId = 'avatar-creator'
+Expected: 4 records
+
+
+═══════════════════════════════════════════════════════════

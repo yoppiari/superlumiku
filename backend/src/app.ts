@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { logger } from 'hono/logger'
+import { logger as honoLogger } from 'hono/logger'
 import { serveStatic } from 'hono/bun'
 import { corsMiddleware } from './middleware/cors.middleware'
 import { authMiddleware } from './middleware/auth.middleware'
@@ -13,6 +13,7 @@ import subscriptionRoutes from './routes/subscription.routes'
 import quotaRoutes from './routes/quota.routes'
 import modelStatsRoutes from './routes/model-stats.routes'
 import adminRoutes from './routes/admin.routes'
+import healthRoutes from './routes/health.routes'
 
 // Plugin System
 import { loadPlugins } from './plugins/loader'
@@ -22,113 +23,24 @@ import { pluginRegistry } from './plugins/registry'
 import { accessControlService } from './services/access-control.service'
 import { modelRegistryService } from './services/model-registry.service'
 
+// Structured logger
+import { logger } from './lib/logger'
+
 const app = new Hono()
 
 // Load all plugins
 loadPlugins()
 
 // Middleware
-app.use('*', logger())
+app.use('*', honoLogger())
 app.use('*', corsMiddleware)
 
 // Serve static files from uploads directory
 app.use('/uploads/*', serveStatic({ root: './' }))
 
-// Health check - Basic (fast)
-app.get('/health', (c) => {
-  return c.json({
-    status: 'ok',
-    service: 'lumiku-backend',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-  })
-})
-
-// Health check - Database connection (detailed)
-app.get('/api/health', async (c) => {
-  try {
-    const prisma = (await import('./db/client')).default
-    await prisma.$queryRaw`SELECT 1 as test`
-
-    return c.json({
-      status: 'healthy',
-      service: 'lumiku-backend',
-      database: 'connected',
-      timestamp: new Date().toISOString(),
-    })
-  } catch (error: any) {
-    return c.json({
-      status: 'unhealthy',
-      service: 'lumiku-backend',
-      database: 'disconnected',
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    }, 503)
-  }
-})
-
-// Database schema health check
-app.get('/health/database', async (c) => {
-  try {
-    const prisma = (await import('./db/client')).default
-
-    // Check critical tables
-    const criticalTables = [
-      'users',
-      'sessions',
-      'credits',
-    ]
-
-    const results: Record<string, boolean> = {}
-    const missingTables: string[] = []
-
-    for (const table of criticalTables) {
-      try {
-        const result = await prisma.$queryRaw<any[]>`
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables
-            WHERE table_schema = 'public'
-            AND table_name = ${table}
-          ) as exists
-        `
-        const exists = result[0]?.exists || false
-        results[table] = exists
-
-        if (!exists) {
-          missingTables.push(table)
-        }
-      } catch (error) {
-        results[table] = false
-        missingTables.push(table)
-      }
-    }
-
-    const allHealthy = missingTables.length === 0
-
-    return c.json({
-      status: allHealthy ? 'healthy' : 'degraded',
-      database: {
-        connected: true,
-        tables: results,
-        missingTables,
-        totalTables: criticalTables.length,
-        healthyTables: criticalTables.length - missingTables.length,
-      },
-      timestamp: new Date().toISOString(),
-    }, allHealthy ? 200 : 503)
-
-  } catch (error: any) {
-    return c.json({
-      status: 'unhealthy',
-      database: {
-        connected: false,
-        error: error.message,
-      },
-      timestamp: new Date().toISOString(),
-    }, 503)
-  }
-})
+// Health check routes (comprehensive)
+app.route('/health', healthRoutes)
+app.route('/api/health', healthRoutes)
 
 // Core API Routes
 app.route('/api/auth', authRoutes)
@@ -154,9 +66,11 @@ app.get('/api/apps', authMiddleware, async (c) => {
   // Get only apps user can access
   const apps = await accessControlService.getUserAccessibleApps(userId)
 
-  console.log(`📱 Dashboard Apps for user ${userId}:`)
-  console.log(`  - Accessible apps: ${apps.length}`)
-  console.log(`  - Apps:`, apps.map(a => a.name).join(', '))
+  logger.debug({
+    userId,
+    accessibleAppsCount: apps.length,
+    apps: apps.map(a => a.name).join(', ')
+  }, 'Dashboard apps retrieved')
 
   return c.json({ apps })
 })
@@ -176,7 +90,10 @@ for (const plugin of pluginRegistry.getEnabled()) {
   const routes = pluginRegistry.getRoutes(plugin.appId)
   if (routes) {
     app.route(plugin.routePrefix, routes)
-    console.log(`🔌 Mounted: ${plugin.name} at ${plugin.routePrefix}`)
+    logger.info({
+      plugin: plugin.name,
+      route: plugin.routePrefix
+    }, 'Plugin mounted')
   }
 }
 
@@ -187,7 +104,12 @@ app.notFound((c) => {
 
 // Error handler
 app.onError((err, c) => {
-  console.error('Error:', err)
+  logger.error({
+    error: err.message,
+    stack: err.stack,
+    path: c.req.path,
+    method: c.req.method
+  }, 'Unhandled error in route')
   return c.json(
     {
       error: err.message || 'Internal Server Error',

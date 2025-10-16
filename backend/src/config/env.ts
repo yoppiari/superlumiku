@@ -526,16 +526,35 @@ function validateEnvironment() {
       }
 
       // ========================================================================
-      // WARNING: Redis Configuration (Non-blocking)
+      // CRITICAL: Redis Configuration (Production Requirement)
       // ========================================================================
-      if (!validatedEnv.REDIS_HOST && validatedEnv.RATE_LIMIT_ENABLED) {
-        console.warn(
-          '\n⚠️  WARNING: REDIS_HOST not configured in production!\n' +
-            '⚠️  Rate limiting will use in-memory store (NOT suitable for production)\n' +
-            '⚠️  This works for single-instance deployments but will fail with load balancers.\n' +
-            '⚠️  \n' +
-            '⚠️  To fix: Set REDIS_HOST and REDIS_PASSWORD for production deployments\n' +
-            '⚠️  Recommended: Use managed Redis (Upstash, Redis Cloud, AWS ElastiCache)\n'
+      // CRITICAL FIX: Redis is now REQUIRED in production for proper rate limiting
+      // In-memory rate limiting does NOT work across multiple instances
+      if (!validatedEnv.REDIS_HOST) {
+        throw new Error(
+          'CRITICAL: REDIS_HOST is required in production!\n' +
+            'Rate limiting CANNOT function properly without Redis across multiple instances.\n' +
+            'This is a security vulnerability that allows rate limit bypasses.\n\n' +
+            'To fix:\n' +
+            '1. Set REDIS_HOST in your production environment (e.g., redis://localhost:6379)\n' +
+            '2. Set REDIS_PASSWORD for secure authentication\n' +
+            '3. Recommended providers:\n' +
+            '   - Upstash (https://upstash.com) - Serverless Redis\n' +
+            '   - Redis Cloud (https://redis.com/cloud) - Managed Redis\n' +
+            '   - AWS ElastiCache - For AWS deployments\n\n' +
+            'For development/testing, you can run: docker run -d -p 6379:6379 redis\n'
+        )
+      }
+
+      // Verify REDIS_PASSWORD is set in production
+      if (!validatedEnv.REDIS_PASSWORD) {
+        throw new Error(
+          'CRITICAL: REDIS_PASSWORD is required in production!\n' +
+            'Running Redis without authentication is a severe security risk.\n\n' +
+            'To fix:\n' +
+            '1. Set REDIS_PASSWORD in your production environment\n' +
+            '2. Configure your Redis instance to require authentication\n' +
+            '3. Never deploy Redis with default configuration to production\n'
         )
       }
     }

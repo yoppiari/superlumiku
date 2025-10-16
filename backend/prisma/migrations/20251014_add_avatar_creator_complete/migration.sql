@@ -1,6 +1,11 @@
 -- Migration: Add Avatar Creator and Pose Generator tables
 -- Date: 2025-10-14
 -- Purpose: Create all Avatar Creator tables with persona fields
+--
+-- CRITICAL FIX: Wrapped in transaction to ensure atomicity
+-- If any statement fails, entire migration rolls back
+
+BEGIN;
 
 -- ========================================
 -- CREATE TABLE: avatar_projects
@@ -447,3 +452,23 @@ ALTER TABLE "pose_requests" ADD CONSTRAINT "pose_requests_userId_fkey"
 ALTER TABLE "pose_requests" ADD CONSTRAINT "pose_requests_categoryId_fkey"
     FOREIGN KEY ("categoryId") REFERENCES "pose_categories"("id")
     ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- ========================================
+-- ALTER TABLE: users (Pose Generator Integration)
+-- ========================================
+-- CRITICAL: These columns are required for Pose Generator unlimited tier
+-- Without these, login will fail with "column does not exist" error
+
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "unlimitedPoseActive" BOOLEAN DEFAULT false;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "unlimitedPoseDailyQuota" INTEGER DEFAULT 100;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "unlimitedPoseQuotaUsed" INTEGER DEFAULT 0;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "unlimitedPoseQuotaResetAt" TIMESTAMP;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "unlimitedPoseExpiresAt" TIMESTAMP;
+
+-- ========================================
+-- COMMIT TRANSACTION
+-- ========================================
+-- If we reached here, all statements succeeded
+-- Commit the transaction to make changes permanent
+
+COMMIT;

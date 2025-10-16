@@ -1,0 +1,47 @@
+========================================
+FIX PRODUCTION LOGIN IN 60 SECONDS
+========================================
+
+STEP 1: Copy this command (15 seconds)
+---------------------------------------
+psql $DATABASE_URL -c "
+ALTER TABLE users ADD COLUMN IF NOT EXISTS \"unlimitedPoseActive\" BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS \"unlimitedPoseDailyQuota\" INTEGER DEFAULT 100;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS \"unlimitedPoseQuotaUsed\" INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS \"unlimitedPoseQuotaResetAt\" TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS \"unlimitedPoseExpiresAt\" TIMESTAMP;
+SELECT COUNT(*) as columns_added FROM information_schema.columns WHERE table_name = 'users' AND column_name LIKE 'unlimited%';
+"
+
+
+STEP 2: Paste in Coolify Terminal (5 seconds)
+----------------------------------------------
+[Paste the above command]
+
+
+STEP 3: Verify output shows "5" (5 seconds)
+--------------------------------------------
+Expected output:
+ columns_added
+---------------
+             5
+(1 row)
+
+
+STEP 4: Mark migration resolved (15 seconds)
+---------------------------------------------
+cd backend && bunx prisma migrate resolve --applied 20251014_add_avatar_creator_complete
+
+
+STEP 5: Test login (10 seconds)
+--------------------------------
+Try logging in at: https://dev.lumiku.com
+
+
+DONE! Login should work now.
+========================================
+
+If login still fails:
+1. Restart backend: pm2 restart backend
+2. Check logs: pm2 logs backend --lines 20
+3. Regenerate Prisma: cd backend && bunx prisma generate && pm2 restart backend

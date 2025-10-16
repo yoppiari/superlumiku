@@ -1,0 +1,109 @@
+===========================================
+COOLIFY DEPLOYMENT FIX - COPY/PASTE GUIDE
+===========================================
+
+PART 1: UPDATE ENVIRONMENT VARIABLES IN COOLIFY UI
+===================================================
+
+Go to: https://cf.avolut.com
+Navigate to: Applications > dev-superlumiku > Environment Variables
+
+1. UPDATE DATABASE_URL:
+
+   OLD VALUE (REMOVE THIS):
+   postgres://postgres:6LP0Ojegy7IUU6kaX9lLkmZRUiAdAUNOltWyL3LegfYGR6rPQtB4DUSVqjdA78ES@107.155.75.50:5986/lumiku-dev
+
+   NEW VALUE (COPY THIS):
+   postgresql://postgres:6LP0Ojegy7IUU6kaX9lLkmZRUiAdAUNOltWyL3LegfYGR6rPQtB4DUSVqjdA78ES@ycwc4s4ookos40k44gc8oooc:5432/lumiku-dev
+
+2. UPDATE POSTGRES_HOST:
+
+   OLD VALUE (REMOVE THIS):
+   107.155.75.50
+
+   NEW VALUE (COPY THIS):
+   ycwc4s4ookos40k44gc8oooc
+
+3. CLICK "SAVE" IN COOLIFY UI
+
+===========================================
+PART 2: FIX MIGRATION (COOLIFY TERMINAL)
+===========================================
+
+Go to: Applications > dev-superlumiku > Terminal
+(Or SSH into the running container)
+
+COPY AND PASTE THESE COMMANDS ONE BY ONE:
+
+# Navigate to backend directory
+cd backend
+
+# Option A: Mark migration as applied (try this first)
+bunx prisma migrate resolve --applied 20251014_add_avatar_creator_complete
+
+# Verify migration status
+bunx prisma migrate status
+
+# If Option A fails, try Option B:
+# bunx prisma migrate resolve --rolled-back 20251014_add_avatar_creator_complete
+# bunx prisma migrate deploy
+
+===========================================
+PART 3: VERIFY DATABASE CONNECTION
+===========================================
+
+STILL IN COOLIFY TERMINAL, RUN:
+
+# Test Prisma can connect
+bunx prisma db pull
+
+# Expected: Should complete without "Connection refused" error
+
+===========================================
+PART 4: AFTER I TRIGGER REBUILD
+===========================================
+
+AFTER DEPLOYMENT COMPLETES, RUN IN TERMINAL:
+
+# Check migration status
+bunx prisma migrate status
+
+# Seed database if needed
+bun run prisma db seed
+
+# Test health endpoint
+curl https://dev.lumiku.com/api/health
+
+===========================================
+QUICK REFERENCE
+===========================================
+
+DATABASE INFO:
+- Internal Hostname: ycwc4s4ookos40k44gc8oooc
+- Internal Port: 5432
+- Database: lumiku-dev
+- User: postgres
+
+REDIS INFO (Already Correct):
+- Internal Hostname: u8s0cgsks4gcwo84ccskwok4
+- Internal Port: 6379
+
+===========================================
+TROUBLESHOOTING COMMANDS
+===========================================
+
+IF CONNECTION STILL FAILS:
+
+# Test database connectivity from app container
+nc -zv ycwc4s4ookos40k44gc8oooc 5432
+
+# Check if database container is running
+docker ps | grep ycwc4s4ookos40k44gc8oooc
+
+# Regenerate Prisma client
+cd backend && bunx prisma generate
+
+# Force migration (last resort)
+bunx prisma migrate deploy --force
+
+===========================================

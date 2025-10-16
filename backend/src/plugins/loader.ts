@@ -13,12 +13,10 @@ import loopingFlowRoutes from '../apps/looping-flow/routes'
 import avatarCreatorConfig from '../apps/avatar-creator/plugin.config'
 import avatarCreatorRoutes from '../apps/avatar-creator/routes'
 
-// TEMPORARILY DISABLED: Pose Generator has Redis connection at import time
-// This breaks module loading during startup. Need to refactor queue initialization
-// to be lazy-loaded instead of executed at import time.
-// TODO: Fix pose-generator queue initialization to not connect on import
-// import poseGeneratorConfig from '../apps/pose-generator/plugin.config'
-// import poseGeneratorRoutes from '../apps/pose-generator/routes'
+// CRITICAL FIX: Re-enabled after implementing lazyConnect in queue.config.ts
+// Redis now uses lazyConnect: true to prevent connection at import time
+import poseGeneratorConfig from '../apps/pose-generator/plugin.config'
+import poseGeneratorRoutes from '../apps/pose-generator/routes'
 
 /**
  * Load all plugins into registry
@@ -29,7 +27,7 @@ export function loadPlugins() {
   pluginRegistry.register(carouselMixConfig, carouselMixRoutes)
   pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
   pluginRegistry.register(avatarCreatorConfig, avatarCreatorRoutes)
-  // pluginRegistry.register(poseGeneratorConfig, poseGeneratorRoutes) // DISABLED - see comment above
+  pluginRegistry.register(poseGeneratorConfig, poseGeneratorRoutes) // Re-enabled with lazyConnect fix
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)

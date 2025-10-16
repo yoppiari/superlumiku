@@ -1,0 +1,226 @@
+# ====================================
+# COPY-PASTE MIGRATION FOR COOLIFY
+# ====================================
+# Instructions: Copy the commands below ONE BY ONE and paste into Coolify terminal
+#
+# Step 1: Create avatar_projects table
+# -------------------------------------
+
+psql $DATABASE_URL <<'EOF'
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS "avatar_projects" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "avatar_projects_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "avatar_projects_userId_idx" ON "avatar_projects"("userId");
+CREATE INDEX IF NOT EXISTS "avatar_projects_userId_createdAt_idx" ON "avatar_projects"("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "avatar_projects_userId_updatedAt_idx" ON "avatar_projects"("userId", "updatedAt" DESC);
+
+COMMIT;
+EOF
+
+
+# Step 2: Create avatars table (with personaName, personaAge, etc.)
+# ------------------------------------------------------------------
+
+psql $DATABASE_URL <<'EOF'
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS "avatars" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "baseImageUrl" TEXT NOT NULL,
+    "thumbnailUrl" TEXT,
+    "personaName" TEXT,
+    "personaAge" INTEGER,
+    "personaPersonality" TEXT,
+    "personaBackground" TEXT,
+    "gender" TEXT,
+    "ageRange" TEXT,
+    "ethnicity" TEXT,
+    "bodyType" TEXT,
+    "hairStyle" TEXT,
+    "hairColor" TEXT,
+    "eyeColor" TEXT,
+    "skinTone" TEXT,
+    "style" TEXT,
+    "sourceType" TEXT NOT NULL,
+    "generationPrompt" TEXT,
+    "seedUsed" INTEGER,
+    "usageCount" INTEGER NOT NULL DEFAULT 0,
+    "lastUsedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "avatars_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "avatars_userId_idx" ON "avatars"("userId");
+CREATE INDEX IF NOT EXISTS "avatars_projectId_idx" ON "avatars"("projectId");
+CREATE INDEX IF NOT EXISTS "avatars_sourceType_idx" ON "avatars"("sourceType");
+CREATE INDEX IF NOT EXISTS "avatars_userId_usageCount_idx" ON "avatars"("userId", "usageCount" DESC);
+CREATE INDEX IF NOT EXISTS "avatars_userId_lastUsedAt_idx" ON "avatars"("userId", "lastUsedAt" DESC);
+CREATE INDEX IF NOT EXISTS "avatars_userId_createdAt_idx" ON "avatars"("userId", "createdAt" DESC);
+
+ALTER TABLE "avatars" ADD CONSTRAINT "avatars_projectId_fkey"
+    FOREIGN KEY ("projectId") REFERENCES "avatar_projects"("id")
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+COMMIT;
+EOF
+
+
+# Step 3: Create avatar_presets table
+# ------------------------------------
+
+psql $DATABASE_URL <<'EOF'
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS "avatar_presets" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "previewImageUrl" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "personaTemplate" TEXT NOT NULL,
+    "visualAttributes" TEXT NOT NULL,
+    "generationPrompt" TEXT NOT NULL,
+    "isPublic" BOOLEAN NOT NULL DEFAULT true,
+    "usageCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "avatar_presets_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "avatar_presets_category_idx" ON "avatar_presets"("category");
+CREATE INDEX IF NOT EXISTS "avatar_presets_isPublic_idx" ON "avatar_presets"("isPublic");
+CREATE INDEX IF NOT EXISTS "avatar_presets_category_isPublic_idx" ON "avatar_presets"("category", "isPublic");
+CREATE INDEX IF NOT EXISTS "avatar_presets_usageCount_idx" ON "avatar_presets"("usageCount" DESC);
+
+COMMIT;
+EOF
+
+
+# Step 4: Create persona_examples table
+# --------------------------------------
+
+psql $DATABASE_URL <<'EOF'
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS "persona_examples" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "personaName" TEXT NOT NULL,
+    "personaAge" INTEGER NOT NULL,
+    "personaPersonality" TEXT NOT NULL,
+    "personaBackground" TEXT NOT NULL,
+    "suggestedAttributes" TEXT,
+    "displayOrder" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "persona_examples_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "persona_examples_category_idx" ON "persona_examples"("category");
+CREATE INDEX IF NOT EXISTS "persona_examples_isActive_idx" ON "persona_examples"("isActive");
+CREATE INDEX IF NOT EXISTS "persona_examples_category_isActive_displayOrder_idx" ON "persona_examples"("category", "isActive", "displayOrder");
+
+COMMIT;
+EOF
+
+
+# Step 5: Create avatar_usage_history table
+# ------------------------------------------
+
+psql $DATABASE_URL <<'EOF'
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS "avatar_usage_history" (
+    "id" TEXT NOT NULL,
+    "avatarId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "appId" TEXT NOT NULL,
+    "appName" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "referenceId" TEXT,
+    "referenceType" TEXT,
+    "metadata" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "avatar_usage_history_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "avatar_usage_history_avatarId_idx" ON "avatar_usage_history"("avatarId");
+CREATE INDEX IF NOT EXISTS "avatar_usage_history_userId_idx" ON "avatar_usage_history"("userId");
+CREATE INDEX IF NOT EXISTS "avatar_usage_history_appId_idx" ON "avatar_usage_history"("appId");
+CREATE INDEX IF NOT EXISTS "avatar_usage_history_avatarId_createdAt_idx" ON "avatar_usage_history"("avatarId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "avatar_usage_history_userId_createdAt_idx" ON "avatar_usage_history"("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "avatar_usage_history_appId_createdAt_idx" ON "avatar_usage_history"("appId", "createdAt");
+CREATE INDEX IF NOT EXISTS "avatar_usage_history_referenceId_referenceType_idx" ON "avatar_usage_history"("referenceId", "referenceType");
+
+ALTER TABLE "avatar_usage_history" ADD CONSTRAINT "avatar_usage_history_avatarId_fkey"
+    FOREIGN KEY ("avatarId") REFERENCES "avatars"("id")
+    ON DELETE CASCADE ON UPDATE CASCADE;
+
+COMMIT;
+EOF
+
+
+# Step 6: Create avatar_generations table
+# ----------------------------------------
+
+psql $DATABASE_URL <<'EOF'
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS "avatar_generations" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "avatarId" TEXT,
+    "projectId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "prompt" TEXT NOT NULL,
+    "options" TEXT,
+    "errorMessage" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+    CONSTRAINT "avatar_generations_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "avatar_generations_userId_idx" ON "avatar_generations"("userId");
+CREATE INDEX IF NOT EXISTS "avatar_generations_status_idx" ON "avatar_generations"("status");
+CREATE INDEX IF NOT EXISTS "avatar_generations_projectId_idx" ON "avatar_generations"("projectId");
+CREATE INDEX IF NOT EXISTS "avatar_generations_avatarId_idx" ON "avatar_generations"("avatarId");
+CREATE INDEX IF NOT EXISTS "avatar_generations_userId_status_idx" ON "avatar_generations"("userId", "status");
+CREATE INDEX IF NOT EXISTS "avatar_generations_userId_createdAt_idx" ON "avatar_generations"("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "avatar_generations_status_createdAt_idx" ON "avatar_generations"("status", "createdAt");
+CREATE INDEX IF NOT EXISTS "avatar_generations_projectId_createdAt_idx" ON "avatar_generations"("projectId", "createdAt" DESC);
+
+COMMIT;
+EOF
+
+
+# Step 7: Verify tables were created
+# -----------------------------------
+
+echo "✅ Checking avatar_projects table..."
+psql $DATABASE_URL -c "\d avatar_projects"
+
+echo ""
+echo "✅ Checking avatars table with persona columns..."
+psql $DATABASE_URL -c "\d avatars" | grep -E "personaName|personaAge|personaPersonality|personaBackground"
+
+echo ""
+echo "✅ Listing all avatar tables..."
+psql $DATABASE_URL -c "\dt avatar*"
+
+echo ""
+echo "🎉 Migration complete! Now restart the backend:"
+echo "   cd /app/backend"
+echo "   pm2 restart all"

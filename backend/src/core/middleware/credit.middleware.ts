@@ -61,6 +61,9 @@ export const deductCredits = (amount: number, action: string, appId: string) => 
 /**
  * Record credit usage after successful operation
  * Call this AFTER the operation succeeds
+ *
+ * CRITICAL FIX: Uses atomic credit deduction to prevent TOCTOU race condition
+ * This ensures credits are only deducted if sufficient balance exists
  */
 export const recordCreditUsage = async (
   userId: string,
@@ -85,14 +88,26 @@ export const recordCreditUsage = async (
     return { newBalance: await getCreditBalance(userId), creditUsed: 0 }
   }
 
-  // Get current balance
-  const currentBalance = await getCreditBalance(userId)
-  const newBalance = currentBalance - amount
+  // CRITICAL FIX: Use atomic transaction with proper credit balance check
+  // This prevents race conditions where multiple requests could overdraw credits
+  const result = await prisma.$transaction(async (tx) => {
+    // Get current balance atomically within transaction
+    const lastCredit = await tx.credit.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { balance: true },
+    })
 
-  // Atomic transaction: deduct credits + log usage
-  await prisma.$transaction([
-    // 1. Create credit deduction record
-    prisma.credit.create({
+    const currentBalance = lastCredit?.balance || 0
+    const newBalance = currentBalance - amount
+
+    // Verify sufficient balance (double-check even though middleware checked)
+    if (newBalance < 0) {
+      throw new Error(`Insufficient credits: has ${currentBalance}, needs ${amount}`)
+    }
+
+    // 1. Create credit deduction record with new balance
+    const creditRecord = await tx.credit.create({
       data: {
         userId,
         amount: -amount,          // Negative for deduction
@@ -101,10 +116,10 @@ export const recordCreditUsage = async (
         description: `${appId}: ${action}`,
         referenceType: 'app_usage',
       },
-    }),
+    })
 
     // 2. Create app usage record
-    prisma.appUsage.create({
+    await tx.appUsage.create({
       data: {
         userId,
         appId,
@@ -112,11 +127,14 @@ export const recordCreditUsage = async (
         creditUsed: amount,
         metadata: metadata ? JSON.stringify(metadata) : null,
       },
-    }),
-  ])
+    })
+
+    return { newBalance: creditRecord.balance, creditUsed: amount }
+  })
 
   // 3. Update app statistics (upsert - create if not exists)
   // Note: App model is optional, plugins are registered in-memory
+  // This is done outside transaction as it's non-critical
   try {
     await prisma.app.upsert({
       where: { appId },
@@ -135,7 +153,7 @@ export const recordCreditUsage = async (
     console.warn(`⚠️  Could not update app stats for ${appId}:`, error)
   }
 
-  return { newBalance, creditUsed: amount }
+  return result
 }
 
 /**

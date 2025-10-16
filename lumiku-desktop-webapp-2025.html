@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumiku - AI-Powered Content Creation Platform</title>
+    <style>
+        /* ============================================
+           LUMIKU DESKTOP WEB APP - 2025 REDESIGN
+           Professional SaaS Dashboard Design
+           ============================================ */
+
+        /* CSS Reset & Base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Colors - Neutral Palette */
+            --color-white: #ffffff;
+            --color-gray-50: #f8fafc;
+            --color-gray-100: #f1f5f9;
+            --color-gray-200: #e2e8f0;
+            --color-gray-300: #cbd5e1;
+            --color-gray-400: #94a3b8;
+            --color-gray-500: #64748b;
+            --color-gray-600: #475569;
+            --color-gray-700: #334155;
+            --color-gray-800: #1e293b;
+            --color-gray-900: #0f172a;
+
+            /* Brand Primary (Blue) */
+            --color-primary-50: #eff6ff;
+            --color-primary-100: #dbeafe;
+            --color-primary-500: #3b82f6;
+            --color-primary-600: #2563eb;
+            --color-primary-700: #1d4ed8;
+
+            /* Semantic Colors */
+            --color-success-50: #f0fdf4;
+            --color-success-600: #16a34a;
+            --color-success-700: #15803d;
+            --color-warning-50: #fffbeb;
+            --color-warning-600: #d97706;
+            --color-warning-700: #b45309;
+            --color-error-50: #fef2f2;
+            --color-error-600: #dc2626;
+            --color-info-50: #f0f9ff;
+            --color-info-600: #0284c7;
+
+            /* App Category Colors */
+            --color-video: #8b5cf6;
+            --color-image: #ec4899;
+            --color-audio: #14b8a6;
+            --color-text: #f59e0b;
+            --color-ai: #3b82f6;
+
+            /* Spacing */
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --space-8: 32px;
+            --space-10: 40px;
+            --space-12: 48px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+            --shadow-md: 0 2px 8px 0 rgba(15, 23, 42, 0.08);
+            --shadow-lg: 0 4px 16px 0 rgba(15, 23, 42, 0.10);
+            --shadow-xl: 0 8px 24px 0 rgba(15, 23, 42, 0.12);
+            --shadow-2xl: 0 16px 40px 0 rgba(15, 23, 42, 0.16);
+
+            /* Layout */
+            --sidebar-width: 240px;
+            --sidebar-collapsed: 64px;
+            --header-height: 64px;
+            --max-content-width: 1400px;
+
+            /* Animation */
+            --transition-fast: 0.1s;
+            --transition-normal: 0.15s;
+            --transition-slow: 0.2s;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--color-gray-50);
+            color: var(--color-gray-900);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ============================================
+           LAYOUT STRUCTURE
+           ============================================ */
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--color-white);
+            border-right: 1px solid var(--color-gray-200);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            z-index: 50;
+            transition: width var(--transition-normal) ease;
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed);
+        }
+
+        .sidebar-header {
+            padding: var(--space-6) var(--space-4);
+            border-bottom: 1px solid var(--color-gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: var(--header-height);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            letter-spacing: -0.02em;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-700));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .logo-text {
+            transition: opacity var(--transition-normal) ease;
+        }
+
+        .sidebar.collapsed .logo-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: var(--space-2);
+            color: var(--color-gray-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all var(--transition-normal) ease;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--color-gray-100);
+            color: var(--color-gray-900);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: var(--space-4);
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: 10px var(--space-3);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-gray-600);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all var(--transition-normal) ease;
+            margin-bottom: var(--space-1);
+            white-space: nowrap;
+        }
+
+        .nav-item:hover {
+            background: var(--color-gray-100);
+            color: var(--color-gray-900);
+        }
+
+        .nav-item.active {
+            background: var(--color-primary-50);
+            color: var(--color-primary-700);
+        }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .nav-item-text {
+            transition: opacity var(--transition-normal) ease;
+        }
+
+        .sidebar.collapsed .nav-item-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-footer {
+            padding: var(--space-4);
+            border-top: 1px solid var(--color-gray-200);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            transition: margin-left var(--transition-normal) ease;
+        }
+
+        .sidebar.collapsed ~ .main-content {
+            margin-left: var(--sidebar-collapsed);
+        }
+
+        /* Header */
+        .header {
+            height: var(--header-height);
+            background: var(--color-white);
+            border-bottom: 1px solid var(--color-gray-200);
+            padding: 0 var(--space-6);
+            display: flex;
+            align-items: center;
+            gap: var(--space-6);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 40px 0 40px;
+            border: 1px solid var(--color-gray-200);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--color-gray-50);
+            transition: all var(--transition-normal) ease;
+            font-family: inherit;
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: var(--color-white);
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px var(--color-primary-50);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-gray-400);
+            pointer-events: none;
+        }
+
+        .search-kbd {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 2px 6px;
+            background: var(--color-gray-100);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--color-gray-600);
+            pointer-events: none;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .header-btn {
+            position: relative;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: var(--space-2);
+            color: var(--color-gray-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all var(--transition-normal) ease;
+        }
+
+        .header-btn:hover {
+            background: var(--color-gray-100);
+            color: var(--color-gray-900);
+        }
+
+        .header-btn .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 8px;
+            height: 8px;
+            background: var(--color-error-600);
+            border-radius: 50%;
+            border: 2px solid var(--color-white);
+        }
+
+        .credits-badge {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: 8px 16px;
+            background: var(--color-gray-50);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-gray-900);
+            cursor: pointer;
+            transition: all var(--transition-normal) ease;
+        }
+
+        .credits-badge:hover {
+            background: var(--color-gray-100);
+            border-color: var(--color-gray-300);
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-btn {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: 6px;
+            background: var(--color-gray-50);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all var(--transition-normal) ease;
+        }
+
+        .user-btn:hover {
+            background: var(--color-gray-100);
+            border-color: var(--color-gray-300);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--color-gray-700);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Page Content */
+        .page-content {
+            padding: var(--space-8) var(--space-6);
+            max-width: var(--max-content-width);
+            margin: 0 auto;
+        }
+
+        /* ============================================
+           DASHBOARD SECTIONS
+           ============================================ */
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-6);
+            margin-bottom: var(--space-10);
+        }
+
+        .stat-card {
+            background: var(--color-white);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 12px;
+            padding: var(--space-6);
+            transition: all var(--transition-slow) ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--color-gray-300);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: var(--space-4);
+        }
+
+        .stat-icon.purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+        }
+
+        .stat-icon.blue {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+
+        .stat-icon.green {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .stat-icon.orange {
+            background: rgba(249, 115, 22, 0.1);
+            color: #f97316;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-1);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--color-gray-600);
+        }
+
+        /* Section Header */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-6);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            letter-spacing: -0.02em;
+        }
+
+        /* App Filters */
+        .app-filters {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-6);
+            overflow-x: auto;
+            padding-bottom: var(--space-2);
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--color-gray-200);
+            background: var(--color-white);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-gray-600);
+            cursor: pointer;
+            transition: all var(--transition-normal) ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .filter-btn:hover {
+            background: var(--color-gray-50);
+            border-color: var(--color-gray-300);
+        }
+
+        .filter-btn.active {
+            background: var(--color-primary-50);
+            border-color: var(--color-primary-500);
+            color: var(--color-primary-700);
+        }
+
+        .filter-count {
+            background: var(--color-gray-200);
+            color: var(--color-gray-700);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .filter-btn.active .filter-count {
+            background: var(--color-primary-200);
+            color: var(--color-primary-800);
+        }
+
+        /* App Grid */
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-6);
+            margin-bottom: var(--space-10);
+        }
+
+        .app-card {
+            background: var(--color-white);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 12px;
+            padding: var(--space-6);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-slow) ease;
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .app-card:hover {
+            border-color: var(--color-gray-300);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .app-card:active {
+            transform: translateY(0);
+        }
+
+        .app-card.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .app-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .app-badge {
+            position: absolute;
+            top: var(--space-3);
+            right: var(--space-3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .app-badge.beta {
+            background: var(--color-warning-50);
+            color: var(--color-warning-700);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+        }
+
+        .app-badge.new {
+            background: var(--color-success-50);
+            color: var(--color-success-700);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .app-badge.soon {
+            background: var(--color-gray-100);
+            color: var(--color-gray-600);
+            border: 1px solid var(--color-gray-200);
+        }
+
+        .app-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto var(--space-4);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .app-icon.video {
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--color-video);
+        }
+
+        .app-icon.image {
+            background: rgba(236, 72, 153, 0.1);
+            color: var(--color-image);
+        }
+
+        .app-icon.audio {
+            background: rgba(20, 184, 166, 0.1);
+            color: var(--color-audio);
+        }
+
+        .app-icon.text {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--color-text);
+        }
+
+        .app-icon.ai {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--color-ai);
+        }
+
+        .app-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-2);
+        }
+
+        .app-description {
+            font-size: 14px;
+            color: var(--color-gray-600);
+            line-height: 1.5;
+        }
+
+        /* Recent Work Section */
+        .recent-work-card {
+            background: var(--color-white);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 12px;
+            padding: var(--space-6);
+            margin-bottom: var(--space-6);
+        }
+
+        .work-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            padding: var(--space-4);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 8px;
+            margin-bottom: var(--space-3);
+            transition: all var(--transition-normal) ease;
+            cursor: pointer;
+        }
+
+        .work-item:hover {
+            background: var(--color-gray-50);
+            border-color: var(--color-gray-300);
+        }
+
+        .work-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .work-thumbnail {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            background: var(--color-gray-100);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .work-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .work-info {
+            flex: 1;
+        }
+
+        .work-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: var(--space-1);
+        }
+
+        .work-meta {
+            font-size: 13px;
+            color: var(--color-gray-600);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .work-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .work-status.success {
+            background: var(--color-success-50);
+            color: var(--color-success-700);
+        }
+
+        .work-status.processing {
+            background: var(--color-info-50);
+            color: var(--color-info-600);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-2);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all var(--transition-normal) ease;
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--color-primary-600);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-700);
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--color-white);
+            color: var(--color-gray-700);
+            border: 1px solid var(--color-gray-300);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-gray-50);
+            border-color: var(--color-gray-400);
+        }
+
+        /* Command Palette */
+        .command-palette-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            display: none;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .command-palette-overlay.active {
+            display: block;
+        }
+
+        .command-palette {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 640px;
+            max-width: 90vw;
+            max-height: 80vh;
+            background: var(--color-white);
+            border-radius: 12px;
+            box-shadow: var(--shadow-2xl);
+            overflow: hidden;
+            animation: scaleIn 0.2s ease;
+        }
+
+        .command-input-wrapper {
+            position: relative;
+            border-bottom: 1px solid var(--color-gray-200);
+        }
+
+        .command-input {
+            width: 100%;
+            height: 56px;
+            padding: 0 56px 0 20px;
+            border: none;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        .command-input:focus {
+            outline: none;
+        }
+
+        .command-results {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .command-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background var(--transition-fast) ease;
+        }
+
+        .command-item:hover,
+        .command-item.selected {
+            background: var(--color-gray-100);
+        }
+
+        .command-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 64px 24px;
+        }
+
+        .empty-state-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 24px;
+            color: var(--color-gray-300);
+        }
+
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-gray-900);
+            margin-bottom: 8px;
+        }
+
+        .empty-state-description {
+            font-size: 14px;
+            color: var(--color-gray-600);
+            margin-bottom: 24px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1439px) {
+            .app-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 1279px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 1023px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .app-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .app-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-bar {
+                max-width: none;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">L</div>
+                    <span class="logo-text">Lumiku</span>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    <span class="nav-item-text">Dashboard</span>
+                </a>
+
+                <a href="#apps" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+                    </svg>
+                    <span class="nav-item-text">Apps & Tools</span>
+                </a>
+
+                <a href="#projects" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span class="nav-item-text">Projects</span>
+                </a>
+
+                <a href="#mywork" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                        <polyline points="13 2 13 9 20 9"/>
+                    </svg>
+                    <span class="nav-item-text">My Work</span>
+                </a>
+
+                <a href="#credits" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                        <path d="M12 18V6"/>
+                    </svg>
+                    <span class="nav-item-text">Credits</span>
+                </a>
+
+                <a href="#settings" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6m6-12v6m-12 0v6m6-12h6m-6 6h6"/>
+                    </svg>
+                    <span class="nav-item-text">Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#help" class="nav-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <circle cx="12" cy="17" r="0.5"/>
+                    </svg>
+                    <span class="nav-item-text">Help Center</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="search-bar">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input
+                        type="text"
+                        class="search-input"
+                        placeholder="Search apps, projects, or press Ctrl+K..."
+                        id="headerSearch"
+                        onkeydown="handleSearchKeydown(event)"
+                    />
+                    <span class="search-kbd">⌘K</span>
+                </div>
+
+                <div class="header-actions">
+                    <button class="header-btn" title="Notifications">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        <span class="badge"></span>
+                    </button>
+
+                    <div class="credits-badge" onclick="window.location.href='#credits'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                        </svg>
+                        <span>2,450 Credits</span>
+                    </div>
+
+                    <div class="user-menu">
+                        <button class="user-btn">
+                            <div class="user-avatar">JD</div>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="page-content">
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value">1,245</div>
+                        <div class="stat-label">Credits Spent (This Month)</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value">347</div>
+                        <div class="stat-label">Total Works Generated</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value">28</div>
+                        <div class="stat-label">Active Projects</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </div>
+                        <div class="stat-value">2h ago</div>
+                        <div class="stat-label">Last Active</div>
+                    </div>
+                </div>
+
+                <!-- Apps & Tools Section -->
+                <section>
+                    <div class="section-header">
+                        <h2 class="section-title">Apps & Tools</h2>
+                        <button class="btn btn-secondary">View All</button>
+                    </div>
+
+                    <!-- Category Filters -->
+                    <div class="app-filters">
+                        <button class="filter-btn active" onclick="filterApps('all', event)">
+                            All Apps
+                            <span class="filter-count">28</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('video', event)">
+                            🎬 Video
+                            <span class="filter-count">8</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('image', event)">
+                            🎨 Image
+                            <span class="filter-count">12</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('audio', event)">
+                            🎵 Audio
+                            <span class="filter-count">3</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('text', event)">
+                            📝 Text
+                            <span class="filter-count">5</span>
+                        </button>
+                    </div>
+
+                    <!-- App Grid -->
+                    <div class="app-grid" id="appGrid">
+                        <!-- Video Apps -->
+                        <div class="app-card" data-category="video" onclick="openApp('video-mixer')">
+                            <span class="app-badge beta">Beta</span>
+                            <div class="app-icon video">🎬</div>
+                            <div class="app-name">Video Mixer</div>
+                            <div class="app-description">Mix and generate video variations with anti-fingerprinting</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('looping-flow')">
+                            <div class="app-icon video">🔄</div>
+                            <div class="app-name">Looping Flow</div>
+                            <div class="app-description">Create seamless looping videos for social media</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('video-editor')">
+                            <span class="app-badge new">New</span>
+                            <div class="app-icon video">✂️</div>
+                            <div class="app-name">Video Editor Pro</div>
+                            <div class="app-description">Advanced video editing with AI assistance</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('subtitle-gen')">
+                            <div class="app-icon video">💬</div>
+                            <div class="app-name">Subtitle Generator</div>
+                            <div class="app-description">Auto-generate subtitles with translation</div>
+                        </div>
+
+                        <!-- Image Apps -->
+                        <div class="app-card" data-category="image" onclick="openApp('avatar-creator')">
+                            <div class="app-icon image">👤</div>
+                            <div class="app-name">Avatar Creator</div>
+                            <div class="app-description">Generate AI avatars with persona management</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('avatar-flux')">
+                            <div class="app-icon image">⚡</div>
+                            <div class="app-name">Avatar Generator (Flux)</div>
+                            <div class="app-description">Quick avatar generation with Flux model</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('carousel-mix')">
+                            <span class="app-badge beta">Beta</span>
+                            <div class="app-icon image">🎨</div>
+                            <div class="app-name">Carousel Mix</div>
+                            <div class="app-description">Generate Instagram carousel variations</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('poster-editor')">
+                            <div class="app-icon image">🖼️</div>
+                            <div class="app-name">Poster Editor</div>
+                            <div class="app-description">AI-powered poster design and editing</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('bg-remover')">
+                            <div class="app-icon image">🎭</div>
+                            <div class="app-name">Background Remover</div>
+                            <div class="app-description">Remove backgrounds with precision</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('image-upscaler')">
+                            <div class="app-icon image">📐</div>
+                            <div class="app-name">Image Upscaler</div>
+                            <div class="app-description">Upscale images up to 4x resolution</div>
+                        </div>
+
+                        <!-- Text Apps -->
+                        <div class="app-card" data-category="text" onclick="openApp('caption-gen')">
+                            <div class="app-icon text">✍️</div>
+                            <div class="app-name">Caption Generator</div>
+                            <div class="app-description">Generate engaging captions for social media</div>
+                        </div>
+
+                        <div class="app-card" data-category="text" onclick="openApp('copy-writer')">
+                            <div class="app-icon text">📄</div>
+                            <div class="app-name">AI Copywriter</div>
+                            <div class="app-description">Write compelling copy for ads and content</div>
+                        </div>
+
+                        <!-- Audio Apps -->
+                        <div class="app-card" data-category="audio" onclick="openApp('voice-gen')">
+                            <div class="app-icon audio">🎙️</div>
+                            <div class="app-name">Voice Generator</div>
+                            <div class="app-description">Generate natural-sounding voiceovers</div>
+                        </div>
+
+                        <div class="app-card" data-category="audio" onclick="openApp('audio-enhance')">
+                            <div class="app-icon audio">🎧</div>
+                            <div class="app-name">Audio Enhancer</div>
+                            <div class="app-description">Enhance audio quality with AI</div>
+                        </div>
+
+                        <!-- Coming Soon -->
+                        <div class="app-card disabled" data-category="video">
+                            <span class="app-badge soon">Soon</span>
+                            <div class="app-icon video">🎥</div>
+                            <div class="app-name">Video Templates</div>
+                            <div class="app-description">Pre-made video templates library</div>
+                        </div>
+
+                        <div class="app-card disabled" data-category="image">
+                            <span class="app-badge soon">Soon</span>
+                            <div class="app-icon ai">🤖</div>
+                            <div class="app-name">AI Art Studio</div>
+                            <div class="app-description">Create unique AI-generated artwork</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recent Work Section -->
+                <section>
+                    <div class="section-header">
+                        <h2 class="section-title">Recent Work</h2>
+                        <button class="btn btn-secondary">View All</button>
+                    </div>
+
+                    <div class="recent-work-card">
+                        <div class="work-item">
+                            <div class="work-thumbnail">
+                                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                                    <rect width="80" height="80" fill="#e2e8f0"/>
+                                    <path d="M32 28L48 40L32 52V28Z" fill="#64748b"/>
+                                </svg>
+                            </div>
+                            <div class="work-info">
+                                <div class="work-title">Product Demo Video - Mixed Version 1</div>
+                                <div class="work-meta">
+                                    <span>Video Mixer</span>
+                                    <span>•</span>
+                                    <span>2 hours ago</span>
+                                    <span>•</span>
+                                    <span class="work-status success">
+                                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                                            <circle cx="6" cy="6" r="6"/>
+                                        </svg>
+                                        Completed
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary">Download</button>
+                        </div>
+
+                        <div class="work-item">
+                            <div class="work-thumbnail">
+                                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                                    <rect width="80" height="80" fill="#e2e8f0"/>
+                                    <rect x="20" y="20" width="40" height="40" rx="8" fill="#ec4899"/>
+                                </svg>
+                            </div>
+                            <div class="work-info">
+                                <div class="work-title">Avatar Set - Professional Style</div>
+                                <div class="work-meta">
+                                    <span>Avatar Creator</span>
+                                    <span>•</span>
+                                    <span>5 hours ago</span>
+                                    <span>•</span>
+                                    <span class="work-status success">
+                                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                                            <circle cx="6" cy="6" r="6"/>
+                                        </svg>
+                                        Completed
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary">Download</button>
+                        </div>
+
+                        <div class="work-item">
+                            <div class="work-thumbnail">
+                                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                                    <rect width="80" height="80" fill="#e2e8f0"/>
+                                    <rect x="15" y="25" width="50" height="30" rx="4" fill="#8b5cf6"/>
+                                </svg>
+                            </div>
+                            <div class="work-info">
+                                <div class="work-title">Instagram Carousel - Product Launch</div>
+                                <div class="work-meta">
+                                    <span>Carousel Mix</span>
+                                    <span>•</span>
+                                    <span>Yesterday</span>
+                                    <span>•</span>
+                                    <span class="work-status success">
+                                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                                            <circle cx="6" cy="6" r="6"/>
+                                        </svg>
+                                        Completed
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary">Download</button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Command Palette -->
+    <div class="command-palette-overlay" id="commandPalette" onclick="closeCommandPalette(event)">
+        <div class="command-palette" onclick="event.stopPropagation()">
+            <div class="command-input-wrapper">
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input
+                    type="text"
+                    class="command-input"
+                    placeholder="Search for apps, projects, or commands..."
+                    id="commandInput"
+                    oninput="filterCommandResults()"
+                    onkeydown="handleCommandKeydown(event)"
+                />
+            </div>
+            <div class="command-results" id="commandResults">
+                <!-- Results will be dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // SIDEBAR FUNCTIONALITY
+        // ============================================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        function setActive(event) {
+            event.preventDefault();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+        }
+
+        // ============================================
+        // APP FILTERING
+        // ============================================
+        function filterApps(category, event) {
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Filter app cards
+            const cards = document.querySelectorAll('.app-card');
+            cards.forEach(card => {
+                if (category === 'all' || card.dataset.category === category) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // ============================================
+        // COMMAND PALETTE
+        // ============================================
+        const commandData = [
+            { type: 'app', category: 'video', name: 'Video Mixer', icon: '🎬', action: 'video-mixer' },
+            { type: 'app', category: 'video', name: 'Looping Flow', icon: '🔄', action: 'looping-flow' },
+            { type: 'app', category: 'video', name: 'Video Editor Pro', icon: '✂️', action: 'video-editor' },
+            { type: 'app', category: 'video', name: 'Subtitle Generator', icon: '💬', action: 'subtitle-gen' },
+            { type: 'app', category: 'image', name: 'Avatar Creator', icon: '👤', action: 'avatar-creator' },
+            { type: 'app', category: 'image', name: 'Avatar Generator (Flux)', icon: '⚡', action: 'avatar-flux' },
+            { type: 'app', category: 'image', name: 'Carousel Mix', icon: '🎨', action: 'carousel-mix' },
+            { type: 'app', category: 'image', name: 'Poster Editor', icon: '🖼️', action: 'poster-editor' },
+            { type: 'app', category: 'image', name: 'Background Remover', icon: '🎭', action: 'bg-remover' },
+            { type: 'app', category: 'image', name: 'Image Upscaler', icon: '📐', action: 'image-upscaler' },
+            { type: 'app', category: 'text', name: 'Caption Generator', icon: '✍️', action: 'caption-gen' },
+            { type: 'app', category: 'text', name: 'AI Copywriter', icon: '📄', action: 'copy-writer' },
+            { type: 'app', category: 'audio', name: 'Voice Generator', icon: '🎙️', action: 'voice-gen' },
+            { type: 'app', category: 'audio', name: 'Audio Enhancer', icon: '🎧', action: 'audio-enhance' },
+            { type: 'page', name: 'Dashboard', icon: '📊', action: 'dashboard' },
+            { type: 'page', name: 'Projects', icon: '📁', action: 'projects' },
+            { type: 'page', name: 'My Work', icon: '💼', action: 'mywork' },
+            { type: 'page', name: 'Credits', icon: '💳', action: 'credits' },
+            { type: 'page', name: 'Settings', icon: '⚙️', action: 'settings' },
+        ];
+
+        let selectedCommandIndex = 0;
+
+        function openCommandPalette() {
+            const palette = document.getElementById('commandPalette');
+            const input = document.getElementById('commandInput');
+            palette.classList.add('active');
+            input.value = '';
+            input.focus();
+            filterCommandResults();
+        }
+
+        function closeCommandPalette(event) {
+            if (!event || event.target.id === 'commandPalette') {
+                document.getElementById('commandPalette').classList.remove('active');
+            }
+        }
+
+        function filterCommandResults() {
+            const input = document.getElementById('commandInput');
+            const query = input.value.toLowerCase();
+            const results = document.getElementById('commandResults');
+
+            const filtered = commandData.filter(item =>
+                item.name.toLowerCase().includes(query)
+            );
+
+            selectedCommandIndex = 0;
+
+            if (filtered.length === 0) {
+                results.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                        </div>
+                        <div class="empty-state-title">No results found</div>
+                        <div class="empty-state-description">Try searching for something else</div>
+                    </div>
+                `;
+                return;
+            }
+
+            results.innerHTML = filtered.map((item, index) => {
+                const iconClass = item.category ? item.category : 'ai';
+                return `
+                    <div class="command-item ${index === 0 ? 'selected' : ''}" onclick="executeCommand('${item.action}')">
+                        <div class="command-item-icon app-icon ${iconClass}">
+                            ${item.icon}
+                        </div>
+                        <div>
+                            <div class="app-name" style="text-align: left; margin-bottom: 2px;">${item.name}</div>
+                            <div class="app-description" style="text-align: left;">${item.type === 'app' ? 'Application' : 'Page'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function handleCommandKeydown(event) {
+            const results = document.querySelectorAll('.command-item');
+
+            if (event.key === 'Escape') {
+                closeCommandPalette();
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                selectedCommandIndex = Math.min(selectedCommandIndex + 1, results.length - 1);
+                updateSelectedCommand();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                selectedCommandIndex = Math.max(selectedCommandIndex - 1, 0);
+                updateSelectedCommand();
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                const selected = results[selectedCommandIndex];
+                if (selected) {
+                    selected.click();
+                }
+            }
+        }
+
+        function updateSelectedCommand() {
+            const results = document.querySelectorAll('.command-item');
+            results.forEach((item, index) => {
+                if (index === selectedCommandIndex) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        function executeCommand(action) {
+            console.log('Executing:', action);
+            closeCommandPalette();
+            openApp(action);
+        }
+
+        function handleSearchKeydown(event) {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                event.preventDefault();
+                openCommandPalette();
+            }
+        }
+
+        // Global keyboard shortcut
+        document.addEventListener('keydown', (event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                event.preventDefault();
+                openCommandPalette();
+            }
+        });
+
+        // ============================================
+        // APP NAVIGATION
+        // ============================================
+        function openApp(appId) {
+            console.log('Opening app:', appId);
+            alert(`Opening ${appId}...\n\nIn the real app, this would navigate to: /apps/${appId}`);
+        }
+
+        // Initialize command palette results on load
+        document.addEventListener('DOMContentLoaded', () => {
+            filterCommandResults();
+        });
+    </script>
+</body>
+</html>

@@ -1,11 +1,25 @@
+/**
+ * Video Mixer Worker
+ *
+ * BullMQ worker for processing video mixing jobs with:
+ * - Structured logging
+ * - Error handling with retries
+ * - Progress reporting
+ * - Graceful shutdown
+ * - Resource cleanup
+ */
+
 import { Worker, Job } from 'bullmq'
 import { redis } from '../lib/redis'
+import { logger } from '../lib/logger'
 import { FFmpegService } from '../lib/ffmpeg'
 import prisma from '../db/client'
 import path from 'path'
 import { randomBytes } from 'crypto'
 import { VideoMixerJob } from '../lib/queue'
 import fs from 'fs'
+
+const workerLogger = logger.child({ worker: 'video-mixer' })
 
 const ffmpegService = new FFmpegService()
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './uploads/outputs'
@@ -14,18 +28,23 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads'
 // Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true })
-  console.log(`✅ Output directory created: ${OUTPUT_DIR}`)
+  workerLogger.info('Output directory created', { path: OUTPUT_DIR })
 }
 
-const worker = new Worker<VideoMixerJob>(
-  'video-mixer',
-  async (job: Job<VideoMixerJob>) => {
-    const { generationId, projectId, settings, totalVideos } = job.data
+/**
+ * Safe job processor with error handling
+ */
+async function processVideoMixerJob(job: Job<VideoMixerJob>) {
+  const { generationId, projectId, settings, totalVideos } = job.data
 
-    console.log(`🎬 Processing generation: ${generationId}`)
-    console.log(`   Total videos to generate: ${totalVideos}`)
+  workerLogger.info('Processing generation', {
+    jobId: job.id,
+    generationId,
+    projectId,
+    totalVideos
+  })
 
-    try {
+  try {
       // Update status to processing
       await prisma.videoMixerGeneration.update({
         where: { id: generationId },
@@ -54,8 +73,11 @@ const worker = new Worker<VideoMixerJob>(
         throw new Error('No videos found in project')
       }
 
-      console.log(`   Source videos: ${project.videos.length}`)
-      console.log(`   Groups: ${project.groups.length}`)
+      workerLogger.info('Project loaded', {
+        generationId,
+        sourceVideos: project.videos.length,
+        groups: project.groups.length
+      })
 
       const outputPaths: string[] = []
 
@@ -291,7 +313,11 @@ const worker = new Worker<VideoMixerJob>(
 
       throw error
     }
-  },
+}
+
+const worker = new Worker<VideoMixerJob>(
+  'video-mixer',
+  processVideoMixerJob,
   {
     connection: redis ? redis : undefined,
     concurrency: 1, // Process one job at a time (CPU intensive)

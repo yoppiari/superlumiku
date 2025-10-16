@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Lumiku - AI-Powered Content Creation Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================
+           LUMIKU HYBRID RESPONSIVE DESIGN - 2025
+           Works Excellently on Desktop AND Smartphone
+           ============================================ */
+
+        /* CSS Reset & Base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Colors - Balanced Palette */
+            --color-white: #ffffff;
+            --color-background: #F8F9FA;
+            --color-surface: #FFFFFF;
+            --color-sidebar: #0F172A;
+
+            /* Text */
+            --color-text-primary: #1E293B;
+            --color-text-secondary: #64748B;
+            --color-text-tertiary: #94A3B8;
+
+            /* Brand Accent (Blue) */
+            --color-accent-primary: #3B82F6;
+            --color-accent-hover: #2563EB;
+            --color-accent-light: #DBEAFE;
+
+            /* Semantic */
+            --color-success: #10B981;
+            --color-warning: #F59E0B;
+            --color-error: #EF4444;
+
+            /* Category Colors */
+            --color-video: #8B5CF6;
+            --color-image: #EC4899;
+            --color-audio: #10B981;
+            --color-text: #F59E0B;
+            --color-ai: #3B82F6;
+
+            /* Borders */
+            --color-border-light: #E2E8F0;
+            --color-border-medium: #CBD5E1;
+
+            /* Desktop Spacing */
+            --space-desktop-container: 32px;
+            --space-desktop-card: 24px;
+            --space-desktop-gap: 24px;
+
+            /* Mobile Spacing */
+            --space-mobile-container: 16px;
+            --space-mobile-card: 16px;
+            --space-mobile-gap: 16px;
+
+            /* Layout */
+            --sidebar-width: 240px;
+            --header-height-desktop: 64px;
+            --header-height-mobile: 56px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+            --shadow-md: 0 2px 8px 0 rgba(15, 23, 42, 0.08);
+            --shadow-lg: 0 4px 16px 0 rgba(15, 23, 42, 0.10);
+            --shadow-xl: 0 8px 24px 0 rgba(15, 23, 42, 0.12);
+
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
+            --transition-slow: 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--color-background);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ============================================
+           DESKTOP LAYOUT (1024px+)
+           ============================================ */
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar - Desktop Only */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--color-sidebar);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform var(--transition-normal);
+        }
+
+        .sidebar-header {
+            height: var(--header-height-desktop);
+            padding: 20px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-hover));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-item.active {
+            background: var(--color-accent-primary);
+            color: white;
+        }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: background var(--transition-fast);
+        }
+
+        .user-profile:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--color-accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-email {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            transition: margin-left var(--transition-normal);
+        }
+
+        /* Header - Desktop */
+        .header {
+            height: var(--header-height-desktop);
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border-light);
+            padding: 0 var(--space-desktop-container);
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 40px 0 40px;
+            border: 1px solid var(--color-border-light);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--color-background);
+            transition: all var(--transition-fast);
+            font-family: inherit;
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: var(--color-white);
+            border-color: var(--color-accent-primary);
+            box-shadow: 0 0 0 3px var(--color-accent-light);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-tertiary);
+            pointer-events: none;
+        }
+
+        .search-kbd {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 2px 6px;
+            background: var(--color-background);
+            border: 1px solid var(--color-border-light);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            pointer-events: none;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .credits-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--color-background);
+            border: 1px solid var(--color-border-light);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .credits-badge:hover {
+            background: var(--color-surface);
+            border-color: var(--color-border-medium);
+        }
+
+        /* Mobile Menu Toggle - Hidden on Desktop */
+        .mobile-menu-toggle {
+            display: none;
+        }
+
+        /* Page Content */
+        .page-content {
+            padding: var(--space-desktop-container);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-desktop-gap);
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border-light);
+            border-radius: 12px;
+            padding: var(--space-desktop-card);
+            transition: all var(--transition-fast);
+        }
+
+        .stat-card:hover {
+            border-color: var(--color-border-medium);
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 24px;
+        }
+
+        .stat-icon.projects {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .stat-icon.works {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .stat-icon.folders {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .stat-icon.time {
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        /* Category Filters */
+        .category-filters {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .category-filters::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .category-filters::-webkit-scrollbar-thumb {
+            background: var(--color-border-medium);
+            border-radius: 2px;
+        }
+
+        .filter-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid var(--color-border-light);
+            background: var(--color-surface);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .filter-btn:hover {
+            background: var(--color-background);
+            border-color: var(--color-border-medium);
+        }
+
+        .filter-btn.active {
+            background: var(--color-accent-primary);
+            border-color: var(--color-accent-primary);
+            color: white;
+        }
+
+        .filter-count {
+            background: var(--color-background);
+            color: var(--color-text-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .filter-btn.active .filter-count {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        /* App Grid */
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-desktop-gap);
+        }
+
+        .app-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border-light);
+            border-radius: 12px;
+            padding: var(--space-desktop-card);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .app-card:hover {
+            border-color: var(--color-border-medium);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-4px);
+        }
+
+        .app-card:active {
+            transform: translateY(-2px);
+        }
+
+        .app-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .app-badge.beta {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--color-warning);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .app-badge.new {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--color-success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .app-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            transition: transform var(--transition-fast);
+        }
+
+        .app-card:hover .app-icon {
+            transform: scale(1.05);
+        }
+
+        .app-icon.video {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .app-icon.image {
+            background: rgba(236, 72, 153, 0.1);
+        }
+
+        .app-icon.audio {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .app-icon.text {
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .app-icon.ai {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .app-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 8px;
+        }
+
+        .app-description {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Command Palette */
+        .command-palette-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            display: none;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .command-palette-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .command-palette {
+            width: 640px;
+            max-width: 100%;
+            max-height: 80vh;
+            background: var(--color-surface);
+            border-radius: 12px;
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            animation: scaleIn 0.2s ease;
+        }
+
+        .command-input-wrapper {
+            position: relative;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+
+        .command-input {
+            width: 100%;
+            height: 56px;
+            padding: 0 56px 0 20px;
+            border: none;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        .command-input:focus {
+            outline: none;
+        }
+
+        .command-results {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .command-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background var(--transition-fast);
+        }
+
+        .command-item:hover,
+        .command-item.selected {
+            background: var(--color-background);
+        }
+
+        .command-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 20px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* ============================================
+           TABLET RESPONSIVE (768px - 1023px)
+           ============================================ */
+
+        @media (max-width: 1279px) {
+            .app-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 1023px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .app-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* ============================================
+           MOBILE RESPONSIVE (< 768px)
+           ============================================ */
+
+        @media (max-width: 767px) {
+            /* Hide desktop sidebar */
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            /* Full width content on mobile */
+            .main-content {
+                margin-left: 0;
+            }
+
+            /* Mobile Header */
+            .header {
+                height: var(--header-height-mobile);
+                padding: 0 var(--space-mobile-container);
+                gap: 12px;
+            }
+
+            /* Show mobile menu toggle */
+            .mobile-menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                background: none;
+                border: none;
+                color: var(--color-text-primary);
+                cursor: pointer;
+                padding: 0;
+                flex-shrink: 0;
+            }
+
+            /* Hide search bar label, show only icon on mobile */
+            .search-bar {
+                max-width: none;
+                flex: 1;
+            }
+
+            .search-kbd {
+                display: none;
+            }
+
+            /* Compact header actions */
+            .header-actions {
+                gap: 8px;
+            }
+
+            .credits-badge {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            /* Mobile Page Content */
+            .page-content {
+                padding: var(--space-mobile-container);
+            }
+
+            /* Mobile Stats Grid - 2 columns */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--space-mobile-gap);
+                margin-bottom: 24px;
+            }
+
+            .stat-card {
+                padding: var(--space-mobile-card);
+            }
+
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+                margin-bottom: 12px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+
+            .stat-label {
+                font-size: 13px;
+            }
+
+            /* Mobile Section */
+            .section {
+                margin-bottom: 32px;
+            }
+
+            .section-title {
+                font-size: 20px;
+            }
+
+            /* Mobile Category Filters */
+            .category-filters {
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+
+            .filter-btn {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+
+            /* Mobile App Grid - 2 columns */
+            .app-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--space-mobile-gap);
+            }
+
+            .app-card {
+                padding: var(--space-mobile-card);
+            }
+
+            .app-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 24px;
+                margin-bottom: 12px;
+            }
+
+            .app-name {
+                font-size: 14px;
+                margin-bottom: 4px;
+            }
+
+            .app-description {
+                font-size: 12px;
+                display: none; /* Hide on mobile for compact layout */
+            }
+
+            .app-badge {
+                top: 8px;
+                right: 8px;
+                padding: 3px 6px;
+                font-size: 9px;
+            }
+
+            /* Mobile Command Palette */
+            .command-palette {
+                margin: 20px;
+                max-height: calc(100vh - 40px);
+            }
+
+            .command-input {
+                height: 48px;
+            }
+
+            .command-item {
+                padding: 10px;
+            }
+
+            .command-item-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+        }
+
+        /* Mobile Overlay */
+        .mobile-sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 90;
+            display: none;
+        }
+
+        .mobile-sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Touch-friendly targets on mobile */
+        @media (max-width: 767px) {
+            .app-card,
+            .filter-btn,
+            .nav-item,
+            .stat-card {
+                min-height: 44px; /* iOS minimum touch target */
+            }
+
+            .app-card {
+                min-height: auto; /* Override for app cards */
+                padding: 14px; /* Ensure adequate touch area */
+            }
+        }
+
+        /* Small Mobile (< 375px) */
+        @media (max-width: 374px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-title {
+                font-size: 18px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Sidebar Overlay -->
+    <div class="mobile-sidebar-overlay" id="mobileSidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation (Desktop: Always Visible | Mobile: Slide-in) -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="#" class="logo">
+                    <div class="logo-icon">L</div>
+                    <span>Lumiku</span>
+                </a>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+
+                <a href="#apps" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+                    </svg>
+                    <span>Apps & Tools</span>
+                </a>
+
+                <a href="#projects" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>Projects</span>
+                </a>
+
+                <a href="#mywork" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                        <polyline points="13 2 13 9 20 9"/>
+                    </svg>
+                    <span>My Work</span>
+                </a>
+
+                <a href="#credits" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                        <path d="M12 18V6"/>
+                    </svg>
+                    <span>Credits</span>
+                </a>
+
+                <a href="#settings" class="nav-item" onclick="setActive(event)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6"/>
+                    </svg>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">JD</div>
+                    <div class="user-info">
+                        <div class="user-name">John Doe</div>
+                        <div class="user-email">john@example.com</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <!-- Mobile Menu Toggle (Hidden on Desktop) -->
+                <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()" aria-label="Toggle menu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+
+                <!-- Search Bar -->
+                <div class="search-bar">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input
+                        type="text"
+                        class="search-input"
+                        placeholder="Search apps..."
+                        id="headerSearch"
+                        onkeydown="handleSearchKeydown(event)"
+                    />
+                    <span class="search-kbd">⌘K</span>
+                </div>
+
+                <!-- Header Actions -->
+                <div class="header-actions">
+                    <div class="credits-badge" onclick="window.location.href='#credits'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                        </svg>
+                        <span>2,450</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="page-content">
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon projects">💼</div>
+                        <div class="stat-value">28</div>
+                        <div class="stat-label">Active Projects</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon works">🎨</div>
+                        <div class="stat-value">347</div>
+                        <div class="stat-label">Works Generated</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon folders">📁</div>
+                        <div class="stat-value">1,245</div>
+                        <div class="stat-label">Credits Spent</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon time">⏱️</div>
+                        <div class="stat-value">2h ago</div>
+                        <div class="stat-label">Last Active</div>
+                    </div>
+                </div>
+
+                <!-- Apps & Tools Section -->
+                <section class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Apps & Tools</h2>
+                    </div>
+
+                    <!-- Category Filters -->
+                    <div class="category-filters">
+                        <button class="filter-btn active" onclick="filterApps('all', event)">
+                            All Apps
+                            <span class="filter-count">30</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('video', event)">
+                            🎬 Video
+                            <span class="filter-count">8</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('image', event)">
+                            🎨 Image
+                            <span class="filter-count">12</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('audio', event)">
+                            🎵 Audio
+                            <span class="filter-count">5</span>
+                        </button>
+                        <button class="filter-btn" onclick="filterApps('text', event)">
+                            📝 Text
+                            <span class="filter-count">5</span>
+                        </button>
+                    </div>
+
+                    <!-- App Grid -->
+                    <div class="app-grid" id="appGrid">
+                        <!-- Video Apps -->
+                        <div class="app-card" data-category="video" onclick="openApp('video-mixer')">
+                            <span class="app-badge beta">Beta</span>
+                            <div class="app-icon video">🎬</div>
+                            <div class="app-name">Video Mixer</div>
+                            <div class="app-description">Mix and generate video variations</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('looping-flow')">
+                            <div class="app-icon video">🔄</div>
+                            <div class="app-name">Looping Flow</div>
+                            <div class="app-description">Create seamless looping videos</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('video-editor')">
+                            <span class="app-badge new">New</span>
+                            <div class="app-icon video">✂️</div>
+                            <div class="app-name">Video Editor Pro</div>
+                            <div class="app-description">Advanced video editing with AI</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('subtitle-gen')">
+                            <div class="app-icon video">💬</div>
+                            <div class="app-name">Subtitle Generator</div>
+                            <div class="app-description">Auto-generate subtitles</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('video-trim')">
+                            <div class="app-icon video">📏</div>
+                            <div class="app-name">Video Trimmer</div>
+                            <div class="app-description">Trim and cut videos precisely</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('video-merge')">
+                            <div class="app-icon video">🔗</div>
+                            <div class="app-name">Video Merger</div>
+                            <div class="app-description">Merge multiple videos</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('video-compress')">
+                            <div class="app-icon video">📦</div>
+                            <div class="app-name">Video Compressor</div>
+                            <div class="app-description">Compress videos efficiently</div>
+                        </div>
+
+                        <div class="app-card" data-category="video" onclick="openApp('video-watermark')">
+                            <div class="app-icon video">©️</div>
+                            <div class="app-name">Watermark Tool</div>
+                            <div class="app-description">Add watermarks to videos</div>
+                        </div>
+
+                        <!-- Image Apps -->
+                        <div class="app-card" data-category="image" onclick="openApp('avatar-creator')">
+                            <div class="app-icon image">👤</div>
+                            <div class="app-name">Avatar Creator</div>
+                            <div class="app-description">Generate AI avatars</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('avatar-flux')">
+                            <div class="app-icon image">⚡</div>
+                            <div class="app-name">Avatar Flux</div>
+                            <div class="app-description">Quick avatar generation</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('pose-generator')">
+                            <span class="app-badge new">New</span>
+                            <div class="app-icon image">🧘</div>
+                            <div class="app-name">Pose Generator</div>
+                            <div class="app-description">Generate character poses</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('carousel-mix')">
+                            <span class="app-badge beta">Beta</span>
+                            <div class="app-icon image">🎨</div>
+                            <div class="app-name">Carousel Mix</div>
+                            <div class="app-description">Instagram carousel maker</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('poster-editor')">
+                            <div class="app-icon image">🖼️</div>
+                            <div class="app-name">Poster Editor</div>
+                            <div class="app-description">AI-powered poster design</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('bg-remover')">
+                            <div class="app-icon image">🎭</div>
+                            <div class="app-name">BG Remover</div>
+                            <div class="app-description">Remove backgrounds</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('image-upscaler')">
+                            <div class="app-icon image">📐</div>
+                            <div class="app-name">Image Upscaler</div>
+                            <div class="app-description">Upscale images to 4K</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('image-enhance')">
+                            <div class="app-icon image">✨</div>
+                            <div class="app-name">Image Enhancer</div>
+                            <div class="app-description">Enhance image quality</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('color-correct')">
+                            <div class="app-icon image">🌈</div>
+                            <div class="app-name">Color Corrector</div>
+                            <div class="app-description">Auto color correction</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('filter-studio')">
+                            <div class="app-icon image">🎞️</div>
+                            <div class="app-name">Filter Studio</div>
+                            <div class="app-description">Apply artistic filters</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('collage-maker')">
+                            <div class="app-icon image">🖌️</div>
+                            <div class="app-name">Collage Maker</div>
+                            <div class="app-description">Create photo collages</div>
+                        </div>
+
+                        <div class="app-card" data-category="image" onclick="openApp('meme-generator')">
+                            <div class="app-icon image">😂</div>
+                            <div class="app-name">Meme Generator</div>
+                            <div class="app-description">Create viral memes</div>
+                        </div>
+
+                        <!-- Text Apps -->
+                        <div class="app-card" data-category="text" onclick="openApp('caption-gen')">
+                            <div class="app-icon text">✍️</div>
+                            <div class="app-name">Caption AI</div>
+                            <div class="app-description">Generate captions</div>
+                        </div>
+
+                        <div class="app-card" data-category="text" onclick="openApp('copy-writer')">
+                            <div class="app-icon text">📄</div>
+                            <div class="app-name">AI Copywriter</div>
+                            <div class="app-description">Write compelling copy</div>
+                        </div>
+
+                        <div class="app-card" data-category="text" onclick="openApp('hashtag-gen')">
+                            <div class="app-icon text">#️⃣</div>
+                            <div class="app-name">Hashtag Generator</div>
+                            <div class="app-description">Generate trending hashtags</div>
+                        </div>
+
+                        <div class="app-card" data-category="text" onclick="openApp('script-writer')">
+                            <div class="app-icon text">🎭</div>
+                            <div class="app-name">Script Writer</div>
+                            <div class="app-description">Write video scripts</div>
+                        </div>
+
+                        <div class="app-card" data-category="text" onclick="openApp('translation')">
+                            <div class="app-icon text">🌍</div>
+                            <div class="app-name">AI Translator</div>
+                            <div class="app-description">Translate to 100+ languages</div>
+                        </div>
+
+                        <!-- Audio Apps -->
+                        <div class="app-card" data-category="audio" onclick="openApp('voice-gen')">
+                            <div class="app-icon audio">🎙️</div>
+                            <div class="app-name">Voice Generator</div>
+                            <div class="app-description">Generate voiceovers</div>
+                        </div>
+
+                        <div class="app-card" data-category="audio" onclick="openApp('audio-enhance')">
+                            <div class="app-icon audio">🎧</div>
+                            <div class="app-name">Audio Enhancer</div>
+                            <div class="app-description">Enhance audio quality</div>
+                        </div>
+
+                        <div class="app-card" data-category="audio" onclick="openApp('music-gen')">
+                            <span class="app-badge beta">Beta</span>
+                            <div class="app-icon audio">🎵</div>
+                            <div class="app-name">Music Generator</div>
+                            <div class="app-description">Generate background music</div>
+                        </div>
+
+                        <div class="app-card" data-category="audio" onclick="openApp('noise-remover')">
+                            <div class="app-icon audio">🔇</div>
+                            <div class="app-name">Noise Remover</div>
+                            <div class="app-description">Remove background noise</div>
+                        </div>
+
+                        <div class="app-card" data-category="audio" onclick="openApp('audio-trim')">
+                            <div class="app-icon audio">🔪</div>
+                            <div class="app-name">Audio Trimmer</div>
+                            <div class="app-description">Trim and cut audio</div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Command Palette -->
+    <div class="command-palette-overlay" id="commandPalette" onclick="closeCommandPalette(event)">
+        <div class="command-palette" onclick="event.stopPropagation()">
+            <div class="command-input-wrapper">
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input
+                    type="text"
+                    class="command-input"
+                    placeholder="Search for apps..."
+                    id="commandInput"
+                    oninput="filterCommandResults()"
+                    onkeydown="handleCommandKeydown(event)"
+                />
+            </div>
+            <div class="command-results" id="commandResults"></div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // MOBILE SIDEBAR FUNCTIONALITY
+        // ============================================
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileSidebarOverlay');
+
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+
+            // Prevent body scroll when sidebar is open
+            if (sidebar.classList.contains('mobile-open')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileSidebarOverlay');
+
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function setActive(event) {
+            event.preventDefault();
+
+            // Update active state
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            // Close mobile sidebar on navigation
+            if (window.innerWidth < 768) {
+                closeMobileSidebar();
+            }
+        }
+
+        // ============================================
+        // APP FILTERING
+        // ============================================
+        function filterApps(category, event) {
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Filter app cards
+            const cards = document.querySelectorAll('.app-card');
+            cards.forEach(card => {
+                if (category === 'all' || card.dataset.category === category) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // ============================================
+        // COMMAND PALETTE
+        // ============================================
+        const commandData = [
+            { category: 'video', name: 'Video Mixer', icon: '🎬', action: 'video-mixer' },
+            { category: 'video', name: 'Looping Flow', icon: '🔄', action: 'looping-flow' },
+            { category: 'video', name: 'Video Editor Pro', icon: '✂️', action: 'video-editor' },
+            { category: 'video', name: 'Subtitle Generator', icon: '💬', action: 'subtitle-gen' },
+            { category: 'video', name: 'Video Trimmer', icon: '📏', action: 'video-trim' },
+            { category: 'video', name: 'Video Merger', icon: '🔗', action: 'video-merge' },
+            { category: 'video', name: 'Video Compressor', icon: '📦', action: 'video-compress' },
+            { category: 'video', name: 'Watermark Tool', icon: '©️', action: 'video-watermark' },
+            { category: 'image', name: 'Avatar Creator', icon: '👤', action: 'avatar-creator' },
+            { category: 'image', name: 'Avatar Flux', icon: '⚡', action: 'avatar-flux' },
+            { category: 'image', name: 'Pose Generator', icon: '🧘', action: 'pose-generator' },
+            { category: 'image', name: 'Carousel Mix', icon: '🎨', action: 'carousel-mix' },
+            { category: 'image', name: 'Poster Editor', icon: '🖼️', action: 'poster-editor' },
+            { category: 'image', name: 'BG Remover', icon: '🎭', action: 'bg-remover' },
+            { category: 'image', name: 'Image Upscaler', icon: '📐', action: 'image-upscaler' },
+            { category: 'image', name: 'Image Enhancer', icon: '✨', action: 'image-enhance' },
+            { category: 'image', name: 'Color Corrector', icon: '🌈', action: 'color-correct' },
+            { category: 'image', name: 'Filter Studio', icon: '🎞️', action: 'filter-studio' },
+            { category: 'image', name: 'Collage Maker', icon: '🖌️', action: 'collage-maker' },
+            { category: 'image', name: 'Meme Generator', icon: '😂', action: 'meme-generator' },
+            { category: 'text', name: 'Caption AI', icon: '✍️', action: 'caption-gen' },
+            { category: 'text', name: 'AI Copywriter', icon: '📄', action: 'copy-writer' },
+            { category: 'text', name: 'Hashtag Generator', icon: '#️⃣', action: 'hashtag-gen' },
+            { category: 'text', name: 'Script Writer', icon: '🎭', action: 'script-writer' },
+            { category: 'text', name: 'AI Translator', icon: '🌍', action: 'translation' },
+            { category: 'audio', name: 'Voice Generator', icon: '🎙️', action: 'voice-gen' },
+            { category: 'audio', name: 'Audio Enhancer', icon: '🎧', action: 'audio-enhance' },
+            { category: 'audio', name: 'Music Generator', icon: '🎵', action: 'music-gen' },
+            { category: 'audio', name: 'Noise Remover', icon: '🔇', action: 'noise-remover' },
+            { category: 'audio', name: 'Audio Trimmer', icon: '🔪', action: 'audio-trim' },
+        ];
+
+        let selectedCommandIndex = 0;
+
+        function openCommandPalette() {
+            const palette = document.getElementById('commandPalette');
+            const input = document.getElementById('commandInput');
+            palette.classList.add('active');
+            input.value = '';
+            input.focus();
+            filterCommandResults();
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCommandPalette(event) {
+            if (!event || event.target.id === 'commandPalette') {
+                document.getElementById('commandPalette').classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function filterCommandResults() {
+            const input = document.getElementById('commandInput');
+            const query = input.value.toLowerCase();
+            const results = document.getElementById('commandResults');
+
+            const filtered = commandData.filter(item =>
+                item.name.toLowerCase().includes(query)
+            );
+
+            selectedCommandIndex = 0;
+
+            if (filtered.length === 0) {
+                results.innerHTML = `
+                    <div style="text-align: center; padding: 48px 24px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 8px;">No results found</div>
+                        <div style="font-size: 14px; color: var(--color-text-secondary);">Try searching for something else</div>
+                    </div>
+                `;
+                return;
+            }
+
+            results.innerHTML = filtered.map((item, index) => `
+                <div class="command-item ${index === 0 ? 'selected' : ''}" onclick="executeCommand('${item.action}')">
+                    <div class="command-item-icon app-icon ${item.category}">
+                        ${item.icon}
+                    </div>
+                    <div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 2px;">${item.name}</div>
+                        <div style="font-size: 12px; color: var(--color-text-secondary);">${item.category.charAt(0).toUpperCase() + item.category.slice(1)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function handleCommandKeydown(event) {
+            const results = document.querySelectorAll('.command-item');
+
+            if (event.key === 'Escape') {
+                closeCommandPalette();
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                selectedCommandIndex = Math.min(selectedCommandIndex + 1, results.length - 1);
+                updateSelectedCommand();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                selectedCommandIndex = Math.max(selectedCommandIndex - 1, 0);
+                updateSelectedCommand();
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                const selected = results[selectedCommandIndex];
+                if (selected) {
+                    selected.click();
+                }
+            }
+        }
+
+        function updateSelectedCommand() {
+            const results = document.querySelectorAll('.command-item');
+            results.forEach((item, index) => {
+                if (index === selectedCommandIndex) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        function executeCommand(action) {
+            closeCommandPalette();
+            openApp(action);
+        }
+
+        function handleSearchKeydown(event) {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                event.preventDefault();
+                openCommandPalette();
+            }
+        }
+
+        // Global keyboard shortcut
+        document.addEventListener('keydown', (event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                event.preventDefault();
+                openCommandPalette();
+            }
+        });
+
+        // ============================================
+        // APP NAVIGATION
+        // ============================================
+        function openApp(appId) {
+            console.log('Opening app:', appId);
+            alert(`Opening ${appId}...\n\nIn production, this would navigate to:\n/apps/${appId}`);
+        }
+
+        // Initialize command palette results on load
+        document.addEventListener('DOMContentLoaded', () => {
+            filterCommandResults();
+        });
+
+        // Close mobile sidebar when resizing to desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) {
+                closeMobileSidebar();
+            }
+        });
+    </script>
+</body>
+</html>

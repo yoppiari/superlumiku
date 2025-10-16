@@ -1,0 +1,71 @@
+═══════════════════════════════════════════════════════════
+  COOLIFY TERMINAL - COPY & PASTE THESE COMMANDS
+═══════════════════════════════════════════════════════════
+
+✅ FIXED: Unique constraint error resolved
+📦 Commit: a7c1fa5 - AI models seed fix deployed
+⏰ Wait for build to complete (2-5 minutes)
+
+
+🔹 STEP 1: Navigate to backend
+═══════════════════════════════════════════════════════════
+
+cd /app/backend
+
+
+🔹 STEP 2: Run seed command
+═══════════════════════════════════════════════════════════
+
+bun prisma/seed.ts
+
+
+🔹 EXPECTED OUTPUT:
+═══════════════════════════════════════════════════════════
+
+🌱 Starting database seeding...
+=====================================
+
+🌱 Seeding subscription plans...
+✅ Seeded 5 subscription plans
+
+🌱 Seeding AI models...
+✅ Seeded 13 AI models          <-- Should see this!
+
+🌱 Creating test user...
+✅ Created test user: test@lumiku.com
+
+=====================================
+✅ Database seeding completed successfully!
+
+
+🔹 STEP 3: Verify Avatar Creator models
+═══════════════════════════════════════════════════════════
+
+cd /app
+node check-existing-models.js
+
+
+🔹 STEP 4: Restart application
+═══════════════════════════════════════════════════════════
+
+In Coolify UI, click "Restart" button
+
+
+🔹 STEP 5: Test dashboard
+═══════════════════════════════════════════════════════════
+
+Open: https://dev.lumiku.com/dashboard
+
+✅ Should see 3 apps (no Page Error)
+✅ Avatar Creator visible with purple icon
+
+
+═══════════════════════════════════════════════════════════
+
+🎉 All models fixed:
+   - flux-dev-base (free) - 8 credits
+   - flux-dev-realism (basic) - 12 credits
+   - flux-dev-hd-realism (pro) - 15 credits
+   - flux-schnell-fast (basic) - 6 credits
+
+═══════════════════════════════════════════════════════════
