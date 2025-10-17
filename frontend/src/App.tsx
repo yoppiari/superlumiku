@@ -15,6 +15,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Credits = lazy(() => import('./pages/Credits'))
 const MyWork = lazy(() => import('./pages/MyWork'))
+const HeaderDemo = lazy(() => import('./pages/HeaderDemo'))
 const VideoMixer = lazy(() => import('./apps/VideoMixer'))
 const CarouselMix = lazy(() => import('./apps/CarouselMix'))
 const LoopingFlow = lazy(() => import('./apps/LoopingFlow'))
@@ -90,6 +91,14 @@ function AppContent() {
           element={
             <ErrorBoundary level="page">
               <Credits />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/header-demo"
+          element={
+            <ErrorBoundary level="page">
+              <HeaderDemo />
             </ErrorBoundary>
           }
         />
