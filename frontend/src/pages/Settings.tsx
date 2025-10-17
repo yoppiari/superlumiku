@@ -63,9 +63,13 @@ export default function Settings() {
     try {
       setLoadingDevices(true)
       const response = await api.get('/api/devices')
-      setDevices(response.data.devices)
+      // Backend returns { success: true, data: { devices: [...] } }
+      // Ensure devices is always an array, even if API response is malformed
+      setDevices(response.data?.data?.devices || [])
     } catch (error) {
       console.error('Failed to load devices:', error)
+      // Set empty array on error to prevent undefined errors
+      setDevices([])
     } finally {
       setLoadingDevices(false)
     }
