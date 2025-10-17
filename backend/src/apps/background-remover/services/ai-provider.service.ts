@@ -1,18 +1,16 @@
 import axios from 'axios'
 import { BackgroundRemovalTier, AIProcessingResult } from '../types'
 import backgroundRemoverConfig from '../plugin.config'
-import FormData from 'form-data'
 
 /**
- * AIProviderService - HuggingFace + Segmind API integration
+ * AIProviderService - HuggingFace API integration
+ * All tiers (Basic, Standard, Professional, Industry) use HuggingFace models
  */
 class AIProviderService {
   private hfApiKey: string
-  private segmindApiKey: string
 
   constructor() {
     this.hfApiKey = process.env.HUGGINGFACE_API_KEY || ''
-    this.segmindApiKey = process.env.SEGMIND_API_KEY || ''
 
     if (!this.hfApiKey) {
       throw new Error('HUGGINGFACE_API_KEY is required')
@@ -21,6 +19,7 @@ class AIProviderService {
 
   /**
    * Remove background from image using specified tier
+   * All tiers use HuggingFace models (RMBG-1.4 or RMBG-2.0)
    */
   async removeBackground(
     imageBuffer: Buffer,
@@ -34,21 +33,11 @@ class AIProviderService {
     }
 
     try {
-      let processedBuffer: Buffer
-
-      if (tierConfig.aiProvider === 'huggingface') {
-        processedBuffer = await this.removeBackgroundHuggingFace(
-          imageBuffer,
-          tierConfig.modelName
-        )
-      } else if (tierConfig.aiProvider === 'segmind') {
-        processedBuffer = await this.removeBackgroundSegmind(
-          imageBuffer,
-          tierConfig.modelName
-        )
-      } else {
-        throw new Error(`Unknown AI provider: ${tierConfig.aiProvider}`)
-      }
+      // All tiers use HuggingFace - simplified logic
+      const processedBuffer = await this.removeBackgroundHuggingFace(
+        imageBuffer,
+        tierConfig.modelName
+      )
 
       const processingTime = Date.now() - startTime
 
@@ -78,6 +67,7 @@ class AIProviderService {
 
   /**
    * Remove background using HuggingFace (RMBG-1.4, RMBG-2.0)
+   * Used by all tiers: Basic, Standard, Professional, Industry
    */
   private async removeBackgroundHuggingFace(
     imageBuffer: Buffer,
@@ -134,57 +124,6 @@ class AIProviderService {
   }
 
   /**
-   * Remove background using Segmind (BiRefNet-General, BiRefNet-Portrait)
-   */
-  private async removeBackgroundSegmind(
-    imageBuffer: Buffer,
-    modelName: string
-  ): Promise<Buffer> {
-    if (!this.segmindApiKey) {
-      throw new Error('SEGMIND_API_KEY is required for Professional/Industry tiers')
-    }
-
-    try {
-      // Segmind BiRefNet API
-      const endpoint = modelName === 'BiRefNet-Portrait'
-        ? 'https://api.segmind.com/v1/birefnet-portrait'
-        : 'https://api.segmind.com/v1/birefnet-general'
-
-      const formData = new FormData()
-      formData.append('image', imageBuffer, { filename: 'image.png' })
-      formData.append('refine_foreground', 'true')
-      formData.append('output_format', 'png')
-
-      const response = await axios.post(endpoint, formData, {
-        headers: {
-          'x-api-key': this.segmindApiKey,
-          ...formData.getHeaders(),
-        },
-        responseType: 'arraybuffer',
-        timeout: 90000, // 1.5 minutes
-      })
-
-      return Buffer.from(response.data)
-    } catch (error: any) {
-      // Handle rate limit
-      if (error.response?.status === 429) {
-        throw new Error('Segmind rate limit exceeded')
-      }
-
-      // Handle API errors
-      if (error.response?.status === 400) {
-        throw new Error('Invalid image format')
-      }
-
-      if (error.response?.status === 401) {
-        throw new Error('Invalid Segmind API key')
-      }
-
-      throw error
-    }
-  }
-
-  /**
    * Validate image before processing
    */
   validateImage(imageBuffer: Buffer): { valid: boolean; error?: string } {
@@ -213,22 +152,13 @@ class AIProviderService {
   }
 
   /**
-   * Check if tier requires Segmind API
-   */
-  requiresSegmind(tier: BackgroundRemovalTier): boolean {
-    return tier === 'professional' || tier === 'industry'
-  }
-
-  /**
-   * Health check for AI providers
+   * Health check for HuggingFace API
    */
   async healthCheck(): Promise<{
     huggingface: boolean
-    segmind: boolean
   }> {
     const checks = {
       huggingface: false,
-      segmind: false,
     }
 
     // Check HuggingFace
@@ -242,21 +172,6 @@ class AIProviderService {
       checks.huggingface = true
     } catch (error) {
       console.error('HuggingFace health check failed')
-    }
-
-    // Check Segmind
-    if (this.segmindApiKey) {
-      try {
-        await axios.get('https://api.segmind.com/v1/health', {
-          headers: {
-            'x-api-key': this.segmindApiKey,
-          },
-          timeout: 10000,
-        })
-        checks.segmind = true
-      } catch (error) {
-        console.error('Segmind health check failed')
-      }
     }
 
     return checks

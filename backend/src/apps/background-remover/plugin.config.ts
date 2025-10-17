@@ -13,11 +13,11 @@ export const backgroundRemoverConfig: PluginConfig = {
 
   // Credits (per tier)
   credits: {
-    // Tier pricing
+    // Tier pricing (all tiers use HuggingFace)
     basic: 3,           // RMBG-1.4
     standard: 8,        // RMBG-2.0
-    professional: 15,   // BiRefNet-General
-    industry: 25,       // BiRefNet-Portrait
+    professional: 15,   // RMBG-2.0 (priority processing)
+    industry: 25,       // RMBG-2.0 (premium quality)
 
     // Subscription plans (monthly, Rupiah)
     subscriptionStarter: 99000,
@@ -70,18 +70,18 @@ export const backgroundRemoverConfig: PluginConfig = {
     professional: {
       name: 'Professional',
       credits: 15,
-      aiProvider: 'segmind',
-      modelName: 'BiRefNet-General',
-      description: 'High-precision removal with edge refinement',
-      processingTime: '10-15 seconds',
+      aiProvider: 'huggingface',
+      modelName: 'briaai/RMBG-2.0',
+      description: 'High-precision removal with priority processing',
+      processingTime: '5-10 seconds',
     },
     industry: {
       name: 'Industry',
       credits: 25,
-      aiProvider: 'segmind',
-      modelName: 'BiRefNet-Portrait',
-      description: 'Premium quality for portraits and products',
-      processingTime: '15-20 seconds',
+      aiProvider: 'huggingface',
+      modelName: 'briaai/RMBG-2.0',
+      description: 'Premium quality with highest priority',
+      processingTime: '5-10 seconds',
     },
   },
 
