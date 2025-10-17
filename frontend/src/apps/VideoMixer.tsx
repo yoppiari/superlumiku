@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuthStore } from '../stores/authStore'
-import ProfileDropdown from '../components/ProfileDropdown'
+import UnifiedHeader from '../components/UnifiedHeader'
 import {
   Video, Plus, Trash2, FolderPlus, Upload, Shuffle,
-  ArrowLeft, Settings, Grid3x3, List, Film, Clock, HardDrive,
+  Settings, Grid3x3, List, Film, Clock, HardDrive,
   Download, RotateCw, Info, Volume2,
-  Archive, ChevronLeft, ChevronRight, Coins
+  Archive, ChevronLeft, ChevronRight
 } from 'lucide-react'
 
 // Download Section Component
@@ -638,39 +638,18 @@ export default function VideoMixer() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1920px] mx-auto px-6 md:px-10 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-                  <Video className="w-5 h-5" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">Video Mixer</h1>
-                  <p className="text-sm md:text-[0.9375rem] text-slate-600">Mix & generate video combinations</p>
-                </div>
-              </div>
-            </div>
+      <UnifiedHeader
+        title="Video Mixer"
+        subtitle="Mix & generate video combinations"
+        icon={<Video className="w-5 h-5" />}
+        iconColor="bg-blue-50 text-blue-700"
+        showBackButton={true}
+        backPath="/dashboard"
+        currentAppId="video-mixer"
+        actions={null}
+      />
 
-            <div className="flex items-center gap-4 md:gap-6">
-              <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
-                <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
-                <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
-              </div>
-              <ProfileDropdown />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-[1920px] mx-auto p-6">
+      <div className="max-w-[1400px] mx-auto p-6">
         <div className="grid grid-cols-12 gap-6">
           {/* Projects Sidebar */}
           <div className="col-span-3">

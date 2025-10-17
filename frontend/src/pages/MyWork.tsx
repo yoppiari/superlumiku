@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import { creditsService, generationService } from '../services'
+import { generationService } from '../services'
 import { handleApiError } from '../lib/errorHandler'
-import ProfileDropdown from '../components/ProfileDropdown'
+import UnifiedHeader from '../components/UnifiedHeader'
 import GenerationCard from '../components/GenerationCard'
 // UI components available if needed in future
 // import { LoadingSpinner, EmptyState } from '../components/ui'
@@ -14,9 +14,7 @@ import {
   List,
   Download,
   Trash2,
-  ChevronLeft,
-  FolderOpen,
-  Coins
+  FolderOpen
 } from 'lucide-react'
 
 type ViewMode = 'grid' | 'list'
@@ -24,9 +22,8 @@ type FilterApp = 'all' | 'video-mixer' | 'carousel-mix'
 type SortOption = 'latest' | 'oldest' | 'name'
 
 export default function MyWork() {
-  const { user, isAuthenticated } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
-  const [creditBalance, setCreditBalance] = useState(user?.creditBalance || 2450)
 
   const [generations, setGenerations] = useState<GenerationItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,20 +39,7 @@ export default function MyWork() {
       return
     }
 
-    const fetchData = async () => {
-      // Fetch credit balance
-      try {
-        const balanceData = await creditsService.getBalance()
-        setCreditBalance(balanceData.balance)
-      } catch (err) {
-        handleApiError(err, 'Fetch credit balance')
-      }
-
-      // Fetch generations
-      await fetchGenerations()
-    }
-
-    fetchData()
+    fetchGenerations()
   }, [isAuthenticated, navigate, filterApp, sortOption])
 
   const fetchGenerations = async () => {
@@ -155,35 +139,15 @@ export default function MyWork() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 mb-1.5 tracking-tighter">
-                  My Work
-                </h1>
-                <p className="text-slate-600 text-sm md:text-[0.9375rem]">
-                  All your generated content in one place
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 md:gap-6">
-              <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
-                <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
-                <span className="font-medium text-slate-900">{creditBalance.toLocaleString()} Credits</span>
-              </div>
-              <ProfileDropdown />
-            </div>
-          </div>
-        </div>
-      </header>
+      <UnifiedHeader
+        title="My Work"
+        subtitle="All your generated content in one place"
+        icon={null}
+        showBackButton={true}
+        backPath="/dashboard"
+        currentAppId={undefined}
+        actions={null}
+      />
 
       {/* Main Content */}
       <main className="max-w-[1400px] mx-auto px-6 md:px-10 py-8 md:py-12">

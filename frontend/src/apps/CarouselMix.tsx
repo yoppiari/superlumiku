@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCarouselMixStore } from '../stores/carouselMixStore'
 import { useAuthStore } from '../stores/authStore'
-import ProfileDropdown from '../components/ProfileDropdown'
+import UnifiedHeader from '../components/UnifiedHeader'
 import CreateProjectModal from '../components/CreateProjectModal'
 import { BulkGenerator } from './carousel-mix/components/BulkGenerator'
-import { Layers, Plus, ArrowLeft, Coins, CloudCheck, Loader2, Trash2 } from 'lucide-react'
+import { Layers, Plus, CloudCheck, Loader2, Trash2 } from 'lucide-react'
 
 export default function CarouselMix() {
   const navigate = useNavigate()
@@ -109,54 +109,35 @@ export default function CarouselMix() {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-6 md:px-10 py-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleBackToProjects}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-                    <Layers className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">
-                      {currentProject.name}
-                    </h1>
-                    {currentProject.description && (
-                      <p className="text-sm md:text-[0.9375rem] text-slate-600">{currentProject.description}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+        <UnifiedHeader
+          title={currentProject.name}
+          subtitle={currentProject.description}
+          icon={<Layers className="w-5 h-5" />}
+          iconColor="bg-blue-50 text-blue-700"
+          showBackButton={true}
+          backPath="/apps/carousel-mix"
+          currentAppId="carousel-mix"
+          actions={null}
+        />
 
-              <div className="flex items-center gap-4 md:gap-6">
-                {/* Save Indicator */}
-                {isSaving ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                    <span className="text-sm text-slate-600">Saving...</span>
-                  </div>
-                ) : showSaved ? (
-                  <div className="flex items-center gap-2">
-                    <CloudCheck className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-slate-600">Saved</span>
-                  </div>
-                ) : null}
-
-                <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
-                  <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
-                  <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
+        {/* Save Indicator - moved below header */}
+        {(isSaving || showSaved) && (
+          <div className="bg-white border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-6 md:px-10 py-3">
+              {isSaving ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="text-sm text-slate-600">Saving...</span>
                 </div>
-                <ProfileDropdown />
-              </div>
+              ) : showSaved ? (
+                <div className="flex items-center gap-2">
+                  <CloudCheck className="w-4 h-4 text-green-600" />
+                  <span className="text-sm text-slate-600">Saved</span>
+                </div>
+              ) : null}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Bulk Generator (Split Panel) */}
         <div className="max-w-7xl mx-auto p-4 lg:p-8">
@@ -170,37 +151,16 @@ export default function CarouselMix() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 md:px-10 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-                  <Layers className="w-5 h-5" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">Carousel Mix</h1>
-                  <p className="text-sm md:text-[0.9375rem] text-slate-600">Generate unique carousel combinations</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 md:gap-6">
-              <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
-                <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
-                <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
-              </div>
-              <ProfileDropdown />
-            </div>
-          </div>
-        </div>
-      </div>
+      <UnifiedHeader
+        title="Carousel Mix"
+        subtitle="Generate unique carousel combinations"
+        icon={<Layers className="w-5 h-5" />}
+        iconColor="bg-blue-50 text-blue-700"
+        showBackButton={true}
+        backPath="/dashboard"
+        currentAppId="carousel-mix"
+        actions={null}
+      />
 
       <div className="max-w-6xl mx-auto p-4 lg:p-8">
 

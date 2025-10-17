@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
-import ProfileDropdown from '../../components/ProfileDropdown'
+import UnifiedHeader from '../../components/UnifiedHeader'
 
 // P1-2 FIX: Error Boundary for graceful error handling
 import PoseGeneratorErrorBoundary from './components/PoseGeneratorErrorBoundary'
@@ -28,7 +28,7 @@ import GeneratePage from './pages/GeneratePage'
 function PoseGeneratorIndex() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -44,78 +44,55 @@ function PoseGeneratorIndex() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1400px] mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {!isRootPath && (
-                <button
-                  onClick={() => navigate('/apps/pose-generator')}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-              )}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-slate-900">Pose Generator</h1>
-                  <p className="text-sm text-slate-600">AI-Powered Professional Poses</p>
-                </div>
-              </div>
-            </div>
+      {/* Unified Header */}
+      <UnifiedHeader
+        title="Pose Generator"
+        subtitle="AI-Powered Professional Poses"
+        icon={<Sparkles className="w-5 h-5" />}
+        iconColor="bg-indigo-50 text-indigo-700"
+        showBackButton={true}
+        backPath="/dashboard"
+        currentAppId="pose-generator"
+        actions={null}
+      />
 
-            <div className="flex items-center gap-4">
-              {/* Navigation */}
-              <nav className="hidden md:flex items-center gap-2">
-                <button
-                  onClick={() => navigate('/apps/pose-generator')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isRootPath
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Dashboard
-                </button>
-                <button
-                  onClick={() => navigate('/apps/pose-generator/library')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    location.pathname.includes('/library')
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Library
-                </button>
-                <button
-                  onClick={() => navigate('/apps/pose-generator/projects')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    location.pathname.includes('/projects')
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Projects
-                </button>
-              </nav>
-
-              {/* Credit Balance */}
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-sm font-medium text-slate-900">
-                  {user?.creditBalance?.toLocaleString() || 0} Credits
-                </span>
-              </div>
-
-              {/* Profile */}
-              <ProfileDropdown />
-            </div>
+      {/* Sub-Navigation Tabs */}
+      <nav className="bg-white border-b border-slate-200 sticky top-[73px] z-40">
+        <div className="max-w-[1400px] mx-auto px-6">
+          <div className="flex items-center gap-2 py-3">
+            <button
+              onClick={() => navigate('/apps/pose-generator')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isRootPath
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => navigate('/apps/pose-generator/library')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname.includes('/library')
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Library
+            </button>
+            <button
+              onClick={() => navigate('/apps/pose-generator/projects')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname.includes('/projects')
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Projects
+            </button>
           </div>
         </div>
-      </header>
+      </nav>
 
       {/* Main Content */}
       <main className="max-w-[1400px] mx-auto px-6 py-8">

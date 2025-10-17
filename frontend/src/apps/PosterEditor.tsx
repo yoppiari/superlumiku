@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import api from '../lib/api'
-import ProfileDropdown from '../components/ProfileDropdown'
+import UnifiedHeader from '../components/UnifiedHeader'
 import { EditorCanvas } from './poster-editor/components/EditorCanvas'
 import { UploadPanel } from './poster-editor/components/UploadPanel'
 import { PostersList } from './poster-editor/components/PostersList'
@@ -11,7 +11,7 @@ import { InpaintPanel } from './poster-editor/components/InpaintPanel'
 import { AnnotationPanel } from './poster-editor/components/AnnotationPanel'
 import type { Annotation } from './poster-editor/types/annotation'
 import { getImageUrl } from '../lib/imageUrl'
-import { Plus, FolderOpen, FileImage, Calendar, Trash2, X, Coins, ArrowLeft, Image } from 'lucide-react'
+import { Plus, FolderOpen, FileImage, Calendar, Trash2, X, Image, ArrowLeft } from 'lucide-react'
 
 interface Project {
   id: string
@@ -246,40 +246,16 @@ export function PosterEditor() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-green-50 text-green-700 flex items-center justify-center">
-                  <Image className="w-5 h-5" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">
-                    Smart Poster Editor
-                  </h1>
-                  <p className="text-sm md:text-[0.9375rem] text-slate-600">
-                    AI-powered poster editing with text detection, inpainting, and multi-format export
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-slate-600">
-                <Coins className="w-5 h-5" />
-                <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
-              </div>
-              <ProfileDropdown />
-            </div>
-          </div>
-        </div>
-      </header>
+      <UnifiedHeader
+        title="Smart Poster Editor"
+        subtitle="AI-powered poster editing with text detection and smart overlays"
+        icon={<Image className="w-5 h-5" />}
+        iconColor="bg-green-50 text-green-700"
+        showBackButton={true}
+        backPath="/dashboard"
+        currentAppId="poster-editor"
+        actions={null}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 md:px-10 py-8">
@@ -434,42 +410,34 @@ export function PosterEditor() {
       {/* Project Detail View */}
       {selectedProject && (
         <div className="fixed inset-0 bg-slate-50 z-50 overflow-auto">
-          {/* Header */}
-          <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-6 md:px-10 py-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setSelectedProject(null)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-green-50 text-green-700 flex items-center justify-center">
-                      <Image className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">
-                        {selectedProject.name}
-                      </h1>
-                      {selectedProject.description && (
-                        <p className="text-sm md:text-[0.9375rem] text-slate-600">{selectedProject.description}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+          {/* Header - Custom for project detail to handle back to projects list */}
+          <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
+            <div className="max-w-[1400px] mx-auto px-6 py-4">
+              <div className="flex items-center gap-4">
+                {/* Custom back button to close project view */}
+                <button
+                  onClick={() => setSelectedProject(null)}
+                  className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
+                  aria-label="Back to projects"
+                >
+                  <ArrowLeft className="w-5 h-5 text-slate-600" />
+                </button>
 
-                <div className="flex items-center gap-4 md:gap-6">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Coins className="w-5 h-5" />
-                    <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
+                {/* Icon & Title */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex items-center justify-center w-11 h-11 rounded-xl flex-shrink-0 bg-green-50 text-green-700">
+                    <Image className="w-5 h-5" />
                   </div>
-                  <ProfileDropdown />
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-xl font-bold text-slate-900 truncate">{selectedProject.name}</h1>
+                    {selectedProject.description && (
+                      <p className="text-sm text-slate-600 truncate">{selectedProject.description}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </header>
 
           {/* Content */}
           <div className="max-w-7xl mx-auto p-4 lg:p-8 pb-20">
