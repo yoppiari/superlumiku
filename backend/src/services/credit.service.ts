@@ -157,16 +157,61 @@ export class CreditService {
   }
 
   /**
-   * Refund credits to user
-   * Convenience method that wraps addCredits with type 'refund'
+   * Refund credits to user with idempotency protection
+   * Prevents double refunds for the same generation/reference
+   *
+   * CRITICAL FIX: This method now checks for existing refunds before creating a new one
+   * This prevents credits from increasing when the same failure is refunded multiple times
    */
   async refundCredits(input: RefundCreditsInput) {
-    return this.addCredits({
+    // IDEMPOTENCY CHECK: Prevent double refunds for same reference
+    if (input.referenceId) {
+      const existingRefund = await prisma.credit.findFirst({
+        where: {
+          userId: input.userId,
+          type: 'refund',
+          paymentId: input.referenceId, // Use paymentId to track refund reference
+          // Check within last 24 hours to avoid old refunds blocking new ones
+          createdAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+          }
+        },
+        select: { id: true, amount: true, createdAt: true }
+      })
+
+      if (existingRefund) {
+        console.log(`⚠️  Duplicate refund prevented for reference ${input.referenceId}`, {
+          userId: input.userId,
+          amount: input.amount,
+          existingRefundId: existingRefund.id,
+          existingAmount: existingRefund.amount,
+          existingCreatedAt: existingRefund.createdAt
+        })
+
+        // Return existing refund result instead of creating duplicate
+        const currentBalance = await this.getBalance(input.userId)
+        return {
+          credit: existingRefund,
+          previousBalance: currentBalance,
+          newBalance: currentBalance,
+          isDuplicate: true as const // Flag to indicate this was a duplicate refund attempt
+        }
+      }
+    }
+
+    // No duplicate found - proceed with refund
+    const result = await this.addCredits({
       userId: input.userId,
       amount: input.amount,
       type: 'refund',
       description: input.description,
+      paymentId: input.referenceId, // Store reference ID for idempotency check
     })
+
+    return {
+      ...result,
+      isDuplicate: false as const
+    }
   }
 }
 

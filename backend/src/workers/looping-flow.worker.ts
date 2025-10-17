@@ -223,15 +223,22 @@ const worker = new Worker<LoopingFlowJob>(
       // Refund credits if generation had credit cost
       if (generation && generation.creditUsed > 0) {
         try {
-          await creditService.addCredits({
+          // CRITICAL FIX: Use refundCredits() with idempotency protection
+          const refundResult = await creditService.refundCredits({
             userId: generation.userId,
             amount: generation.creditUsed,
-            type: 'refund',
             description: `Refund for failed loop generation (${generationId.substring(0, 8)})`,
+            referenceId: generationId, // Use generation ID for idempotency check
+            referenceType: 'looping_flow_failed',
           })
-          console.log(
-            `💰 Refunded ${generation.creditUsed} credits to user ${generation.userId}`
-          )
+
+          if (refundResult.isDuplicate) {
+            console.log(`⚠️  Duplicate refund prevented for generation ${generationId}`)
+          } else {
+            console.log(
+              `💰 Refunded ${generation.creditUsed} credits to user ${generation.userId}`
+            )
+          }
         } catch (refundError: any) {
           console.error('❌ Credit refund failed:', refundError.message)
         }

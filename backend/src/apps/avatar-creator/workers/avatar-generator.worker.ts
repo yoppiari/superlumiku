@@ -187,16 +187,22 @@ class AvatarGeneratorWorker {
       // Only refund if cost > 0 (enterprise users have 0 cost)
       if (refundAmount > 0) {
         try {
-          // Refund credits
-          await creditService.addCredits({
+          // CRITICAL FIX: Use refundCredits() instead of addCredits()
+          // This includes idempotency protection to prevent double refunds
+          const refundResult = await creditService.refundCredits({
             userId,
             amount: refundAmount,
-            type: 'refund',
             description: `Avatar generation failed: ${structuredError.message}`,
-            paymentId: generationId, // Use generation ID as reference
+            referenceId: generationId, // Use generation ID for idempotency check
+            referenceType: 'avatar_generation_failed',
           })
 
-          console.log(`✅ Refunded ${refundAmount} credits to user ${userId} for failed generation ${generationId}`)
+          // Log refund result
+          if (refundResult.isDuplicate) {
+            console.log(`⚠️  Duplicate refund prevented for generation ${generationId} (user ${userId})`)
+          } else {
+            console.log(`✅ Refunded ${refundAmount} credits to user ${userId} for failed generation ${generationId}`)
+          }
         } catch (refundError) {
           const refundStructuredError = refundError instanceof Error
             ? refundError
