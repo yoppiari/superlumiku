@@ -173,7 +173,7 @@ if (isRedisEnabled() && redis) {
     },
   })
 
-  backgroundRemovalQueue = new Queue<BackgroundRemovalBatchJob>('background-remover:batch', {
+  backgroundRemovalQueue = new Queue<BackgroundRemovalBatchJob>('background-remover-batch', {
     connection: redis,
     defaultJobOptions: {
       attempts: 3,
