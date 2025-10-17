@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
+import { useCredits } from '../hooks/useCredits'
 import api from '../lib/api'
 import {
   User,
@@ -20,6 +21,9 @@ export default function Profile() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+
+  // Use centralized credit balance hook
+  const { balance: creditBalance, isLoading: isLoadingCredits } = useCredits()
 
   // Form state
   const [formData, setFormData] = useState({
@@ -151,7 +155,9 @@ export default function Profile() {
                     <Coins className="w-4 h-4" />
                     <span className="text-sm">Credits</span>
                   </div>
-                  <span className="font-semibold text-slate-900">{user?.creditBalance || 0}</span>
+                  <span className="font-semibold text-slate-900">
+                    {isLoadingCredits ? '...' : (creditBalance?.toLocaleString() || 0)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-600">

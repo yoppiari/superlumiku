@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
-import { creditsService, dashboardService, generationService } from '../services'
+import { useCredits } from '../hooks/useCredits'
+import { dashboardService, generationService } from '../services'
 import { handleApiError } from '../lib/errorHandler'
 import UnifiedHeader from '../components/UnifiedHeader'
 import GenerationCard from '../components/GenerationCard'
@@ -70,7 +71,6 @@ const formatNumber = (value: number | undefined | null): string => {
 export default function Dashboard() {
   const { user, isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
-  const [creditBalance, setCreditBalance] = useState(user?.creditBalance || 0)
   const [apps, setApps] = useState<AppData[]>([])
   const [loadingApps, setLoadingApps] = useState(true)
   const [recentGenerations, setRecentGenerations] = useState<GenerationItem[]>([])
@@ -82,6 +82,9 @@ export default function Dashboard() {
     lastLogin: new Date().toISOString(),
   })
   const [loadingStats, setLoadingStats] = useState(true)
+
+  // Use centralized credit balance hook - no need for local state
+  const { balance: creditBalance } = useCredits()
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -104,18 +107,7 @@ export default function Dashboard() {
     }
 
     const fetchDashboardData = async () => {
-      try {
-        // Fetch credit balance
-        const balanceData = await creditsService.getBalance()
-        setCreditBalance(balanceData?.balance ?? 0)
-      } catch (err) {
-        const error = err as any
-        // Only log error if it's not a 401 (401 will be handled by interceptor)
-        if (error?.response?.status !== 401) {
-          handleApiError(err, 'Fetch credit balance')
-        }
-        setCreditBalance(0)
-      }
+      // Credit balance is now handled by useCredits hook - no need to fetch here
 
       try {
         // Fetch apps

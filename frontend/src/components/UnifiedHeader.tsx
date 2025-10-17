@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import ProfileDropdown from './ProfileDropdown'
-import { creditsService } from '../services/creditsService'
+import { useCredits } from '../hooks/useCredits'
 
 interface App {
   id: string
@@ -60,36 +60,11 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthStore()
-  const [creditBalance, setCreditBalance] = useState<number>(user?.creditBalance || 0)
-  const [isLoadingCredits, setIsLoadingCredits] = useState(true)
   const [showAppSwitcher, setShowAppSwitcher] = useState(false)
   const appSwitcherRef = useRef<HTMLDivElement>(null)
 
-  // Fetch credit balance on mount and when user changes
-  useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        setIsLoadingCredits(true)
-        const balanceData = await creditsService.getBalance()
-
-        // Log for production debugging
-        console.log('[UnifiedHeader] Credit balance fetched:', balanceData)
-
-        setCreditBalance(balanceData?.balance ?? 0)
-      } catch (error) {
-        console.error('[UnifiedHeader] Failed to fetch credit balance:', error)
-
-        // Fallback to user object balance if API fails
-        if (user?.creditBalance !== undefined) {
-          console.log('[UnifiedHeader] Using fallback balance from user object:', user.creditBalance)
-          setCreditBalance(user.creditBalance)
-        }
-      } finally {
-        setIsLoadingCredits(false)
-      }
-    }
-    fetchBalance()
-  }, [user?.creditBalance])
+  // Use centralized credit balance hook with intelligent caching
+  const { balance: creditBalance, isLoading: isLoadingCredits } = useCredits()
 
   // Close app switcher on outside click
   useEffect(() => {
@@ -262,13 +237,13 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                 {isLoadingCredits ? (
                   <span className="text-sm font-bold text-slate-400">...</span>
                 ) : (
-                  <span className="text-sm font-bold text-slate-900">{creditBalance.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-slate-900">{creditBalance?.toLocaleString() || 0}</span>
                 )}
               </div>
               {isLoadingCredits ? (
                 <span className="sm:hidden text-sm font-bold text-slate-400">...</span>
               ) : (
-                <span className="sm:hidden text-sm font-bold text-slate-900">{creditBalance.toLocaleString()}</span>
+                <span className="sm:hidden text-sm font-bold text-slate-900">{creditBalance?.toLocaleString() || 0}</span>
               )}
             </button>
 
