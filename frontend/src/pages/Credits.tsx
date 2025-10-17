@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
+import { useCredits } from '../hooks/useCredits'
 import { creditsService } from '../services'
 import { handleApiError } from '../lib/errorHandler'
 import {
@@ -62,6 +63,9 @@ export default function Credits() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const [pricingType, setPricingType] = useState<PricingType>('subscription')
+
+  // Use centralized credit balance hook
+  const { balance: creditBalance, isLoading: isLoadingCredits } = useCredits()
 
   const subscriptionPlans: SubscriptionPlan[] = [
     {
@@ -270,7 +274,9 @@ export default function Credits() {
               <Coins className="w-6 h-6 text-slate-600" />
               <div>
                 <div className="text-xs text-slate-600">Current Balance</div>
-                <div className="text-xl font-semibold text-slate-900">{user?.creditBalance || 0} Credits</div>
+                <div className="text-xl font-semibold text-slate-900">
+                  {isLoadingCredits ? '...' : (creditBalance?.toLocaleString() || 0)} Credits
+                </div>
               </div>
             </div>
           </div>
