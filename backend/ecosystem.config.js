@@ -3,6 +3,7 @@
  *
  * Process Manager configuration for running Lumiku backend services:
  * - Main API server (Hono + WebSocket)
+ * - Avatar Creator worker (BullMQ consumer)
  * - Pose Generator worker (BullMQ consumer)
  *
  * Usage:
@@ -98,6 +99,49 @@ module.exports = {
       // Logging
       error_file: './logs/worker-error.log',
       out_file: './logs/worker-out.log',
+      merge_logs: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+
+      // Advanced features
+      kill_timeout: 30000, // 30s to allow job completion
+      wait_ready: false,
+    },
+
+    // ========================================
+    // Avatar Creator Worker
+    // ========================================
+    {
+      name: 'avatar-generator-worker',
+      script: './src/apps/avatar-creator/workers/avatar-generator.worker.ts',
+      interpreter: 'bun',
+      watch: false,
+      instances: 1,
+      exec_mode: 'fork',
+
+      // Environment variables
+      env: {
+        NODE_ENV: 'development',
+        WORKER_CONCURRENCY: 2,
+        WORKER_NAME: 'avatar-generator-worker-dev',
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        WORKER_CONCURRENCY: 2,
+        WORKER_NAME: 'avatar-generator-worker-prod',
+      },
+
+      // Memory management
+      max_memory_restart: '1G',
+
+      // Restart policy
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 5000,
+
+      // Logging
+      error_file: './logs/avatar-worker-error.log',
+      out_file: './logs/avatar-worker-out.log',
       merge_logs: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
 

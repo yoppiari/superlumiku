@@ -1219,3 +1219,174 @@ model PoseRequest {
   @@index([status, votesCount(sort: Desc)])
   @@map("pose_requests")
 }
+
+// ========================================
+// Background Remover Pro Models
+// ========================================
+
+model BackgroundRemovalJob {
+  id        String @id @default(cuid())
+  userId    String
+  batchId   String? // NULL for single jobs, set for batch items
+  itemIndex Int? // Position in batch (0-499)
+
+  // Status
+  status String @default("pending") // pending, processing, completed, failed
+
+  // Files
+  originalUrl   String
+  processedUrl  String?
+  thumbnailUrl  String?
+  originalSize  Int? // bytes
+  processedSize Int? // bytes
+
+  // Processing Details
+  tier           String // basic, standard, professional, industry
+  aiProvider     String? // huggingface, segmind
+  modelName      String? // rmbg-1.4, rmbg-2.0, birefnet-general, birefnet-portrait
+  creditsUsed    Int
+  pricingType    String  @default("credit") // credit, subscription
+  processingTime Int? // milliseconds
+
+  // Error Handling
+  errorMessage String? @db.Text
+  retryCount   Int     @default(0)
+
+  // Metadata
+  metadata String? @db.Text // JSON: {width, height, format, etc}
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Relations
+  batch BackgroundRemovalBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([batchId])
+  @@index([status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([batchId, itemIndex])
+  @@map("background_removal_jobs")
+}
+
+model BackgroundRemovalBatch {
+  id      String @id @default(cuid())
+  userId  String
+  batchId String @unique // User-friendly batch ID
+
+  // Status
+  status String @default("pending") // pending, processing, completed, failed, partial
+
+  // Counts
+  totalImages     Int
+  processedImages Int @default(0)
+  failedImages    Int @default(0)
+
+  // Pricing
+  tier               String // basic, standard, professional, industry
+  totalCredits       Int
+  discountPercentage Float  @default(0) // 0-20%
+  originalPrice      Int // Before discount
+  finalPrice         Int // After discount
+
+  // Output
+  zipUrl       String?
+  zipSize      Int? // bytes
+  zipGenerated Boolean @default(false)
+
+  // Processing
+  progressPercentage Float   @default(0) // 0-100
+  estimatedTimeMs    Int? // Estimated total time
+  processingTimeMs   Int? // Actual processing time
+
+  // Notification
+  notificationSent Boolean @default(false)
+  emailSentAt      DateTime?
+
+  // Error Handling
+  errorMessage String? @db.Text
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Relations
+  jobs BackgroundRemovalJob[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("background_removal_batches")
+}
+
+model BackgroundRemoverSubscription {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Plan Details
+  plan         String // starter, pro
+  status       String @default("active") // active, cancelled, expired, suspended
+  monthlyPrice Int // Rupiah
+
+  // Quotas
+  dailyQuota             Int // Total daily removals
+  professionalDailyQuota Int // Max professional tier per day
+  allowedTiers           String[] // [basic, standard] or [basic, standard, professional, industry]
+
+  // Billing
+  subscribedAt    DateTime
+  currentPeriodEnd DateTime
+  nextBillingDate DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+
+  // Auto-renewal
+  autoRenew       Boolean @default(true)
+  lastPaymentId   String?
+  paymentMethod   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  usageRecords BackgroundRemoverSubscriptionUsage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@index([status, currentPeriodEnd])
+  @@map("background_remover_subscriptions")
+}
+
+model BackgroundRemoverSubscriptionUsage {
+  id             String @id @default(cuid())
+  subscriptionId String
+  userId         String
+
+  // Period Tracking
+  date String // YYYY-MM-DD format for daily tracking
+
+  // Usage by Tier
+  tier          String // basic, standard, professional, industry
+  removalsCount Int    @default(0)
+
+  // Aggregate Stats
+  totalCreditsEquivalent Int @default(0) // What it would have cost in credits
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subscription BackgroundRemoverSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, date, tier])
+  @@index([subscriptionId])
+  @@index([userId])
+  @@index([date])
+  @@index([subscriptionId, date])
+  @@index([userId, date])
+  @@map("background_remover_subscription_usage")
+}

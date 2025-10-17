@@ -83,10 +83,22 @@ export interface AvatarGenerationJob {
   }
 }
 
+export interface BackgroundRemovalBatchJob {
+  batchId: string
+  userId: string
+  tier: string
+  items: Array<{
+    id: string
+    itemIndex: number
+    originalUrl: string
+  }>
+}
+
 let videoMixerQueue: Queue<VideoMixerJob> | null = null
 let carouselMixQueue: Queue<CarouselMixJob> | null = null
 let loopingFlowQueue: Queue<LoopingFlowJob> | null = null
 let avatarGenerationQueue: Queue<AvatarGenerationJob> | null = null
+let backgroundRemovalQueue: Queue<BackgroundRemovalBatchJob> | null = null
 
 if (isRedisEnabled() && redis) {
   videoMixerQueue = new Queue<VideoMixerJob>('video-mixer', {
@@ -150,6 +162,24 @@ if (isRedisEnabled() && redis) {
       backoff: {
         type: 'exponential',
         delay: 10000, // 10s, 100s, 1000s (FLUX can take time)
+      },
+      removeOnComplete: {
+        age: 86400, // Keep completed jobs for 24 hours
+        count: 1000,
+      },
+      removeOnFail: {
+        age: 604800, // Keep failed jobs for 7 days
+      },
+    },
+  })
+
+  backgroundRemovalQueue = new Queue<BackgroundRemovalBatchJob>('background-remover:batch', {
+    connection: redis,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000, // 5s, 25s, 125s
       },
       removeOnComplete: {
         age: 86400, // Keep completed jobs for 24 hours
@@ -296,4 +326,37 @@ export async function getAvatarGenerationJobStatus(generationId: string) {
   }
 }
 
-export { videoMixerQueue, carouselMixQueue, loopingFlowQueue, avatarGenerationQueue }
+export async function addBackgroundRemovalBatchJob(data: BackgroundRemovalBatchJob) {
+  if (!backgroundRemovalQueue) {
+    console.warn('⚠️  Redis not configured - Job will not be processed')
+    console.warn('   Batch will remain in "pending" status')
+    console.warn('   See TODO_REDIS_SETUP.md for setup instructions')
+    return null
+  }
+
+  const job = await backgroundRemovalQueue.add('process-batch', data, {
+    jobId: data.batchId,
+  })
+
+  console.log(`📋 Background removal batch job added to queue: ${job.id}`)
+  return job
+}
+
+export async function getBackgroundRemovalBatchJobStatus(batchId: string) {
+  if (!backgroundRemovalQueue) return null
+
+  const job = await backgroundRemovalQueue.getJob(batchId)
+  if (!job) return null
+
+  const state = await job.getState()
+  const progress = job.progress
+
+  return {
+    id: job.id,
+    state,
+    progress,
+    data: job.data,
+  }
+}
+
+export { videoMixerQueue, carouselMixQueue, loopingFlowQueue, avatarGenerationQueue, backgroundRemovalQueue }
