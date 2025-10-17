@@ -30,15 +30,56 @@ FROM oven/bun:1-alpine AS backend-builder
 WORKDIR /app/backend
 
 # Install build dependencies for canvas (requires Python and build tools)
-RUN apk update && apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev \
-    pixman-dev
+# Split into groups and add retry logic for network stability
+RUN set -e; \
+    # Function to retry apk commands with exponential backoff
+    retry_apk() { \
+        local max_attempts=5; \
+        local timeout=1; \
+        local attempt=1; \
+        local exitCode=0; \
+        \
+        while [ $attempt -le $max_attempts ]; do \
+            echo "Attempt $attempt of $max_attempts: $@"; \
+            \
+            if "$@"; then \
+                echo "Success!"; \
+                return 0; \
+            else \
+                exitCode=$?; \
+                echo "Failed with exit code $exitCode"; \
+                \
+                if [ $attempt -lt $max_attempts ]; then \
+                    echo "Cleaning cache and retrying in ${timeout}s..."; \
+                    rm -rf /var/cache/apk/*; \
+                    sleep $timeout; \
+                    timeout=$((timeout * 2)); \
+                    attempt=$((attempt + 1)); \
+                else \
+                    echo "All attempts failed!"; \
+                    return $exitCode; \
+                fi; \
+            fi; \
+        done; \
+    }; \
+    \
+    # Update package index with retry
+    retry_apk apk update && \
+    \
+    # Install packages in smaller groups to reduce network stress
+    # Group 1: Core build tools (smaller packages)
+    retry_apk apk add --no-cache python3 make && \
+    \
+    # Group 2: GCC (large package, most likely to fail)
+    retry_apk apk add --no-cache g++ && \
+    \
+    # Group 3: Graphics libraries
+    retry_apk apk add --no-cache \
+        cairo-dev \
+        jpeg-dev \
+        pango-dev \
+        giflib-dev \
+        pixman-dev
 
 # Copy backend package files
 COPY backend/package.json backend/bun.lock* ./
@@ -59,20 +100,62 @@ FROM oven/bun:1-alpine
 
 # Update package repositories and install system dependencies
 # (including canvas runtime dependencies and network tools)
-RUN apk update && apk add --no-cache \
-    nginx \
-    ffmpeg \
-    ffmpeg-libs \
-    postgresql-client \
-    curl \
-    bash \
-    cairo \
-    jpeg \
-    pango \
-    giflib \
-    pixman \
-    bind-tools \
-    iputils
+# Use retry logic for network stability
+RUN set -e; \
+    # Function to retry apk commands with exponential backoff
+    retry_apk() { \
+        local max_attempts=5; \
+        local timeout=1; \
+        local attempt=1; \
+        local exitCode=0; \
+        \
+        while [ $attempt -le $max_attempts ]; do \
+            echo "Attempt $attempt of $max_attempts: $@"; \
+            \
+            if "$@"; then \
+                echo "Success!"; \
+                return 0; \
+            else \
+                exitCode=$?; \
+                echo "Failed with exit code $exitCode"; \
+                \
+                if [ $attempt -lt $max_attempts ]; then \
+                    echo "Cleaning cache and retrying in ${timeout}s..."; \
+                    rm -rf /var/cache/apk/*; \
+                    sleep $timeout; \
+                    timeout=$((timeout * 2)); \
+                    attempt=$((attempt + 1)); \
+                else \
+                    echo "All attempts failed!"; \
+                    return $exitCode; \
+                fi; \
+            fi; \
+        done; \
+    }; \
+    \
+    # Update package index with retry
+    retry_apk apk update && \
+    \
+    # Install packages in groups to reduce network stress
+    # Group 1: Core utilities
+    retry_apk apk add --no-cache curl bash postgresql-client && \
+    \
+    # Group 2: Web server
+    retry_apk apk add --no-cache nginx && \
+    \
+    # Group 3: FFmpeg (large packages)
+    retry_apk apk add --no-cache ffmpeg ffmpeg-libs && \
+    \
+    # Group 4: Graphics libraries
+    retry_apk apk add --no-cache \
+        cairo \
+        jpeg \
+        pango \
+        giflib \
+        pixman && \
+    \
+    # Group 5: Network tools
+    retry_apk apk add --no-cache bind-tools iputils
 
 WORKDIR /app
 
