@@ -114,8 +114,8 @@ interface AvatarCreatorState {
   lastSaved: Date | null
 
   // Generation tracking
-  activeGenerations: Map<string, AvatarGeneration>
-  generationPollingIntervals: Map<string, ReturnType<typeof setInterval>>
+  activeGenerations: Record<string, AvatarGeneration>
+  generationPollingIntervals: Record<string, ReturnType<typeof setInterval>>
 
   // Presets
   presets: AvatarPreset[]
@@ -168,8 +168,8 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
     isGenerating: false,
     isSaving: false,
     lastSaved: null,
-    activeGenerations: new Map(),
-    generationPollingIntervals: new Map(),
+    activeGenerations: {},
+    generationPollingIntervals: {},
     presets: [],
     isLoadingPresets: false,
 
@@ -385,7 +385,7 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
         const generation: AvatarGeneration = res.data.generation
 
         set((state) => {
-          state.activeGenerations.set(generation.id, generation)
+          state.activeGenerations[generation.id] = generation
           state.isGenerating = false
         })
 
@@ -415,7 +415,7 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
         const generation: AvatarGeneration = res.data.generation
 
         set((state) => {
-          state.activeGenerations.set(generationId, generation)
+          state.activeGenerations[generationId] = generation
 
           // If completed, fetch avatar and add to project
           if (generation.status === 'completed' && generation.avatarId) {
@@ -439,7 +439,7 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
                       innerState.currentProject.avatars.unshift(avatar)
                     }
                   }
-                  innerState.activeGenerations.delete(generationId)
+                  delete innerState.activeGenerations[generationId]
                 })
               })
               .catch((err) => {
@@ -447,11 +447,11 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
 
                 // Update generation with error so UI shows it
                 set((innerState) => {
-                  const gen = innerState.activeGenerations.get(generationId)
+                  const gen = innerState.activeGenerations[generationId]
                   if (gen) {
                     gen.status = 'failed'
                     gen.errorMessage = 'Generated but failed to load. Please refresh the page.'
-                    innerState.activeGenerations.set(generationId, gen)
+                    innerState.activeGenerations[generationId] = gen
                   }
                 })
               })
@@ -471,7 +471,7 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
       const { generationPollingIntervals, checkGenerationStatus } = useAvatarCreatorStore.getState()
 
       // Don't start if already polling
-      if (generationPollingIntervals.has(generationId)) {
+      if (generationId in generationPollingIntervals) {
         return
       }
 
@@ -481,7 +481,7 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
       }, 5000)
 
       set((state) => {
-        state.generationPollingIntervals.set(generationId, interval)
+        state.generationPollingIntervals[generationId] = interval
       })
 
       // Do initial check immediately
@@ -490,12 +490,12 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
 
     stopGenerationPolling: (generationId: string) => {
       const { generationPollingIntervals } = useAvatarCreatorStore.getState()
-      const interval = generationPollingIntervals.get(generationId)
+      const interval = generationPollingIntervals[generationId]
 
       if (interval) {
         clearInterval(interval)
         set((state) => {
-          state.generationPollingIntervals.delete(generationId)
+          delete state.generationPollingIntervals[generationId]
         })
       }
     },
@@ -569,7 +569,7 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
         const generation: AvatarGeneration = res.data.generation
 
         set((state) => {
-          state.activeGenerations.set(generation.id, generation)
+          state.activeGenerations[generation.id] = generation
           state.isGenerating = false
         })
 
@@ -591,15 +591,15 @@ export const useAvatarCreatorStore = create<AvatarCreatorState>()(
     reset: () => {
       // Clear all polling intervals
       const { generationPollingIntervals } = useAvatarCreatorStore.getState()
-      generationPollingIntervals.forEach((interval) => clearInterval(interval))
+      Object.values(generationPollingIntervals).forEach((interval) => clearInterval(interval))
 
       set((state) => {
         state.projects = []
         state.currentProject = null
         state.isUploading = false
         state.isGenerating = false
-        state.activeGenerations = new Map()
-        state.generationPollingIntervals = new Map()
+        state.activeGenerations = {}
+        state.generationPollingIntervals = {}
       })
     },
   }))

@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAvatarCreatorStore } from '../stores/avatarCreatorStore'
 import { useAuthStore } from '../stores/authStore'
-import ProfileDropdown from '../components/ProfileDropdown'
+import UnifiedHeader from '../components/UnifiedHeader'
 import CreateProjectModal from '../components/CreateProjectModal'
 import UsageHistoryModal from '../components/UsageHistoryModal'
 import { handleError } from '../utils/errorHandler'
-import { UserCircle, Plus, ArrowLeft, Coins, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar, Grid } from 'lucide-react'
+import { UserCircle, Plus, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar, Grid } from 'lucide-react'
 
 export default function AvatarCreator() {
   const navigate = useNavigate()
@@ -118,41 +118,16 @@ export default function AvatarCreator() {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-6 md:px-10 py-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleBackToProjects}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                    <UserCircle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">
-                      {currentProject.name}
-                    </h1>
-                    {currentProject.description && (
-                      <p className="text-sm md:text-[0.9375rem] text-slate-600">{currentProject.description}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 md:gap-6">
-                <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
-                  <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
-                  <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
-                </div>
-                <ProfileDropdown />
-              </div>
-            </div>
-          </div>
-        </div>
+        <UnifiedHeader
+          title={currentProject.name}
+          subtitle={currentProject.description || undefined}
+          icon={<UserCircle className="w-5 h-5" />}
+          iconColor="bg-purple-50 text-purple-700"
+          showBackButton={true}
+          backPath="/apps/avatar-creator"
+          currentAppId="avatar-creator"
+          actions={null}
+        />
 
         {/* Action Buttons */}
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-6">
@@ -185,7 +160,7 @@ export default function AvatarCreator() {
         </div>
 
         {/* Active Generations */}
-        {Array.from(activeGenerations.values()).filter(g => g.projectId === currentProject.id).length > 0 && (
+        {Object.values(activeGenerations).filter(g => g.projectId === currentProject.id).length > 0 && (
           <div className="max-w-7xl mx-auto px-6 md:px-10 pb-6">
             <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -193,7 +168,7 @@ export default function AvatarCreator() {
                 Generating Avatars
               </h2>
               <div className="space-y-3">
-                {Array.from(activeGenerations.values())
+                {Object.values(activeGenerations)
                   .filter(g => g.projectId === currentProject.id)
                   .map((generation) => (
                     <div key={generation.id} className="bg-white rounded-lg p-4 shadow-sm">
@@ -389,37 +364,16 @@ export default function AvatarCreator() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 md:px-10 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-slate-100 rounded-lg transition text-slate-600 hover:text-slate-900"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                  <UserCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-[1.75rem] font-semibold text-slate-900 tracking-tighter">Avatar Creator</h1>
-                  <p className="text-sm md:text-[0.9375rem] text-slate-600">Create and manage AI avatars for pose generation</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 md:gap-6">
-              <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-lg hover:bg-slate-100 transition-all">
-                <Coins className="w-[1.125rem] h-[1.125rem] text-slate-600" />
-                <span className="font-medium text-slate-900">{(user?.creditBalance || 0).toLocaleString()} Credits</span>
-              </div>
-              <ProfileDropdown />
-            </div>
-          </div>
-        </div>
-      </div>
+      <UnifiedHeader
+        title="Avatar Creator"
+        subtitle="Create and manage AI avatars for pose generation"
+        icon={<UserCircle className="w-5 h-5" />}
+        iconColor="bg-purple-50 text-purple-700"
+        showBackButton={true}
+        backPath="/dashboard"
+        currentAppId="avatar-creator"
+        actions={null}
+      />
 
       <div className="max-w-6xl mx-auto p-4 lg:p-8">
         {/* New Project Button */}
