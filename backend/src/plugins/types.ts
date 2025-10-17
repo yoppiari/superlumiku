@@ -36,4 +36,7 @@ export interface PluginConfig {
       endpoint: string                // '/api/apps/project-manager/stats'
     }
   }
+
+  // Allow plugins to add custom properties
+  [key: string]: any
 }
