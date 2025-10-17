@@ -2,6 +2,9 @@
   "name": "@lumiku/backend",
   "version": "1.0.0",
   "type": "module",
+  "prisma": {
+    "seed": "bun run prisma/seed.ts"
+  },
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
