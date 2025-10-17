@@ -30,7 +30,7 @@ FROM oven/bun:1-alpine AS backend-builder
 WORKDIR /app/backend
 
 # Install build dependencies for canvas (requires Python and build tools)
-RUN apk add --no-cache \
+RUN apk update && apk add --no-cache \
     python3 \
     make \
     g++ \
@@ -57,8 +57,9 @@ RUN bun run prisma:generate
 # ============================================
 FROM oven/bun:1-alpine
 
-# Install system dependencies (including canvas runtime dependencies and network tools)
-RUN apk add --no-cache \
+# Update package repositories and install system dependencies
+# (including canvas runtime dependencies and network tools)
+RUN apk update && apk add --no-cache \
     nginx \
     ffmpeg \
     ffmpeg-libs \
