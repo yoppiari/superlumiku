@@ -1,0 +1,76 @@
+# ========================================
+# COPY-PASTE COMMANDS FOR COOLIFY TERMINAL
+# ========================================
+# Run these commands in Coolify terminal AFTER deployment
+# ========================================
+
+# Step 1: Test FLUX API with your API key
+cd backend
+bun run scripts/test-flux-api.ts
+
+# Expected output:
+# ✅ FLUX.1-schnell (free): WORKS
+# ✅ FLUX.1-dev (base): WORKS or FAILED (both are OK)
+
+# ========================================
+
+# Step 2: Restart avatar worker
+pm2 restart avatar-worker
+
+# Step 3: Check worker status
+pm2 list
+
+# Step 4: Monitor worker logs (CTRL+C to exit)
+pm2 logs avatar-worker --lines 50
+
+# ========================================
+
+# Step 5: Check if test images were generated
+ls backend/test-outputs/
+
+# Should show:
+# black-forest-labs_FLUX.1-schnell_test.jpg
+# black-forest-labs_FLUX.1-dev_test.jpg (if API key has access)
+
+# ========================================
+
+# OPTIONAL: If you want to force FLUX.1-schnell
+# (Only do this if FLUX.1-dev keeps failing)
+
+# Check current FLUX_MODEL env variable
+echo $FLUX_MODEL
+
+# If you want to force schnell, add to Coolify Environment Variables:
+# FLUX_MODEL=black-forest-labs/FLUX.1-schnell
+
+# Then redeploy the app
+
+# ========================================
+
+# TROUBLESHOOTING COMMANDS
+# ========================================
+
+# Check HuggingFace API key is set
+echo $HUGGINGFACE_API_KEY | head -c 20
+
+# Test API key manually with schnell (should work)
+curl https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell \
+  -H "Authorization: Bearer $HUGGINGFACE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"inputs":"a professional headshot portrait","parameters":{"width":512,"height":512,"num_inference_steps":4,"guidance_scale":0}}'
+
+# Test API key with FLUX.1-dev (may fail if no PRO)
+curl https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev \
+  -H "Authorization: Bearer $HUGGINGFACE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"inputs":"a professional headshot portrait","parameters":{"width":512,"height":512,"num_inference_steps":20,"guidance_scale":3.5}}'
+
+# ========================================
+
+# View recent worker errors
+pm2 logs avatar-worker --err --lines 100
+
+# View recent worker success messages
+pm2 logs avatar-worker --out --lines 100
+
+# ========================================

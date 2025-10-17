@@ -117,8 +117,11 @@ export class HuggingFaceClient {
   }
 
   /**
-   * Generate ultra-realistic avatar using FLUX + Realism LoRA
+   * Generate ultra-realistic avatar using FLUX
    * Used for high-quality portrait generation
+   *
+   * NOTE: HuggingFace Inference API does NOT support LoRA parameters.
+   * LoRA support requires ComfyUI, Replicate, or custom endpoints.
    */
   async fluxTextToImage(params: {
     prompt: string
@@ -132,14 +135,13 @@ export class HuggingFaceClient {
     loraScale?: number
   }): Promise<Buffer> {
     const modelId = process.env.FLUX_MODEL || 'black-forest-labs/FLUX.1-dev'
-    const loraModel = process.env.FLUX_LORA_MODEL || 'XLabs-AI/flux-RealismLora'
 
     try {
-      // FLUX with LoRA support via direct API call
+      // CRITICAL: HuggingFace Inference API does NOT support LoRA parameters
+      // Removed lora and lora_scale to fix 400 error
       const requestBody: any = {
         inputs: params.prompt,
         parameters: {
-          negative_prompt: params.negativePrompt || 'ugly, blurry, low quality, distorted, deformed, bad anatomy',
           width: params.width || 1024,
           height: params.height || 1024,
           num_inference_steps: params.numInferenceSteps || 30,
@@ -147,11 +149,20 @@ export class HuggingFaceClient {
         }
       }
 
-      // Add LoRA if requested
-      if (params.useLoRA !== false) { // Default true
-        requestBody.parameters.lora = loraModel
-        requestBody.parameters.lora_scale = params.loraScale || 0.9 // LoRA strength
+      // Add negative prompt only if provided (some FLUX models don't support it)
+      if (params.negativePrompt) {
+        requestBody.parameters.negative_prompt = params.negativePrompt
       }
+
+      // Add seed if provided
+      if (params.seed !== undefined) {
+        requestBody.parameters.seed = params.seed
+      }
+
+      console.log(`🎨 FLUX Generation Request:`)
+      console.log(`   Model: ${modelId}`)
+      console.log(`   Prompt: ${params.prompt.substring(0, 100)}...`)
+      console.log(`   Parameters:`, requestBody.parameters)
 
       const response = await axios.post(
         `https://api-inference.huggingface.co/models/${modelId}`,
@@ -166,8 +177,26 @@ export class HuggingFaceClient {
         }
       )
 
+      console.log(`✅ FLUX generation successful (${response.data.byteLength} bytes)`)
       return Buffer.from(response.data)
     } catch (error: any) {
+      // Enhanced error logging
+      console.error('❌ FLUX generation error:')
+      console.error('   Status:', error.response?.status)
+      console.error('   Status Text:', error.response?.statusText)
+      console.error('   Error Data:', JSON.stringify(error.response?.data, null, 2))
+      console.error('   Error Message:', error.message)
+
+      // Try to parse error response if it's a buffer
+      if (error.response?.data instanceof ArrayBuffer || Buffer.isBuffer(error.response?.data)) {
+        try {
+          const errorText = Buffer.from(error.response.data).toString('utf-8')
+          console.error('   Parsed Error:', errorText)
+        } catch (e) {
+          console.error('   Could not parse error data')
+        }
+      }
+
       // Handle model loading error (cold start)
       if (error.response?.data?.error?.includes('loading') ||
           error.response?.data?.error?.includes('currently loading')) {
@@ -184,9 +213,63 @@ export class HuggingFaceClient {
         throw new Error('GENERATION_TIMEOUT')
       }
 
-      console.error('FLUX generation error:', error.response?.data || error.message)
+      // Handle 400 Bad Request - try fallback to FLUX.1-schnell
+      if (error.response?.status === 400 && modelId.includes('FLUX.1-dev')) {
+        console.log('⚠️  FLUX.1-dev failed, trying FLUX.1-schnell fallback...')
+        return this.fluxSchnellFallback(params)
+      }
+
       throw error
     }
+  }
+
+  /**
+   * Fallback to FLUX.1-schnell (free tier model)
+   * Used when FLUX.1-dev returns 400 (may require PRO subscription)
+   */
+  private async fluxSchnellFallback(params: {
+    prompt: string
+    negativePrompt?: string
+    width?: number
+    height?: number
+    numInferenceSteps?: number
+    guidanceScale?: number
+    seed?: number
+  }): Promise<Buffer> {
+    const modelId = 'black-forest-labs/FLUX.1-schnell'
+
+    console.log(`🔄 Using FLUX.1-schnell fallback (free tier)`)
+
+    const requestBody: any = {
+      inputs: params.prompt,
+      parameters: {
+        width: params.width || 1024,
+        height: params.height || 1024,
+        num_inference_steps: 4, // Schnell uses 4 steps
+        guidance_scale: 0, // Schnell doesn't use guidance
+      }
+    }
+
+    // Schnell doesn't support negative prompts well
+    if (params.seed !== undefined) {
+      requestBody.parameters.seed = params.seed
+    }
+
+    const response = await axios.post(
+      `https://api-inference.huggingface.co/models/${modelId}`,
+      requestBody,
+      {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'arraybuffer',
+        timeout: 180000
+      }
+    )
+
+    console.log(`✅ FLUX.1-schnell fallback successful`)
+    return Buffer.from(response.data)
   }
 
   /**

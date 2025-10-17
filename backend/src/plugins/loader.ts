@@ -18,6 +18,9 @@ import avatarCreatorRoutes from '../apps/avatar-creator/routes'
 import poseGeneratorConfig from '../apps/pose-generator/plugin.config'
 import poseGeneratorRoutes from '../apps/pose-generator/routes'
 
+import backgroundRemoverConfig from '../apps/background-remover/plugin.config'
+import backgroundRemoverRoutes from '../apps/background-remover/routes'
+
 /**
  * Load all plugins into registry
  */
@@ -28,6 +31,7 @@ export function loadPlugins() {
   pluginRegistry.register(loopingFlowConfig, loopingFlowRoutes)
   pluginRegistry.register(avatarCreatorConfig, avatarCreatorRoutes)
   pluginRegistry.register(poseGeneratorConfig, poseGeneratorRoutes) // Re-enabled with lazyConnect fix
+  pluginRegistry.register(backgroundRemoverConfig, backgroundRemoverRoutes)
 
   console.log(`\n📦 Loaded ${pluginRegistry.getAll().length} plugins`)
   console.log(`✅ Enabled: ${pluginRegistry.getEnabled().length}`)

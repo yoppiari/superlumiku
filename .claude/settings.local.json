@@ -145,7 +145,10 @@
       "Bash(tree:*)",
       "Bash(rg:*)",
       "Bash(cd:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npm run test:hf-api:*)",
+      "Bash(claude mcp add:*)"
     ],
     "deny": [],
     "ask": []
