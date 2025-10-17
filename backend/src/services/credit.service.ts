@@ -169,3 +169,5 @@ export class CreditService {
     })
   }
 }
+
+export const creditService = new CreditService()

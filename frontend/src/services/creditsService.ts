@@ -34,8 +34,10 @@ export const creditsService = {
    * Get current credit balance
    */
   async getBalance(): Promise<CreditBalance> {
-    const response = await api.get<CreditBalance>('/api/credits/balance')
-    return response.data
+    const response = await api.get<{ success: boolean; data: CreditBalance }>('/api/credits/balance')
+    // Backend wraps response in { success: true, data: { balance: number } }
+    // Extract the nested data object
+    return response.data.data
   },
 
   /**

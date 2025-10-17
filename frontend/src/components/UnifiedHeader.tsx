@@ -61,25 +61,34 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   const location = useLocation()
   const { user } = useAuthStore()
   const [creditBalance, setCreditBalance] = useState<number>(user?.creditBalance || 0)
+  const [isLoadingCredits, setIsLoadingCredits] = useState(true)
   const [showAppSwitcher, setShowAppSwitcher] = useState(false)
   const appSwitcherRef = useRef<HTMLDivElement>(null)
 
-  // Fetch credit balance on mount
+  // Fetch credit balance on mount and when user changes
   useEffect(() => {
     const fetchBalance = async () => {
       try {
+        setIsLoadingCredits(true)
         const balanceData = await creditsService.getBalance()
+
+        // Log for production debugging
+        console.log('[UnifiedHeader] Credit balance fetched:', balanceData)
+
         setCreditBalance(balanceData?.balance ?? 0)
       } catch (error) {
-        console.error('Failed to fetch credit balance:', error)
+        console.error('[UnifiedHeader] Failed to fetch credit balance:', error)
+
+        // Fallback to user object balance if API fails
+        if (user?.creditBalance !== undefined) {
+          console.log('[UnifiedHeader] Using fallback balance from user object:', user.creditBalance)
+          setCreditBalance(user.creditBalance)
+        }
+      } finally {
+        setIsLoadingCredits(false)
       }
     }
     fetchBalance()
-  }, [])
-
-  // Update credit balance when user changes
-  useEffect(() => {
-    setCreditBalance(user?.creditBalance || 0)
   }, [user?.creditBalance])
 
   // Close app switcher on outside click
@@ -250,9 +259,17 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               <Coins className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
               <div className="hidden sm:flex flex-col items-start">
                 <span className="text-xs text-slate-500">Credits</span>
-                <span className="text-sm font-bold text-slate-900">{creditBalance.toLocaleString()}</span>
+                {isLoadingCredits ? (
+                  <span className="text-sm font-bold text-slate-400">...</span>
+                ) : (
+                  <span className="text-sm font-bold text-slate-900">{creditBalance.toLocaleString()}</span>
+                )}
               </div>
-              <span className="sm:hidden text-sm font-bold text-slate-900">{creditBalance.toLocaleString()}</span>
+              {isLoadingCredits ? (
+                <span className="sm:hidden text-sm font-bold text-slate-400">...</span>
+              ) : (
+                <span className="sm:hidden text-sm font-bold text-slate-900">{creditBalance.toLocaleString()}</span>
+              )}
             </button>
 
             {/* Profile Dropdown */}
