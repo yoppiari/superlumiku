@@ -25,9 +25,9 @@ interface Device {
   deviceId: string
   deviceName: string
   deviceType: string
-  browser: string
-  os: string
-  ipAddress: string
+  browser: string | null
+  os: string | null
+  ipAddress: string | null
   lastActive: string
   createdAt: string
 }
@@ -59,22 +59,6 @@ export default function Settings() {
     analyticsTracking: true,
   })
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login')
-      return
-    }
-
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('user-settings')
-    if (savedSettings) {
-      setSettings({ ...settings, ...JSON.parse(savedSettings) })
-    }
-
-    // Load devices
-    loadDevices()
-  }, [isAuthenticated, navigate])
-
   const loadDevices = async () => {
     try {
       setLoadingDevices(true)
@@ -86,6 +70,23 @@ export default function Settings() {
       setLoadingDevices(false)
     }
   }
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    // Load settings from localStorage
+    const savedSettings = localStorage.getItem('user-settings')
+    if (savedSettings) {
+      setSettings((prev) => ({ ...prev, ...JSON.parse(savedSettings) }))
+    }
+
+    // Load devices
+    loadDevices()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, navigate])
 
   const handleRemoveDevice = async (deviceId: string) => {
     if (!confirm('Are you sure you want to remove this device? You will need to log in again on that device.')) {

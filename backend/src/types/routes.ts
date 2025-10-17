@@ -67,7 +67,11 @@ export interface Device {
   userId: string
   deviceId: string
   deviceName: string
-  lastUsed: Date
+  deviceType: string
+  browser: string | null
+  os: string | null
+  ipAddress: string | null
+  lastActive: Date
   createdAt: Date
 }
 
