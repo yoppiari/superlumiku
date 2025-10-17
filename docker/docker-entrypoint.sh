@@ -242,7 +242,16 @@ nginx -t || {
 nginx
 echo "✅ Nginx started"
 
-# Start Backend
-echo "🚀 Starting Backend Server..."
+# Start Backend and Workers
+echo "🚀 Starting Backend Server and Workers..."
 cd /app/backend
+
+# Start avatar-generator-worker in background
+echo "   Starting avatar-generator-worker..."
+bun src/apps/avatar-creator/workers/avatar-generator.worker.ts &
+WORKER_PID=$!
+echo "   ✅ Worker started (PID: $WORKER_PID)"
+
+# Start main backend server (foreground)
+echo "   Starting main API server..."
 exec bun src/index.ts
