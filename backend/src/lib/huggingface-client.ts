@@ -55,7 +55,8 @@ export class HuggingFaceClient {
         {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'image/png'
           },
           responseType: 'arraybuffer',
           timeout: 120000 // 2 minutes
@@ -170,7 +171,8 @@ export class HuggingFaceClient {
         {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'image/png'
           },
           responseType: 'arraybuffer',
           timeout: 180000 // 3 minutes for FLUX (slower than SDXL)
@@ -261,7 +263,8 @@ export class HuggingFaceClient {
       {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'image/png'
         },
         responseType: 'arraybuffer',
         timeout: 180000
@@ -305,7 +308,8 @@ export class HuggingFaceClient {
         {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'image/png'
           },
           responseType: 'arraybuffer',
           timeout: 120000
@@ -434,7 +438,8 @@ export class HuggingFaceClient {
         {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'image/png'
           },
           responseType: 'arraybuffer',
           timeout: 180000 // 3 minutes for PhotoMaker
