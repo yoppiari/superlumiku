@@ -32,16 +32,43 @@ interface Device {
   createdAt: string
 }
 
+interface UserSettings {
+  // Notifications
+  emailNotifications: boolean
+  pushNotifications: boolean
+  marketingEmails: boolean
+  projectUpdates: boolean
+  creditAlerts: boolean
+
+  // Appearance
+  theme: 'light' | 'dark' | 'system'
+  language: 'id' | 'en'
+
+  // Privacy
+  profileVisibility: 'public' | 'private'
+  showEmail: boolean
+  analyticsTracking: boolean
+}
+
+interface SettingsResponse {
+  success: boolean
+  data: {
+    settings: UserSettings
+  }
+}
+
 export default function Settings() {
   const { isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [devices, setDevices] = useState<Device[]>([])
   const [loadingDevices, setLoadingDevices] = useState(false)
+  const [loadingSettings, setLoadingSettings] = useState(true)
 
   // Settings state
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<UserSettings>({
     // Notifications
     emailNotifications: true,
     pushNotifications: false,
@@ -50,14 +77,97 @@ export default function Settings() {
     creditAlerts: true,
 
     // Appearance
-    theme: 'light', // 'light', 'dark', 'system'
-    language: 'id', // 'id', 'en'
+    theme: 'light',
+    language: 'id',
 
     // Privacy
-    profileVisibility: 'public', // 'public', 'private'
+    profileVisibility: 'public',
     showEmail: false,
     analyticsTracking: true,
   })
+
+  const applyTheme = (theme: 'light' | 'dark' | 'system') => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else if (theme === 'light') {
+      document.documentElement.classList.remove('dark')
+    } else if (theme === 'system') {
+      // Apply system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      if (prefersDark) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+  }
+
+  const loadSettings = async (retryCount = 0): Promise<void> => {
+    try {
+      setLoadingSettings(true)
+      setError(null)
+
+      const response = await api.get<SettingsResponse>('/api/settings')
+      const apiSettings = response.data.data.settings
+
+      // Check localStorage for migration purposes
+      const localSettings = localStorage.getItem('user-settings')
+
+      if (localSettings) {
+        const parsedLocalSettings = JSON.parse(localSettings)
+
+        // Check if API has default settings (user hasn't saved to API yet)
+        const hasDefaultSettings =
+          apiSettings.emailNotifications === true &&
+          apiSettings.pushNotifications === false &&
+          apiSettings.theme === 'light' &&
+          apiSettings.language === 'id'
+
+        // If API has defaults but localStorage has custom settings, migrate
+        if (hasDefaultSettings) {
+          const mergedSettings = { ...apiSettings, ...parsedLocalSettings }
+          setSettings(mergedSettings)
+          applyTheme(mergedSettings.theme)
+
+          // Save merged settings to API (migration)
+          try {
+            await api.put('/api/settings', mergedSettings)
+            // Clear localStorage after successful migration
+            localStorage.removeItem('user-settings')
+          } catch (migrationError) {
+            console.error('Failed to migrate settings:', migrationError)
+          }
+          return
+        }
+      }
+
+      // Use API settings
+      setSettings(apiSettings)
+      applyTheme(apiSettings.theme)
+    } catch (err: any) {
+      console.error('Failed to load settings:', err)
+
+      // Retry logic for failed API calls (max 3 retries)
+      if (retryCount < 3) {
+        setTimeout(() => {
+          loadSettings(retryCount + 1)
+        }, 1000 * (retryCount + 1)) // Exponential backoff: 1s, 2s, 3s
+        return
+      }
+
+      // After retries exhausted, fall back to localStorage
+      const localSettings = localStorage.getItem('user-settings')
+      if (localSettings) {
+        const parsedSettings = JSON.parse(localSettings)
+        setSettings((prev) => ({ ...prev, ...parsedSettings }))
+        applyTheme(parsedSettings.theme || 'light')
+      }
+
+      setError('Failed to load settings from server. Using local settings.')
+    } finally {
+      setLoadingSettings(false)
+    }
+  }
 
   const loadDevices = async () => {
     try {
@@ -81,11 +191,8 @@ export default function Settings() {
       return
     }
 
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('user-settings')
-    if (savedSettings) {
-      setSettings((prev) => ({ ...prev, ...JSON.parse(savedSettings) }))
-    }
+    // Load settings from API
+    loadSettings()
 
     // Load devices
     loadDevices()
@@ -111,6 +218,7 @@ export default function Settings() {
       [key]: !settings[key as keyof typeof settings],
     })
     setSuccess(false)
+    setError(null)
   }
 
   const handleSelect = (key: string, value: string) => {
@@ -119,25 +227,41 @@ export default function Settings() {
       [key]: value,
     })
     setSuccess(false)
+    setError(null)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setLoading(true)
+    setError(null)
+    setSuccess(false)
 
-    // Save to localStorage (in production, save to backend)
-    localStorage.setItem('user-settings', JSON.stringify(settings))
+    try {
+      // Save to backend API
+      await api.put('/api/settings', settings)
 
-    setTimeout(() => {
-      setLoading(false)
+      // Save to localStorage as fallback
+      localStorage.setItem('user-settings', JSON.stringify(settings))
+
+      // Apply theme immediately
+      applyTheme(settings.theme)
+
       setSuccess(true)
 
-      // Apply theme
-      if (settings.theme === 'dark') {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    }, 500)
+      // Auto-dismiss success message after 3 seconds
+      setTimeout(() => {
+        setSuccess(false)
+      }, 3000)
+    } catch (err: any) {
+      console.error('Failed to save settings:', err)
+      const errorMessage = err.response?.data?.error || 'Failed to save settings. Please try again.'
+      setError(errorMessage)
+
+      // Still save to localStorage as fallback
+      localStorage.setItem('user-settings', JSON.stringify(settings))
+      applyTheme(settings.theme)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getDeviceIcon = (deviceType: string) => {
@@ -191,6 +315,22 @@ export default function Settings() {
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 text-green-800">
             <Check className="w-5 h-5" />
             <span className="font-medium">Settings saved successfully!</span>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-800">
+            <AlertCircle className="w-5 h-5" />
+            <span className="font-medium">{error}</span>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loadingSettings && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3 text-blue-800">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-800"></div>
+            <span className="font-medium">Loading settings...</span>
           </div>
         )}
 

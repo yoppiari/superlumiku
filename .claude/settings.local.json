@@ -148,7 +148,12 @@
       "Bash(npx tsx:*)",
       "Bash(npx prisma db push:*)",
       "Bash(npm run test:hf-api:*)",
-      "Bash(claude mcp add:*)"
+      "Bash(claude mcp add:*)",
+      "Bash(npm run dev:logs:*)",
+      "Bash(psql:*)",
+      "Bash(pg_isready:*)",
+      "Bash(npm run seed:*)",
+      "Bash(npm run db:status:*)"
     ],
     "deny": [],
     "ask": []

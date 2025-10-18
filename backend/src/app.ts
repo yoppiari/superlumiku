@@ -47,6 +47,9 @@ app.use('/api/*', async (c, next) => {
 // Serve static files from uploads directory
 app.use('/uploads/*', serveStatic({ root: './' }))
 
+// Serve static files from storage directory (background-remover outputs)
+app.use('/storage/*', serveStatic({ root: './' }))
+
 // Health check routes (comprehensive)
 app.route('/health', healthRoutes)
 app.route('/api/health', healthRoutes)

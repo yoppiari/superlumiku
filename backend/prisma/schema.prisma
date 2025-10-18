@@ -31,6 +31,19 @@ model User {
   unlimitedPoseQuotaResetAt DateTime?
   unlimitedPoseExpiresAt    DateTime?
 
+  // User Settings
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(false)
+  marketingEmails    Boolean @default(false)
+  projectUpdates     Boolean @default(true)
+  creditAlerts       Boolean @default(true)
+  theme              String  @default("light")
+  language           String  @default("id")
+  profileVisibility  String  @default("public")
+  showEmail          Boolean @default(false)
+  analyticsTracking  Boolean @default(true)
+  settingsUpdatedAt  DateTime @default(now()) @updatedAt
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -790,8 +803,8 @@ model Avatar {
   // Persona (untuk prompt generation di apps lain)
   personaName        String?
   personaAge         Int?
-  personaPersonality String? @db.Text // JSON: ["friendly", "professional"]
-  personaBackground  String? @db.Text // Latar belakang
+  personaPersonality String? // JSON: ["friendly", "professional"]
+  personaBackground  String? // Latar belakang
 
   // Visual Attributes
   gender    String?
@@ -806,7 +819,7 @@ model Avatar {
 
   // Generation Info
   sourceType       String // uploaded, text_to_image, from_preset, from_reference
-  generationPrompt String? @db.Text
+  generationPrompt String?
   seedUsed         Int?
 
   // Tracking
@@ -835,9 +848,9 @@ model AvatarPreset {
   name             String
   previewImageUrl  String
   category         String // business, casual, traditional, creative
-  personaTemplate  String  @db.Text // JSON
-  visualAttributes String  @db.Text // JSON
-  generationPrompt String  @db.Text
+  personaTemplate  String   // JSON
+  visualAttributes String   // JSON
+  generationPrompt String  
   isPublic         Boolean @default(true)
   usageCount       Int     @default(0)
 
@@ -859,11 +872,11 @@ model PersonaExample {
   // Persona fields
   personaName        String
   personaAge         Int
-  personaPersonality String @db.Text // JSON array
-  personaBackground  String @db.Text
+  personaPersonality String  // JSON array
+  personaBackground  String 
 
   // Visual suggestions (optional)
-  suggestedAttributes String? @db.Text // JSON
+  suggestedAttributes String?  // JSON
 
   displayOrder Int     @default(0)
   isActive     Boolean @default(true)
@@ -885,7 +898,7 @@ model AvatarUsageHistory {
   action        String
   referenceId   String?
   referenceType String?
-  metadata      String? @db.Text
+  metadata      String? 
 
   createdAt DateTime @default(now())
 
@@ -907,9 +920,9 @@ model AvatarGeneration {
   avatarId     String? // null until completed
   projectId    String
   status       String  @default("pending") // pending, processing, completed, failed
-  prompt       String  @db.Text
-  options      String? @db.Text // JSON
-  errorMessage String? @db.Text
+  prompt       String  
+  options      String?  // JSON
+  errorMessage String? 
 
   createdAt   DateTime  @default(now())
   completedAt DateTime?
@@ -1009,7 +1022,6 @@ model PoseLibrary {
   @@index([difficulty])
   @@index([isPublic, popularityScore])
   @@index([isFeatured, usageCount(sort: Desc)])
-  @@index([tags], type: Gin)
   @@map("pose_library")
 }
 
@@ -1053,12 +1065,12 @@ model PoseGeneration {
 
   // Input Mode
   generationType         String // GALLERY_REFERENCE | TEXT_DESCRIPTION
-  textPrompt             String? @db.Text
-  generatedPoseStructure String? @db.Text // AI-generated pose description (for text mode)
+  textPrompt             String? 
+  generatedPoseStructure String?  // AI-generated pose description (for text mode)
 
   // Avatar Context
   avatarId         String?
-  avatarAttributes String? @db.Text // JSON: {gender, age, ethnicity, style}
+  avatarAttributes String?  // JSON: {gender, age, ethnicity, style}
 
   // Generation Settings
   batchSize          Int // Variations per pose
@@ -1066,7 +1078,7 @@ model PoseGeneration {
 
   // Background Changer (optional add-on)
   useBackgroundChanger Boolean @default(false)
-  backgroundPrompt     String? @db.Text
+  backgroundPrompt     String? 
   backgroundMode       String? // ai_generate, solid_color, upload
 
   // Output Settings
@@ -1086,7 +1098,7 @@ model PoseGeneration {
   queueJobId String? // BullMQ job ID
 
   // Results
-  errorMessage String? @db.Text
+  errorMessage String? 
 
   // Timestamps
   createdAt   DateTime  @default(now())
@@ -1134,10 +1146,10 @@ model GeneratedPose {
 
   // Background Changer
   backgroundChanged Boolean @default(false)
-  backgroundPrompt  String? @db.Text
+  backgroundPrompt  String? 
 
   // AI Parameters
-  promptUsed       String @db.Text
+  promptUsed       String 
   seedUsed         Int?
   controlnetWeight Float  @default(0.75)
 
@@ -1151,7 +1163,7 @@ model GeneratedPose {
 
   // Status
   status       String  @default("completed") // completed, failed
-  errorMessage String? @db.Text
+  errorMessage String? 
 
   // Recovery: Variation tracking
   variationKey String? // "poseId-v0", "poseId-v1", "text-v0" for duplicate detection
@@ -1191,7 +1203,7 @@ model PoseRequest {
   id                String  @id @default(cuid())
   userId            String
   poseName          String
-  description       String  @db.Text
+  description       String  
   referenceImageUrl String?
   categoryId        String?
   useCase           String? // e-commerce, professional, social
@@ -1201,7 +1213,7 @@ model PoseRequest {
 
   // Status
   status     String  @default("pending") // pending, approved, in_progress, completed, rejected
-  adminNotes String? @db.Text
+  adminNotes String? 
 
   // Completion
   completedPoseId String?
@@ -1249,11 +1261,11 @@ model BackgroundRemovalJob {
   processingTime Int? // milliseconds
 
   // Error Handling
-  errorMessage String? @db.Text
+  errorMessage String? 
   retryCount   Int     @default(0)
 
   // Metadata
-  metadata String? @db.Text // JSON: {width, height, format, etc}
+  metadata String?  // JSON: {width, height, format, etc}
 
   createdAt   DateTime  @default(now())
   startedAt   DateTime?
@@ -1306,7 +1318,7 @@ model BackgroundRemovalBatch {
   emailSentAt      DateTime?
 
   // Error Handling
-  errorMessage String? @db.Text
+  errorMessage String? 
 
   createdAt   DateTime  @default(now())
   startedAt   DateTime?

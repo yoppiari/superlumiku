@@ -1,0 +1,68 @@
+# IMMEDIATE ACTION REQUIRED - Background Remover 500 Errors
+
+## ROOT CAUSE
+Missing database migration. Tables don't exist in production database.
+
+## FIX (Copy-Paste These Commands)
+
+### Step 1: Commit Changes (30 seconds)
+cd "C:\Users\yoppi\Downloads\Lumiku App"
+
+git add backend/prisma/schema.prisma
+git add backend/prisma/migrations/20251018_add_background_remover_models/
+git commit -m "feat(prisma): Add Background Remover database migration - fixes 500 errors
+
+- Add background_removal_jobs table
+- Add background_removal_batches table
+- Add background_remover_subscriptions table
+- Add background_remover_subscription_usage table
+- Fix schema.prisma provider (postgresql)
+- Fixes API 500 errors on /subscription, /jobs, /stats endpoints
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+git push origin development
+
+### Step 2: Wait for Coolify Deploy (~5 min)
+Coolify auto-deploys on push. Monitor deployment at:
+https://app.coolify.io/
+
+Look for:
+"✅ Applying migration `20251018_add_background_remover_models`"
+
+### Step 3: Verify (After Deployment)
+curl https://dev.lumiku.com/api/background-remover/subscription \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+Expected: 200 OK (not 500)
+
+---
+
+## IF AUTO-DEPLOY FAILS
+
+Run manually in Coolify terminal:
+
+cd /app/backend
+npx prisma migrate deploy
+pm2 restart all
+
+---
+
+## What Was Fixed
+
+1. Created migration for 4 missing tables
+2. Fixed schema.prisma provider (was "sqlite", now "postgresql")
+3. Migration will create:
+   - background_removal_jobs
+   - background_removal_batches
+   - background_remover_subscriptions
+   - background_remover_subscription_usage
+
+## Timeline
+- Commit & push: 1 min
+- Coolify build: 5 min
+- Total: ~6 minutes
+
+EXECUTE STEP 1 NOW.

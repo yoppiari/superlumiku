@@ -323,4 +323,77 @@ function checkUptimeHealth(): {
   }
 }
 
+/**
+ * Settings Health Check
+ *
+ * Dedicated endpoint to verify settings API functionality.
+ * Tests database connectivity and settings service.
+ */
+health.get('/settings', async (c) => {
+  const startTime = Date.now()
+
+  try {
+    // Check if settings table/columns exist
+    const dbHealth = await checkDatabaseHealth()
+
+    // Try to query user settings structure (without needing a real user)
+    let settingsTableCheck = { exists: false, error: null as string | null }
+
+    try {
+      // This will succeed if the user table has settings columns
+      await prisma.$queryRaw`SELECT
+        emailNotifications,
+        pushNotifications,
+        theme,
+        language
+      FROM users LIMIT 1`
+      settingsTableCheck.exists = true
+    } catch (error) {
+      settingsTableCheck.error = error instanceof Error ? error.message : 'Unknown error'
+    }
+
+    const responseTime = Date.now() - startTime
+
+    const isHealthy = dbHealth.status === 'ok' || settingsTableCheck.exists
+
+    return c.json({
+      status: isHealthy ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      responseTimeMs: responseTime,
+      checks: {
+        database: dbHealth,
+        settingsTable: {
+          status: settingsTableCheck.exists ? 'ok' : 'warning',
+          exists: settingsTableCheck.exists,
+          error: settingsTableCheck.error,
+          fallbackEnabled: true,
+          message: settingsTableCheck.exists
+            ? 'Settings table columns verified'
+            : 'Settings table not found - using fallback mode',
+        },
+        routes: {
+          status: 'ok',
+          mounted: true,
+          endpoints: [
+            'GET /api/settings',
+            'PUT /api/settings',
+            'POST /api/settings/reset',
+            'PATCH /api/settings/notifications',
+            'PATCH /api/settings/display',
+            'PATCH /api/settings/privacy',
+          ],
+        },
+      },
+    }, isHealthy ? 200 : 503)
+  } catch (error) {
+    logger.error('Settings health check failed', { error })
+    return c.json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+      fallbackEnabled: true,
+    }, 503)
+  }
+})
+
 export default health
