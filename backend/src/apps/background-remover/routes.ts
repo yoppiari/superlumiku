@@ -5,6 +5,7 @@ import { prisma } from '../../db/client'
 import { backgroundRemoverService } from './services/background-remover.service'
 import { pricingService } from './services/pricing.service'
 import { subscriptionService } from './services/subscription.service'
+import { logger } from '../../lib/logger'
 
 const app = new Hono<{ Variables: AuthVariables }>()
 
@@ -123,12 +124,30 @@ app.get('/batch/:batchId/download', authMiddleware, async (c) => {
 app.get('/jobs', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
+
+    logger.debug({ userId, action: 'fetch_jobs' }, 'Fetching user jobs')
+
+    // Fetch user's jobs - will return empty array if none exist
     const jobs = await backgroundRemoverService.getUserJobs(userId)
 
-    return c.json({ jobs })
+    logger.info({
+      userId,
+      jobCount: jobs?.length || 0
+    }, 'Jobs fetched successfully')
+
+    return c.json({ jobs: jobs || [] })
   } catch (error: any) {
-    console.error('Error fetching jobs:', error)
-    return c.json({ error: error.message }, 500)
+    logger.error({
+      userId: c.get('userId'),
+      error: error.message,
+      stack: error.stack
+    }, 'Error fetching jobs')
+
+    // Return detailed error for debugging
+    return c.json({
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, 500)
   }
 })
 
@@ -159,12 +178,32 @@ app.get('/jobs/:jobId', authMiddleware, async (c) => {
 app.get('/subscription', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
+
+    logger.debug({ userId, action: 'fetch_subscription' }, 'Fetching user subscription')
+
+    // Handle cases where user doesn't have a subscription yet
     const subscription = await subscriptionService.getUserSubscription(userId)
 
-    return c.json({ subscription })
+    logger.info({
+      userId,
+      hasSubscription: !!subscription,
+      plan: subscription?.plan
+    }, 'Subscription fetched successfully')
+
+    // Return null subscription gracefully - this is not an error
+    return c.json({ subscription: subscription || null })
   } catch (error: any) {
-    console.error('Error fetching subscription:', error)
-    return c.json({ error: error.message }, 500)
+    logger.error({
+      userId: c.get('userId'),
+      error: error.message,
+      stack: error.stack
+    }, 'Error fetching subscription')
+
+    // Return detailed error for debugging
+    return c.json({
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, 500)
   }
 })
 
@@ -236,23 +275,49 @@ app.get('/stats', authMiddleware, async (c) => {
   try {
     const userId = c.get('userId')
 
+    logger.debug({ userId, action: 'fetch_stats' }, 'Fetching background remover stats')
+
+    // Fetch stats with proper error handling
     const [jobsCount, batchesCount, subscription] = await Promise.all([
-      prisma.backgroundRemovalJob.count({ where: { userId, batchId: null } }),
-      prisma.backgroundRemovalBatch.count({ where: { userId } }),
-      subscriptionService.getUserSubscription(userId),
+      prisma.backgroundRemovalJob.count({ where: { userId, batchId: null } }).catch((err) => {
+        logger.warn({ userId, error: err.message }, 'Failed to count jobs')
+        return 0
+      }),
+      prisma.backgroundRemovalBatch.count({ where: { userId } }).catch((err) => {
+        logger.warn({ userId, error: err.message }, 'Failed to count batches')
+        return 0
+      }),
+      subscriptionService.getUserSubscription(userId).catch((err) => {
+        logger.warn({ userId, error: err.message }, 'Failed to fetch subscription')
+        return null
+      }),
     ])
 
-    return c.json({
-      stats: {
-        totalSingleRemovals: jobsCount,
-        totalBatches: batchesCount,
-        hasSubscription: !!subscription,
-        plan: subscription?.plan,
-      },
-    })
+    const stats = {
+      totalSingleRemovals: jobsCount,
+      totalBatches: batchesCount,
+      hasSubscription: !!subscription,
+      plan: subscription?.plan || null,
+    }
+
+    logger.info({
+      userId,
+      stats
+    }, 'Stats fetched successfully')
+
+    return c.json({ stats })
   } catch (error: any) {
-    console.error('Error fetching stats:', error)
-    return c.json({ error: error.message }, 500)
+    logger.error({
+      userId: c.get('userId'),
+      error: error.message,
+      stack: error.stack
+    }, 'Error fetching stats')
+
+    // Return detailed error for debugging
+    return c.json({
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, 500)
   }
 })
 

@@ -14,6 +14,7 @@ import quotaRoutes from './routes/quota.routes'
 import modelStatsRoutes from './routes/model-stats.routes'
 import adminRoutes from './routes/admin.routes'
 import healthRoutes from './routes/health.routes'
+import settingsRoutes from './routes/settings.routes'
 
 // Plugin System
 import { loadPlugins } from './plugins/loader'
@@ -57,6 +58,7 @@ app.route('/api/payment', paymentRoutes)
 app.route('/api/devices', deviceRoutes)
 app.route('/api/generations', generationRoutes)
 app.route('/api/stats', statsRoutes)
+app.route('/api/settings', settingsRoutes)
 
 // NEW: Subscription & Quota Routes
 app.route('/api/subscription', subscriptionRoutes)
@@ -119,6 +121,20 @@ app.notFound((c) => {
       query: c.req.query(),
       issue: 'Malformed URL with underscore detected'
     }, 'SUSPICIOUS 404: Underscore in API path')
+  } else if (path.startsWith('/uploads/')) {
+    // Log missing static files separately for easier debugging
+    logger.warn({
+      path,
+      method,
+      type: 'static_file_not_found'
+    }, 'Static file not found')
+  } else if (path.startsWith('/api/')) {
+    // Log missing API endpoints
+    logger.warn({
+      path,
+      method,
+      type: 'api_endpoint_not_found'
+    }, 'API endpoint not found')
   } else {
     logger.debug({
       path,
