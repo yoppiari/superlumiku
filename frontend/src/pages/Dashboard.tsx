@@ -25,7 +25,8 @@ import {
   Film,
   Layers,
   UserCircle,
-  Coins
+  Coins,
+  Eraser
 } from 'lucide-react'
 
 interface AppData {
@@ -49,6 +50,7 @@ const iconMap: Record<string, any> = {
   film: Film,
   layers: Layers,
   'user-circle': UserCircle,
+  eraser: Eraser,
 }
 
 interface DashboardStats {

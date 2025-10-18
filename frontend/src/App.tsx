@@ -24,6 +24,7 @@ const PosterEditor = lazy(() => import('./apps/PosterEditor').then((m) => ({ def
 const AvatarCreator = lazy(() => import('./apps/AvatarCreator'))
 const PoseGenerator = lazy(() => import('./apps/PoseGenerator'))
 const PoseGeneratorNew = lazy(() => import('./apps/pose-generator'))
+const BackgroundRemover = lazy(() => import('./apps/BackgroundRemover'))
 
 function AppContent() {
   const navigate = useNavigate()
@@ -195,6 +196,14 @@ function AppContent() {
           element={
             <ErrorBoundary level="page">
               <PoseGeneratorNew />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/apps/background-remover"
+          element={
+            <ErrorBoundary level="page">
+              <BackgroundRemover />
             </ErrorBoundary>
           }
         />
