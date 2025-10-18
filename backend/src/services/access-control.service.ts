@@ -75,10 +75,24 @@ export class AccessControlService {
     const tags = user?.userTags ? JSON.parse(user.userTags) : []
     const hasEnterpriseUnlimited = tags.includes('enterprise_unlimited')
 
+    // Apps that don't use AIModel system (always accessible to authenticated users)
+    const nonModelApps = ['background-remover']
+
     // For each app, check if user can access at least one model
     const accessibleApps = []
 
     for (const app of allApps) {
+      // Background Remover and similar apps don't use AIModel system
+      // They have their own tier/pricing logic, so always show them
+      if (nonModelApps.includes(app.appId)) {
+        accessibleApps.push({
+          ...app,
+          availableModels: 0, // Not applicable
+          usesOwnPricing: true
+        })
+        continue
+      }
+
       const models = await modelRegistryService.getUserAccessibleModels(userId, app.appId)
 
       // Only show apps that have available models
