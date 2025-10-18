@@ -6,7 +6,7 @@ import UnifiedHeader from '../components/UnifiedHeader'
 import CreateProjectModal from '../components/CreateProjectModal'
 import UsageHistoryModal from '../components/UsageHistoryModal'
 import { handleError } from '../utils/errorHandler'
-import { UserCircle, Plus, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar, Grid } from 'lucide-react'
+import { UserCircle, Plus, Trash2, Loader2, Upload, Sparkles, History, Clock, Calendar, Grid, X, ZoomIn } from 'lucide-react'
 
 export default function AvatarCreator() {
   const navigate = useNavigate()
@@ -40,6 +40,7 @@ export default function AvatarCreator() {
   const [showPresetsModal, setShowPresetsModal] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null)
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
 
   // Load projects on mount
   useEffect(() => {
@@ -220,12 +221,21 @@ export default function AvatarCreator() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {currentProject.avatars.map((avatar) => (
                   <div key={avatar.id} className="bg-white rounded-lg overflow-hidden border border-slate-200 hover:border-purple-300 transition-all shadow-sm hover:shadow-md">
-                    <div className="aspect-square bg-slate-50">
+                    <div
+                      className="aspect-square bg-slate-50 relative group cursor-pointer"
+                      onClick={() => setPreviewImage({ url: avatar.baseImageUrl, name: avatar.name })}
+                    >
                       <img
                         src={avatar.thumbnailUrl || avatar.baseImageUrl}
                         alt={avatar.name}
                         className="w-full h-full object-cover"
                       />
+                      {/* Zoom overlay */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg">
+                          <ZoomIn className="w-6 h-6 text-slate-700" />
+                        </div>
+                      </div>
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -354,6 +364,15 @@ export default function AvatarCreator() {
               setShowHistoryModal(false)
               setSelectedAvatarId(null)
             }}
+          />
+        )}
+
+        {/* Image Preview Modal */}
+        {previewImage && (
+          <ImagePreviewModal
+            imageUrl={previewImage.url}
+            imageName={previewImage.name}
+            onClose={() => setPreviewImage(null)}
           />
         )}
       </div>
@@ -752,6 +771,108 @@ function GenerateAvatarModal({
           </form>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ===== Image Preview Modal =====
+function ImagePreviewModal({
+  imageUrl,
+  imageName,
+  onClose,
+}: {
+  imageUrl: string
+  imageName: string
+  onClose: () => void
+}) {
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4 px-4">
+          <h3 className="text-white text-xl font-semibold drop-shadow-lg">{imageName}</h3>
+          <button
+            onClick={onClose}
+            className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm group"
+            title="Close (ESC)"
+          >
+            <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform" />
+          </button>
+        </div>
+
+        {/* Image Container */}
+        <div
+          className="flex-1 flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src={imageUrl}
+            alt={imageName}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-scaleIn"
+          />
+        </div>
+
+        {/* Download Button */}
+        <div className="mt-4 flex justify-center gap-3">
+          <a
+            href={imageUrl}
+            download={`${imageName}.png`}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all shadow-lg flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Upload className="w-5 h-5 rotate-180" />
+            Download Image
+          </a>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all backdrop-blur-sm"
+          >
+            Close
+          </button>
+        </div>
+
+        {/* Instruction */}
+        <p className="text-center text-white/60 text-sm mt-4">
+          Click outside or press ESC to close
+        </p>
+      </div>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
